@@ -35,6 +35,10 @@ button:focus-visible{outline:3px solid #fff;outline-offset:3px}
 #net{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:rgba(3,4,14,.92);text-align:center;padding:20px}
 #net textarea{width:min(90vw,560px);height:90px;margin:8px;background:#0a1230;color:#cfe3ff;border:1px solid #1e50ff;border-radius:6px;font-size:12px}
 #net button{margin:6px}
+#controls{position:fixed;right:12px;bottom:90px;display:flex;gap:8px}
+#controls button{margin:0;padding:8px 12px;font-size:13px;box-shadow:none}
+#controls button:disabled{opacity:.45;cursor:default}
+@media(max-width:600px){#hud{font-size:12px;flex-wrap:wrap}.box{padding:7px 9px}#msg{top:96px;font-size:12px;max-width:85vw}#controls{bottom:94px}#overlay p{font-size:14px}}
 </style>
 </head>
 <body>
@@ -46,6 +50,7 @@ button:focus-visible{outline:3px solid #fff;outline-offset:3px}
 <div id="msg"></div>
 <div id="bars"><div id="hp"><i></i><i></i><i></i></div><div id="dash"><div id="dfill"></div></div><div id="dlab"></div></div>
 <div id="hurt"></div>
+<div id="controls"><button id="pause">Pause · Échap</button><button id="menu">Niveaux</button></div>
 <div id="net"><h2>Jouer en ligne</h2><p id="nm" style="max-width:540px;line-height:1.5"></p><textarea id="n1" readonly></textarea><textarea id="n2" placeholder="Colle le code ici"></textarea><div><button id="nb0"></button><button id="nb1"></button><button id="nb2"></button></div></div>
 <div id="overlay">
   <h1 id="t">CUBE ESCAPE</h1>
@@ -141,7 +146,11 @@ function build() {
 }
 
 function build0() {
-  if (world) scene.remove(world);
+  if (world) {
+    const keepG=new Set([droneGeo,fxGeo,shotGeo,eyeGeo,ringGeo]),keepM=new Set([shotMat,...Object.values(fxMats)]),geometries=new Set(),materials=new Set();
+    world.traverse(o=>{if(o.geometry&&!keepG.has(o.geometry))geometries.add(o.geometry);for(const m of o.material?(Array.isArray(o.material)?o.material:[o.material]):[])if(!keepM.has(m))materials.add(m);});
+    geometries.forEach(g=>g.dispose());materials.forEach(m=>m.dispose());scene.remove(world);
+  }
   world = new THREE.Group(); scene.add(world);
   const L = LV[cur]; foes = []; lasers = []; shots = []; fx = [];
   const m = genMaze(); grid = m.g;
@@ -236,6 +245,29 @@ function hit(px, pz, r = R) {
   return false;
 }
 
+// Intersections continues : les rayons et les tirs s'arrêtent au premier obstacle.
+function segmentBox(a,b,left,right,top,bottom) {
+  let enter=0,leave=1;
+  for(const [start,delta,min,max] of [[a.x,b.x-a.x,left,right],[a.z,b.z-a.z,top,bottom]]) {
+    if(Math.abs(delta)<1e-10){if(start<min||start>max)return Infinity;}
+    else{let t1=(min-start)/delta,t2=(max-start)/delta;if(t1>t2)[t1,t2]=[t2,t1];enter=Math.max(enter,t1);leave=Math.min(leave,t2);if(enter>leave)return Infinity;}
+  }
+  return enter;
+}
+function wallHit(a,b,r=0) {
+  let first=Infinity;
+  for(let j=fromW(Math.min(a.z,b.z)-r);j<=fromW(Math.max(a.z,b.z)+r);j++)
+    for(let i=fromW(Math.min(a.x,b.x)-r);i<=fromW(Math.max(a.x,b.x)+r);i++)
+      if(grid[j]?.[i]!==0)first=Math.min(first,segmentBox(a,b,toW(i)-T/2-r,toW(i)+T/2+r,toW(j)-T/2-r,toW(j)+T/2+r));
+  return first;
+}
+function droneHit(a,b,c,r=.9) {
+  const dx=b.x-a.x,dz=b.z-a.z,ox=a.x-c.x,oz=a.z-c.z,len=dx*dx+dz*dz,offset=ox*ox+oz*oz-r*r;
+  if(offset<=0)return 0;if(len<1e-12)return Infinity;
+  const dot=ox*dx+oz*dz,disc=dot*dot-len*offset;if(disc<0)return Infinity;
+  const t=(-dot-Math.sqrt(disc))/len;return t>=0&&t<=1?t:Infinity;
+}
+
 function flash(text, ms = 2200) {
   if (net === "host") evq.push({ m: [text, ms] });
   const m = $("msg"); m.textContent = text; m.style.opacity = 1;
@@ -253,6 +285,9 @@ function swapWalls() {
 }
 
 function hud() {
+  $("pause").disabled=net==="guest"||!['play','paused'].includes(state);
+  $("pause").textContent=state==='paused'?'Reprendre · Échap':'Pause · Échap';
+  $("menu").disabled=net==="guest";
   $("n").textContent = collected;
   $("tm").textContent = Math.ceil(timeLeft);
   $("time").classList.toggle("low", timeLeft <= 15);
@@ -270,7 +305,7 @@ function score(win) { return collected * 100 + (win ? Math.ceil(timeLeft) * 10 :
 
 function end(win, why) {
   state = win ? "win" : "lose";
-  if (net === "host") send({ t: "end", win, why });
+  if (net === "host") { snap(); send({ t: "end", win, why }); }
   if (win && cur + 1 < LV.length) { maxLv = Math.max(maxLv, cur + 2); try { localStorage.setItem("cubeEscapeUnlocked", maxLv); } catch (e) {} }
   const s = score(win);
   let best = 0;
@@ -285,9 +320,12 @@ function end(win, why) {
   if (net === "guest") { $("btn").style.display = "none"; $("d").textContent += " En attente de l’hôte pour rejouer..."; }
   $("overlay").style.display = "flex";
   $("btn").focus();
+  hud();
 }
 
 function start(lv = cur, sd = 0) {
+  if(!Number.isInteger(lv)||lv<0||lv>=LV.length||(net==='guest'?!(sd>0):lv>=maxLv))return;
+  for(const k in keys)keys[k]=false;rin.dx=rin.dz=0;pend.f=null;pend.d=false;inT=snapT=0;
   cur = lv; seed = sd > 0 ? sd : (Math.random() * 1e9 | 0) + 1; evq = []; if (net === "host") send({ t: "start", lv, seed });
   laserOn = true; laserT = 3; bars[1].style.display = nP > 1 ? "block" : "none";
   build();
@@ -295,6 +333,29 @@ function start(lv = cur, sd = 0) {
   $("overlay").style.display = "none";
   flash("Niveau " + (cur + 1) + " : " + LV[cur].name + (cur ? " - attention aux lasers !" : ""), 2800);
   hud();
+}
+
+function setPaused(paused,remote=false) {
+  if(net==='guest'&&!remote)return;
+  if(paused?state!=='play':state!=='paused')return;
+  for(const k in keys)keys[k]=false;rin.dx=rin.dz=0;pend.f=null;pend.d=false;
+  state=paused?'paused':'play';clock.getDelta();
+  if(net==='host')send({t:'pause',paused});
+  if(paused){
+    $('t').textContent='PAUSE';$('t').style.color='';$('best').textContent='';$('lv').innerHTML='';
+    $('d').textContent=net==='guest'?'L’hôte a mis la partie en pause.':'Le chronomètre, les lasers, les ennemis et les recharges sont arrêtés.';
+    $('btn').textContent='Reprendre';$('btn').style.display=net==='guest'?'none':'';btnAct=()=>setPaused(false);
+    $('overlay').style.display='flex';if(net!=='guest')$('btn').focus();
+  }else $('overlay').style.display='none';
+  hud();
+}
+function openLevels(remote=false) {
+  if(net==='guest'&&!remote)return;
+  state='menu';for(const k in keys)keys[k]=false;rin.dx=rin.dz=0;pend.f=null;pend.d=false;
+  if(net==='host')send({t:'menu'});
+  $('t').textContent='CUBE ESCAPE';$('t').style.color='';$('btn').style.display='none';$('best').textContent='';
+  $('d').textContent=net==='guest'?'L’hôte choisit la prochaine mission.':'Choisis un niveau et un mode de jeu. Une nouvelle mission commencera.';
+  $('overlay').style.display='flex';btnAct=()=>start(cur);renderLv();hud();
 }
 
 const droneGeo = new THREE.IcosahedronGeometry(0.42, 0), fxGeo = new THREE.BoxGeometry(0.18, 0.18, 0.18);
@@ -347,9 +408,7 @@ function spawnFoes() {
 }
 
 function los(a, b) {
-  const n = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 0.5);
-  for (let i = 1; i < n; i++) if (grid[fromW(a.z + (b.z - a.z) * i / n)][fromW(a.x + (b.x - a.x) * i / n)]) return false;
-  return true;
+  return wallHit(a,b)===Infinity;
 }
 
 function bfs(a, b) {
@@ -369,21 +428,28 @@ function bfs(a, b) {
 
 function foeAI(f, dt) {
   const q = f.g.position, p = nearest(q), d = Math.hypot(p.x - q.x, p.z - q.z);
-  if (d < 6 && los(q, p)) { f.mode = "chase"; f.lost = 0; }
+  if (d <= 6 && los(q, p)) { f.mode = "chase"; f.lost = 0; f.lastSeen={x:p.x,z:p.z}; }
   else if (f.mode === "chase") { f.lost += dt; if (f.lost > 2 || d > 11) f.mode = "patrol"; }
-  const ch = f.mode === "chase", goal = ch ? [fromW(p.x), fromW(p.z)] : f.pts[f.pi];
-  const gx = ch ? p.x : toW(goal[0]), gz = ch ? p.z : toW(goal[1]), c = [fromW(q.x), fromW(q.z)];
+  const ch = f.mode === "chase",seen=f.lastSeen||p,goal = ch ? [fromW(seen.x), fromW(seen.z)] : f.pts[f.pi];
+  const gx = ch ? seen.x : toW(goal[0]), gz = ch ? seen.z : toW(goal[1]), c = [fromW(q.x), fromW(q.z)];
   f.flash -= dt; f.mat.emissive.setHex(f.flash > 0 ? 0xffffff : 0x7a0000);
   f.ring.rotation.z += dt * 4; q.y = 1.2 + Math.sin(t * 3 + f.ph) * 0.15;
-  let tx = gx, tz = gz;
-  if (c[0] !== goal[0] || c[1] !== goal[1]) { const nx = bfs(c, goal); if (!nx) return; tx = toW(nx[0]); tz = toW(nx[1]); }
-  let mx = tx - q.x, mz = tz - q.z; const l = Math.hypot(mx, mz);
   if (!ch && Math.hypot(gx - q.x, gz - q.z) < 0.4) { f.pi = (f.pi + 1) % f.pts.length; return; }
-  if (l < 0.05) return;
+  if(f.waypoint&&hit(f.waypoint.x,f.waypoint.z,.4))f.waypoint=null;
+  if(!f.waypoint){
+    if(c[0]===goal[0]&&c[1]===goal[1])f.waypoint={x:gx,z:gz};
+    else if(Math.hypot(q.x-toW(c[0]),q.z-toW(c[1]))>.01)f.waypoint={x:toW(c[0]),z:toW(c[1])};
+    else{const next=bfs(c,goal);if(!next)return;f.waypoint={x:toW(next[0]),z:toW(next[1])};}
+  }
+  let mx=f.waypoint.x-q.x,mz=f.waypoint.z-q.z;const l=Math.hypot(mx,mz);
+  if(l<.01){f.waypoint=null;return;}
   mx /= l; mz /= l;
-  const sp = ch ? 4.6 : 2.6, nx = q.x + mx * sp * dt, nz = q.z + mz * sp * dt;
-  if (!hit(nx, q.z, 0.4)) q.x = nx;
-  if (!hit(q.x, nz, 0.4)) q.z = nz;
+  const distance=Math.min(l,(ch?4.6:2.6)*dt),steps=Math.ceil(distance/.15);
+  for(let i=0;i<steps;i++){
+    if(!hit(q.x+mx*distance/steps,q.z,.4))q.x+=mx*distance/steps;
+    if(!hit(q.x,q.z+mz*distance/steps,.4))q.z+=mz*distance/steps;
+  }
+  if(Math.hypot(f.waypoint.x-q.x,f.waypoint.z-q.z)<.01)f.waypoint=null;
   f.g.rotation.y = Math.atan2(mx, mz);
 }
 
@@ -394,7 +460,7 @@ function nearest(q) {
 }
 
 function hurt(a) {
-  if (!a.alive || a.inv > 0 || a.dashT > 0) return;
+  if (!a.alive || a.inv > 0 || a.dashT > 0 || a.stepDash > 0) return;
   a.hp--; a.inv = 1.2;
   const h = $("hurt"); h.style.opacity = 0.6; setTimeout(() => (h.style.opacity = 0), 160);
   burst(a.g.position, 0xff3030, 8, 1.2);
@@ -415,17 +481,19 @@ function aim(a) {
 
 function fire(a, dx, dz) {
   if (state !== "play" || !a.alive || a.fireCd > 0) return;
+  if(!Number.isFinite(dx)||!Number.isFinite(dz)||Math.hypot(dx,dz)<1e-8||shots.length>=48)return;
   a.fireCd = 0.35;
   const p = a.g.position, l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
   const m = new THREE.Mesh(shotGeo, shotMat);
-  m.position.set(p.x + dx * 0.9, 0.75, p.z + dz * 0.9); m.rotation.y = Math.atan2(dx, dz); world.add(m);
+  m.position.set(p.x, 0.75, p.z); m.rotation.y = Math.atan2(dx, dz); world.add(m);
   shots.push({ m, vx: dx * 22, vz: dz * 22, life: 1.3 });
   a.robot.rotation.y = Math.atan2(dx, dz); burst(m.position, 0x66f0ff, 3, 0.5);
 }
 
 function combat(dt) {
-  laserT -= dt; if (laserT <= 0) { laserOn = !laserOn; laserT = 3; }
+  laserT -= dt; while (laserT <= 0) { laserOn = !laserOn; laserT += 3; }
   for (const a of players) {
+    a.stepDash=Math.min(dt,Math.max(0,a.dashT));
     a.inv -= dt; a.dashT -= dt; a.dashCd -= dt; a.fireCd -= dt;
     if (a.alive) a.robot.visible = a.inv <= 0 || Math.sin(t * 40) > 0;
     const p = a.g.position;
@@ -433,9 +501,12 @@ function combat(dt) {
     for (const f of foes) if (Math.hypot(f.g.position.x - p.x, f.g.position.z - p.z) < 1.1) hurt(a);
   }
   for (let i = shots.length - 1; i >= 0; i--) {
-    const s = shots[i], q = s.m.position; s.life -= dt; q.x += s.vx * dt; q.z += s.vz * dt;
-    const row = grid[fromW(q.z)]; let dead = s.life <= 0 || !row || row[fromW(q.x)] !== 0;
-    if (!dead) for (const f of foes) if (Math.hypot(f.g.position.x - q.x, f.g.position.z - q.z) < 0.9) { dead = true; hitFoe(f, q); break; }
+    const s=shots[i],q=s.m.position,step=Math.min(dt,s.life),end={x:q.x+s.vx*step,z:q.z+s.vz*step};
+    let first=wallHit(q,end,.1),victim=null;
+    for(const f of foes){const fraction=droneHit(q,end,f.g.position);if(fraction<first){first=fraction;victim=f;}}
+    const contact=first!==Infinity;q.x+=(end.x-q.x)*(contact?first:1);q.z+=(end.z-q.z)*(contact?first:1);s.life-=dt;
+    if(victim)hitFoe(victim,q);
+    const dead=contact||s.life<=0;
     if (dead) { burst(q, 0x66f0ff, 4, 0.8); world.remove(s.m); shots.splice(i, 1); }
   }
   for (const f of foes) foeAI(f, dt);
@@ -459,7 +530,7 @@ function renderLv() {
   }
   LV.forEach((l, i) => {
     const b = document.createElement("button");
-    b.className = "lvb" + (i ? " o" : ""); b.disabled = i >= maxLv;
+    b.className = "lvb" + (i ? " o" : ""); b.disabled = i >= maxLv || net === 'guest';
     b.textContent = (b.disabled ? "\u{1F512} " : "") + "Niveau " + (i + 1) + " : " + l.name;
     b.onclick = () => start(i); box.appendChild(b);
   });
@@ -479,7 +550,7 @@ function applySnap(m) {
   timeLeft = m.tl; swapT = m.sw; collected = m.c; laserOn = !!m.lo; laserT = m.ls;
   m.p.forEach((q, k) => { const a = players[k]; if (!a) return; a.tx = q[0]; a.tz = q[1]; a.robot.rotation.y = q[2]; a.hp = q[3]; a.alive = !!q[4]; a.dashCd = q[5]; a.inv = q[6]; a.robot.position.y = q[7]; });
   foes = foes.filter(f => { const q = m.f.find(z => z[0] === f.id); if (!q) { world.remove(f.g); return false; } f.tx = q[1]; f.tz = q[2]; f.g.rotation.y = q[3]; f.flash = q[4]; return true; });
-  dyn.forEach((d, i) => (d.closed = m.d[i] === "1"));
+  dyn.forEach((d, i) => {d.closed = m.d[i] === "1";grid[d.j][d.i]=d.closed?1:0;if(d.closed)d.mesh.visible=true;});
   crystals.forEach((c, i) => { c.got = m.cg[i] === "1"; c.mesh.visible = !c.got; });
   while (shots.length > m.sh.length) world.remove(shots.pop().m);
   while (shots.length < m.sh.length) { const mm = new THREE.Mesh(shotGeo, shotMat); world.add(mm); shots.push({ m: mm }); }
@@ -487,8 +558,8 @@ function applySnap(m) {
   m.ev.forEach(e => (e.b ? burst(new THREE.Vector3(e.b[0], e.b[1], e.b[2]), e.b[3], e.b[4], e.b[5]) : flash(e.m[0], e.m[1])));
 }
 
-function guestStep(dt) {
-  const k = Math.min(1, dt * 14);
+function guestStep(dt, snapPositions=false) {
+  const k = snapPositions ? 1 : Math.min(1, dt * 14);
   players.forEach(a => {
     if (a.tx !== undefined) { a.g.position.x += (a.tx - a.g.position.x) * k; a.g.position.z += (a.tz - a.g.position.z) * k; }
     a.robot.visible = a.alive && (!a.inv || Math.sin(t * 40) > 0);
@@ -505,16 +576,22 @@ function guestStep(dt) {
 }
 
 function onMsg(m) {
-  if (m.t === "i") {
-    rin.dx = m.dx; rin.dz = m.dz;
+  if(!m||typeof m!=='object')return;
+  if (m.t === "i" && net === 'host') {
+    rin.dx = Number.isFinite(m.dx)?Math.max(-1,Math.min(1,m.dx)):0;
+    rin.dz = Number.isFinite(m.dz)?Math.max(-1,Math.min(1,m.dz)):0;
     const a = players[1];
     if (a && state === "play") {
-      if (m.f) fire(a, m.f[0], m.f[1]);
+      if (Array.isArray(m.f)) fire(a, m.f[0], m.f[1]);
       if (m.d && a.alive && a.dashCd <= 0) { a.dashCd = 5; a.dashT = 0.18; burst(a.g.position, 0x3dff9a, 6, 0.8); }
     }
-  } else if (m.t === "start") start(m.lv, m.seed);
-  else if (m.t === "s" && state === "play") applySnap(m);
-  else if (m.t === "end" && state === "play") end(m.win, m.why);
+  } else if (net === 'guest') {
+    if(m.t==='start'&&Number.isFinite(m.seed)&&m.seed>0)start(m.lv,m.seed);
+    else if(m.t==='s'&&state==='play')applySnap(m);
+    else if(m.t==='end'&&state==='play'){guestStep(0,true);end(m.win,m.why);}
+    else if(m.t==='pause'&&typeof m.paused==='boolean')setPaused(m.paused,true);
+    else if(m.t==='menu')openLevels(true);
+  }
 }
 
 function setupDC(ch, host) {
@@ -526,7 +603,7 @@ function setupDC(ch, host) {
     $("d").textContent = (host ? "Ami connecté ! Tu es l’hôte : choisis un niveau." : "Connecté ! L’hôte va lancer la partie.") + " Contrôles : ZQSD ou flèches, clic gauche pour tirer, Maj pour le dash.";
     renderLv();
   };
-  ch.onmessage = e => onMsg(JSON.parse(e.data));
+  ch.onmessage = e => {try{onMsg(JSON.parse(e.data));}catch{/* Ignorer un message incomplet sans interrompre la partie. */}};
   ch.onclose = () => {
     if (!net) return;
     net = null; nP = 1; state = "menu"; $("overlay").style.display = "flex"; $("t").textContent = "CUBE ESCAPE"; $("t").style.color = "";
@@ -574,6 +651,7 @@ const CTRL = [
 ];
 
 function update(dt) {
+  if(state!=='play')return;
   timeLeft -= dt; swapT -= dt;
   if (timeLeft <= 0) { timeLeft = 0; hud(); return end(false, "Le temps est écoulé."); }
   if (swapT <= 0) { swapWalls(); swapT = SWAP; }
@@ -586,14 +664,17 @@ function update(dt) {
     let dz = (on(c.d, ["arrowdown"]) ? 1 : 0) - (on(c.u, ["arrowup"]) ? 1 : 0);
     if (net && k === 1) { dx = rin.dx; dz = rin.dz; } // le joueur 2 est piloté à distance
     const p = a.g.position, o = players[1 - k];
-    if (a.dashT > 0 && !dx && !dz) { dx = Math.sin(a.robot.rotation.y); dz = Math.cos(a.robot.rotation.y); }
+    if (a.stepDash > 0 && !dx && !dz) { dx = Math.sin(a.robot.rotation.y); dz = Math.cos(a.robot.rotation.y); }
     if (dx || dz) {
       const l = Math.hypot(dx, dz); dx /= l; dz /= l;
-      const sp = a.dashT > 0 ? 30 : SPEED, nx = p.x + dx * sp * dt, nz = p.z + dz * sp * dt;
+      const distance=30*a.stepDash+SPEED*Math.max(0,dt-a.stepDash),steps=Math.ceil(distance/.15);
       const dist = (x, z) => Math.hypot(x - o.g.position.x, z - o.g.position.z);
       const far = (x, z) => o && o.alive && dist(x, z) > LEASH && dist(x, z) > dist(p.x, p.z); // les joueurs restent groupés
-      if (!hit(nx, p.z) && !far(nx, p.z)) p.x = nx;
-      if (!hit(p.x, nz) && !far(p.x, nz)) p.z = nz;
+      for(let step=0;step<steps;step++){
+        const nx=p.x+dx*distance/steps,nz=p.z+dz*distance/steps;
+        if(!hit(nx,p.z)&&!far(nx,p.z))p.x=nx;
+        if(!hit(p.x,nz)&&!far(p.x,nz))p.z=nz;
+      }
       a.robot.rotation.y = Math.atan2(dx, dz);
       a.robot.position.y = 0.75 + Math.abs(Math.sin(t * 14)) * 0.12;
     } else a.robot.position.y = 0.75;
@@ -654,19 +735,21 @@ function loop() {
 addEventListener("keydown", e => {
   if (e.target.tagName === "TEXTAREA") return;
   const k = e.key.toLowerCase();
+  if(k==='escape'){e.preventDefault();if(!e.repeat)setPaused(state==='play');return;}
   keys[k] = true;
-  if (k.startsWith("arrow") || k === " ") e.preventDefault();
+  if (k.startsWith("arrow") || (k === " " && e.target.tagName !== 'BUTTON')) e.preventDefault();
   if (k === "shift" && state === "play") {
     if (net === "guest") { pend.d = true; return; }
     const a = players[e.code === "ShiftRight" && nP > 1 && !net ? 1 : 0];
     if (a.alive && a.dashCd <= 0) { a.dashCd = 5; a.dashT = 0.18; burst(a.g.position, 0x3dff9a, 6, 0.8); }
   }
   if (k === "enter" && state === "play" && nP > 1 && !net) { const a = players[1], y = a.robot.rotation.y; fire(a, Math.sin(y), Math.cos(y)); }
-  if (state !== "play" && net !== "guest" && (k === "enter" || k === " ")) btnAct();
+  if (state !== "play" && net !== "guest" && e.target.tagName!=='BUTTON' && (k === "enter" || k === " ")) btnAct();
   if (k === "r" && net !== "guest") start();
 });
 addEventListener("keyup", e => { keys[e.key.toLowerCase()] = false; });
-addEventListener("blur", () => { for (const k in keys) keys[k] = false; });
+addEventListener("blur", () => { for (const k in keys) keys[k] = false;if(net==='guest')send({t:'i',dx:0,dz:0});else setPaused(true); });
+$("pause").onclick=()=>setPaused(state==='play');$("menu").onclick=()=>openLevels();
 $("btn").addEventListener("click", () => btnAct());
 addEventListener("mousemove", e => { mouse.x = e.clientX; mouse.y = e.clientY; });
 renderer.domElement.addEventListener("mousedown", e => { if (e.button === 0 && state === "play") { mouse.x = e.clientX; mouse.y = e.clientY; if (net === "guest") pend.f = aim(players[1]); else fire(players[0], ...aim(players[0])); } });
@@ -682,3 +765,4 @@ loop();
 </script>
 </body>
 </html>
+
