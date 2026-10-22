@@ -4,9 +4,10 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import * as Three from 'three';
 
-const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const html=fs.readFileSync(new URL('../cube-escape/github/index.html',import.meta.url),'utf8');
 function element() {
-  const nested=new Map();const e={style:{},children:[],classList:{toggle(){}},textContent:'',value:'',disabled:false,
+  const nested=new Map();const e={style:{},dataset:{},children:[],classList:{toggle(){}},textContent:'',value:'',disabled:false,
+    clientWidth:1000,clientHeight:700,setAttribute(){},removeAttribute(){},getBoundingClientRect(){return {left:0,top:0,width:this.clientWidth,height:this.clientHeight};},
     appendChild(x){this.children.push(x);},prepend(){},addEventListener(){},focus(){},
     querySelector(s){if(!nested.has(s))nested.set(s,element());return nested.get(s);},
     querySelectorAll(){return [element(),element(),element()];},cloneNode(){return element();}};
@@ -27,6 +28,41 @@ function load() {
 function openArena(g) {
   g.run(`start(0,123);grid=Array.from({length:N},(_,z)=>Array.from({length:N},(_,x)=>x===0||z===0||x===N-1||z===N-1?1:0));dyn=[];foes=[];lasers=[];players[0].g.position.set(toW(3),0,toW(3));`);
 }
+test('first-person view follows the robot, rotates movement and keeps follow view available',()=>{
+  const g=load();openArena(g);
+  g.run('players[0].robot.rotation.y=Math.PI/2;setCameraMode(true);animate(.016);');
+  assert.equal(g.run('firstPerson'),true);
+  assert.equal(g.run('camera.position.x'),g.run('players[0].g.position.x'));
+  assert.equal(g.run('camera.position.z'),g.run('players[0].g.position.z'));
+  assert.equal(g.run('players[0].robot.visible'),false);
+  const x=g.run('players[0].g.position.x');
+  g.run('keys.z=true;update(.1);');
+  assert.ok(g.run('players[0].g.position.x')>x+.5);
+  g.run('setCameraMode(false);animate(.016);');
+  assert.equal(g.run('firstPerson'),false);
+  assert.equal(g.run('players[0].robot.visible'),true);
+});
+test('first-person shooting follows view direction and local duo stays in follow view',()=>{
+  const g=load();openArena(g);
+  g.run('setCameraMode(true);viewYaw=Math.PI/2;mouse.x=0;mouse.y=0;fire(players[0],...aim(players[0]));');
+  assert.ok(g.run('shots[0].vx')>20);
+  assert.ok(Math.abs(g.run('shots[0].vz'))<1e-8);
+  g.run('nP=2;start(0,123);setCameraMode(true);');
+  assert.equal(g.run('firstPerson'),false);
+});
+test('online guest moves in the direction of its first-person view without losing its aim to snapshots',()=>{
+  const host=load(),guest=load();
+  host.context.channel={readyState:'open',send:data=>guest.context.channel.onmessage({data})};
+  guest.context.channel={readyState:'open',send:data=>host.context.channel.onmessage({data})};
+  host.run('setupDC(globalThis.channel,true);');guest.run('setupDC(globalThis.channel,false);');
+  host.context.channel.onopen();guest.context.channel.onopen();host.run('start(0,1234);');
+  guest.run('setCameraMode(true);viewYaw=Math.PI/2;keys.z=true;const [dx,dz]=inputDirection(1);send({t:"i",dx,dz,yaw:viewYaw});');
+  assert.ok(host.run('rin.dx')>.99);
+  assert.ok(Math.abs(host.run('rin.dz'))<1e-8);
+  assert.ok(Math.abs(host.run('players[1].robot.rotation.y')-Math.PI/2)<1e-8);
+  host.run('snap();');
+  assert.ok(Math.abs(guest.run('players[1].robot.rotation.y')-Math.PI/2)<1e-8);
+});
 test('published solo, local co-op, level progression and storage keys remain available',()=>{
   const g=load();g.run('nP=2;start(0,123);');
   assert.equal(g.run('players.length'),2);assert.equal(g.run('players.every(a=>a.hp===3&&a.alive)'),true);
@@ -35,6 +71,41 @@ test('published solo, local co-op, level progression and storage keys remain ava
   g.run('collected=3;timeLeft=20;end(true);');assert.equal(g.saved.get('cubeEscapeUnlocked'),'2');
   assert.equal(g.saved.get('cubeEscapeBest'),'500');
   g.run('start(1,456)');assert.equal(g.run('cur'),1);assert.equal(g.run('players.length'),2);
+});
+
+test('mission dashboard follows collection, damage, dash, combat score and restart',()=>{
+  const g=load();g.run('start(0,123);players[0].g.position.copy(crystals[0].mesh.position);update(.01);players[0].hp=2;players[0].dashCd=2.5;hitFoe(foes[0],foes[0].g.position);hitFoe(foes[0],foes[0].g.position);hitFoe(foes[0],foes[0].g.position);hud();');
+  assert.equal(Number(g.dom.get('score').textContent),250);
+  assert.match(g.dom.get('crystal-0').querySelector('.state').textContent,/Récupéré/);
+  assert.match(g.dom.get('enemy-status').textContent,/1.*Traqueur/);
+  assert.match(g.dom.get('enemy-kills').textContent,/1/);
+  assert.match(g.dom.get('bars').querySelector('.health-label').textContent,/2\s*\/\s*3/);
+  assert.equal(g.dom.get('bars').querySelector('.dash-fill').style.width,'50%');
+  g.run('end(true);');assert.ok(Number(g.saved.get('cubeEscapeBest'))>250);
+  g.run('start(0,123);');assert.equal(Number(g.dom.get('score').textContent),0);
+  assert.match(g.dom.get('crystal-0').querySelector('.state').textContent,/récupérer/);
+  assert.match(g.dom.get('enemy-kills').textContent,/0/);
+});
+
+test('online snapshots carry drone health, alert state and combat score to the dashboard',()=>{
+  const host=load(),guest=load();
+  host.context.channel={readyState:'open',send:data=>guest.context.channel.onmessage({data})};
+  guest.context.channel={readyState:'open',send:data=>host.context.channel.onmessage({data})};
+  host.run('setupDC(globalThis.channel,true);');guest.run('setupDC(globalThis.channel,false);');
+  host.context.channel.onopen();guest.context.channel.onopen();host.run('start(0,1234);');
+  host.run('hitFoe(foes[0],foes[0].g.position);foes[0].mode="chase";snap();');guest.run('guestStep(0,true);');
+  assert.equal(guest.run('foes[0].hp'),2);assert.equal(guest.run('foes[0].mode'),'chase');
+  assert.match(guest.dom.get('enemy-status').textContent,/ALERTE/);
+  host.run('hitFoe(foes[0],foes[0].g.position);hitFoe(foes[0],foes[0].g.position);snap();');guest.run('guestStep(0,true);');
+  assert.equal(Number(guest.dom.get('score').textContent),150);
+});
+
+test('mouse aim uses the canvas rectangle after the dashboard shifts the viewport',()=>{
+  const g=load();g.run('start(0,123);camera.position.set(0,20,10);camera.lookAt(0,0,0);camera.updateMatrixWorld();');
+  const first=JSON.parse(g.run('mouse.x=500;mouse.y=350;JSON.stringify(aim(players[0]));'));
+  g.run('renderer.domElement.getBoundingClientRect=()=>({left:120,top:80,width:1000,height:700});mouse.x=620;mouse.y=430;');
+  const shifted=JSON.parse(g.run('JSON.stringify(aim(players[0]))'));
+  assert.ok(Math.abs(first[0]-shifted[0])<1e-8&&Math.abs(first[1]-shifted[1])<1e-8,'same point in canvas must preserve aim');
 });
 test('every level-2 map supplies three lasers and keeps a path to all crystals and the portal',()=>{
   const g=load();g.run('maxLv=2;');
@@ -123,6 +194,28 @@ test('Space leaves native activation available on focused menu buttons',()=>{
   assert.equal(prevented,0);assert.equal(g.run('state'),'menu');
   g.events.get('keydown')({key:' ',target:{tagName:'BODY'},preventDefault(){prevented++;}});
   assert.equal(prevented,1);assert.equal(g.run('state'),'play');
+});
+
+test('J2 can fire with Enter after a toolbar button receives focus without activating that button',()=>{
+  const g=load();g.run('nP=2;start(0,123);');let prevented=0;
+  g.events.get('keydown')({key:'Enter',target:{tagName:'BUTTON'},preventDefault(){prevented++;}});
+  assert.equal(g.run('shots.length'),1);assert.equal(g.run('players[1].fireCd'),.35);
+  assert.equal(g.run('players[0].fireCd'),0);assert.equal(prevented,1);
+  g.run('setPaused(true);');
+  g.events.get('keydown')({key:'Enter',target:{tagName:'BUTTON'},preventDefault(){prevented++;}});
+  assert.equal(prevented,1,'menu buttons retain native keyboard activation while paused');
+});
+
+test('destroying a drone and rebuilding the level releases owned graphics resources',()=>{
+  const g=load();
+  g.run(`start(0,123);globalThis.releasedPanels=0;globalThis.releasedDroneMaterials=0;
+    world.traverse(o=>{if(o.isInstancedMesh)o.addEventListener('dispose',()=>globalThis.releasedPanels++);});
+    const materials=new Set();foes[0].g.traverse(o=>{if(o.material)materials.add(o.material);});
+    globalThis.ownedDroneMaterials=materials.size;
+    materials.forEach(m=>m.addEventListener('dispose',()=>globalThis.releasedDroneMaterials++));
+    hitFoe(foes[0],foes[0].g.position);hitFoe(foes[0],foes[0].g.position);hitFoe(foes[0],foes[0].g.position);`);
+  assert.equal(g.context.releasedDroneMaterials,g.context.ownedDroneMaterials);
+  g.run('start(0,456);');assert.equal(g.context.releasedPanels,3);
 });
 test('both published levels remain winnable through movement, shooting and waiting for lasers',()=>{
   for(const level of [0,1]){

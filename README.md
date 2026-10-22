@@ -18,6 +18,7 @@ Base comparée : `index.html` de la branche `main`, blob `76f361e8627b3266a7725a
 
 ## Améliorations apportées
 
+- **Vue subjective optionnelle** avec le bouton Vue subjective ou V, en solo et en ligne. La caméra se place dans le robot, la souris oriente le regard, ZQSD/WASD deviennent relatifs à cette direction et le clic tire droit devant. V revient à la caméra de suivi. En duo local, la caméra commune reste en vue de suivi pour garder les deux joueurs visibles.
 - **Pause avec Échap ou le bouton Pause**, reprise et retour à la sélection des niveaux. En ligne, l'hôte contrôle la pause et les deux jeux s'arrêtent ensemble. Quitter la fenêtre de l'hôte met la partie en pause.
 - **Tirs et vision arrêtés par les murs** sur tout leur trajet, y compris lorsque le déplacement d'un projectile dépasse l'épaisseur visible d'un obstacle entre deux mises à jour.
 - **Navigation des drones par centres de cases** : ils terminent un segment avant de tourner, puis poursuivent la dernière position vue quand le robot disparaît derrière un mur.
@@ -46,6 +47,9 @@ Lancer cette commande depuis ce dossier, puis ouvrir **http://127.0.0.1:8080/**.
 | Pause | Échap ou bouton Pause ; hôte uniquement en ligne | Échap, pause commune |
 | Recommencer | R ; hôte uniquement en ligne | R, mission commune |
 | Choisir un niveau | Bouton Niveaux ; hôte uniquement en ligne | Menu commun |
+| Changer de vue | Bouton Vue subjective ou V ; solo/en ligne | Vue commune conservée |
+
+En vue subjective, cliquez dans le labyrinthe pour capturer la souris et tirer. Si la capture de souris n'est pas disponible, maintenez le clic et déplacez la souris pour tourner. Sur écran tactile, glissez sur le labyrinthe pour tourner et utilisez les boutons Tirer et Dash.
 
 ## Tester avant mise en ligne
 
@@ -55,21 +59,21 @@ Lancer cette commande depuis ce dossier, puis ouvrir **http://127.0.0.1:8080/**.
 4. **Deux joueurs locaux :** choisir le mode duo, tester les deux ensembles de touches, les deux barres de vie, les tirs et dash séparés. La victoire attend les robots encore vivants au portail.
 5. **En ligne :** ouvrir la même version du jeu dans deux navigateurs, créer une partie côté hôte, échanger les deux codes et connecter. Vérifier le même labyrinthe, les déplacements du joueur distant, la pause synchronisée, les murs mobiles et les compteurs à la fin de partie.
 6. **Redémarrages :** rejouer plusieurs fois, alterner les niveaux et les modes : aucun objet de l'ancienne partie ne doit rester affiché.
+7. **Vue subjective :** en solo, appuyer sur V, avancer et tourner avec la souris ; vérifier que les murs bloquent toujours le robot et les tirs. Revenir avec V, puis essayer le bouton. En ligne, tester la vue sur l'invité ; en duo local, vérifier que la caméra commune reste disponible.
 
 Le jeu en ligne conserve le système WebRTC existant, sans serveur relais payant. Sa connexion effective dépend des réseaux des deux joueurs ; elle doit être vérifiée sur les appareils utilisés.
 
 ## Vérifications effectuées
 
-Pour exécuter les tests, utiliser Node.js et installer Three.js pour Node depuis la racine de ce dépôt. Cette installation concerne uniquement les tests : le jeu reste un fichier HTML utilisant son CDN.
+Dans le dossier de travail, les tests se lancent depuis la racine du dépôt avec :
 
 ```powershell
-npm install --no-save --package-lock=false three@0.186.0
 node --test tests/cube-escape-github.test.mjs
 ```
 
-**10 tests passent.** Ils chargent le véritable script du fichier, utilisent les objets Three.js installés dans le dossier de travail et remplacent uniquement l'affichage et les éléments de page pour l'exécution dans Node. Ils couvrent la conservation du duo et des sauvegardes, les tirs, la navigation, le dash, les menus, la pause et les messages entre deux joueurs simulés. Les trois lasers et l'accès aux objectifs ont été vérifiés sur 80 labyrinthes du niveau 2. Les deux niveaux ont été terminés en simulation, avec les ennemis et lasers actifs.
+Les tests chargent le véritable script du fichier, utilisent les objets Three.js installés dans le dossier de travail et remplacent uniquement l'affichage et les éléments de page pour l'exécution dans Node. Ils couvrent la vue subjective, la conservation du duo et des sauvegardes, les tirs, la navigation, le dash, les menus, la pause et les messages entre deux joueurs simulés. Les trois lasers et l'accès aux objectifs ont été vérifiés sur 80 labyrinthes du niveau 2. Les deux niveaux ont été terminés en simulation, avec les ennemis et lasers actifs.
 
-Le rendu WebGL dans un navigateur et une connexion WebRTC réelle entre deux appareils ne sont **pas encore validés** dans cette session. Les simulations ne remplacent pas les essais manuels ci-dessus.
+Le rendu WebGL de la vue subjective a été vérifié dans le navigateur local. Une connexion WebRTC réelle entre deux appareils reste à essayer ; les simulations ne remplacent pas cet essai.
 
 ## Mettre le fichier sur GitHub
 
