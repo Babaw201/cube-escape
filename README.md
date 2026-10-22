@@ -19,6 +19,7 @@ Base comparée : `index.html` de la branche `main`, blob `76f361e8627b3266a7725a
 ## Améliorations apportées
 
 - **Vue subjective optionnelle** avec le bouton Vue subjective ou V, en solo et en ligne. La caméra se place dans le robot, la souris oriente le regard, ZQSD/WASD deviennent relatifs à cette direction et le clic tire droit devant. V revient à la caméra de suivi. En duo local, la caméra commune reste en vue de suivi pour garder les deux joueurs visibles.
+- **Radar de proximité** issu de la version publiée : il n'affiche que les sept cases autour du robot, avec les cristaux et Traqueurs proches, pour aider à s'orienter sans révéler tout le labyrinthe.
 - **Pause avec Échap ou le bouton Pause**, reprise et retour à la sélection des niveaux. En ligne, l'hôte contrôle la pause et les deux jeux s'arrêtent ensemble. Quitter la fenêtre de l'hôte met la partie en pause.
 - **Tirs et vision arrêtés par les murs** sur tout leur trajet, y compris lorsque le déplacement d'un projectile dépasse l'épaisseur visible d'un obstacle entre deux mises à jour.
 - **Navigation des drones par centres de cases** : ils terminent un segment avant de tourner, puis poursuivent la dernière position vue quand le robot disparaît derrière un mur.
