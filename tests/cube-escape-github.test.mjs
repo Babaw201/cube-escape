@@ -50,6 +50,25 @@ test('first-person shooting follows view direction and local duo stays in follow
   g.run('nP=2;start(0,123);setCameraMode(true);');
   assert.equal(g.run('firstPerson'),false);
 });
+test('first-person Q/A turns left and D turns right without moving sideways',()=>{
+  const g=load();openArena(g);g.run('setCameraMode(true);viewYaw=0;');
+  const x=g.run('players[0].g.position.x'),z=g.run('players[0].g.position.z');
+  g.run('keys.q=true;update(.1);animate(.01);');
+  assert.ok(g.run('viewYaw')<0,'Q must turn the view left');
+  assert.ok(g.run('camera.getWorldDirection(new THREE.Vector3()).x')<0,'camera must face left');
+  assert.equal(g.run('players[0].g.position.x'),x);
+  assert.equal(g.run('players[0].g.position.z'),z);
+  g.run('keys.q=false;keys.d=true;update(.2);');
+  assert.ok(g.run('viewYaw')>0,'D must turn the view right');
+  assert.equal(g.run('players[0].g.position.x'),x);
+  g.run('keys.d=false;keys.z=true;update(.1);');
+  assert.ok(g.run('players[0].g.position.x')>x,'forward movement must follow the new heading');
+});
+test('mouse movement never changes first-person orientation',()=>{
+  const g=load();openArena(g);g.run('setCameraMode(true);document.pointerLockElement=renderer.domElement;');
+  g.events.get('mousemove')({clientX:300,clientY:200,movementX:100,buttons:1});
+  assert.equal(g.run('viewYaw'),0);
+});
 test('online guest moves in the direction of its first-person view without losing its aim to snapshots',()=>{
   const host=load(),guest=load();
   host.context.channel={readyState:'open',send:data=>guest.context.channel.onmessage({data})};

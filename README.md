@@ -18,7 +18,7 @@ Base comparée : `index.html` de la branche `main`, blob `76f361e8627b3266a7725a
 
 ## Améliorations apportées
 
-- **Vue subjective optionnelle** avec le bouton Vue subjective ou V, en solo et en ligne. La caméra se place dans le robot, la souris oriente le regard, ZQSD/WASD deviennent relatifs à cette direction et le clic tire droit devant. V revient à la caméra de suivi. En duo local, la caméra commune reste en vue de suivi pour garder les deux joueurs visibles.
+- **Vue subjective optionnelle** avec le bouton Vue subjective ou V, en solo et en ligne. La caméra se place dans le robot : Q/A tourne à gauche, D à droite, Z/W avance et S recule. Les flèches fonctionnent aussi. La souris sert uniquement à tirer droit devant. V revient à la caméra de suivi. En duo local, la caméra commune reste en vue de suivi pour garder les deux joueurs visibles.
 - **Radar de proximité** issu de la version publiée : il n'affiche que les sept cases autour du robot, avec les cristaux et Traqueurs proches, pour aider à s'orienter sans révéler tout le labyrinthe.
 - **Pause avec Échap ou le bouton Pause**, reprise et retour à la sélection des niveaux. En ligne, l'hôte contrôle la pause et les deux jeux s'arrêtent ensemble. Quitter la fenêtre de l'hôte met la partie en pause.
 - **Tirs et vision arrêtés par les murs** sur tout leur trajet, y compris lorsque le déplacement d'un projectile dépasse l'épaisseur visible d'un obstacle entre deux mises à jour.
@@ -50,7 +50,7 @@ Lancer cette commande depuis ce dossier, puis ouvrir **http://127.0.0.1:8080/**.
 | Choisir un niveau | Bouton Niveaux ; hôte uniquement en ligne | Menu commun |
 | Changer de vue | Bouton Vue subjective ou V ; solo/en ligne | Vue commune conservée |
 
-En vue subjective, cliquez dans le labyrinthe pour capturer la souris et tirer. Si la capture de souris n'est pas disponible, maintenez le clic et déplacez la souris pour tourner. Sur écran tactile, glissez sur le labyrinthe pour tourner et utilisez les boutons Tirer et Dash.
+En vue subjective, utilisez Q/A ou la flèche gauche pour tourner à gauche, D ou la flèche droite pour tourner à droite. Z/W ou la flèche haut avance ; S ou la flèche bas recule. Le clic gauche tire sans orienter la caméra. Sur écran tactile, les boutons gauche et droite font tourner le robot ; utilisez les boutons Tirer et Dash pour combattre.
 
 ## Tester avant mise en ligne
 
@@ -60,7 +60,7 @@ En vue subjective, cliquez dans le labyrinthe pour capturer la souris et tirer. 
 4. **Deux joueurs locaux :** choisir le mode duo, tester les deux ensembles de touches, les deux barres de vie, les tirs et dash séparés. La victoire attend les robots encore vivants au portail.
 5. **En ligne :** ouvrir la même version du jeu dans deux navigateurs, créer une partie côté hôte, échanger les deux codes et connecter. Vérifier le même labyrinthe, les déplacements du joueur distant, la pause synchronisée, les murs mobiles et les compteurs à la fin de partie.
 6. **Redémarrages :** rejouer plusieurs fois, alterner les niveaux et les modes : aucun objet de l'ancienne partie ne doit rester affiché.
-7. **Vue subjective :** en solo, appuyer sur V, avancer et tourner avec la souris ; vérifier que les murs bloquent toujours le robot et les tirs. Revenir avec V, puis essayer le bouton. En ligne, tester la vue sur l'invité ; en duo local, vérifier que la caméra commune reste disponible.
+7. **Vue subjective :** en solo, appuyer sur V ; Q/A doit tourner à gauche, D à droite, et Z/W avancer dans la direction du regard. Bouger la souris ne doit pas tourner la caméra ; le clic doit tirer. Vérifier que les murs bloquent toujours le robot et les tirs. Revenir avec V, puis essayer le bouton. En ligne, tester la vue sur l'invité ; en duo local, vérifier que la caméra commune reste disponible.
 
 Le jeu en ligne conserve le système WebRTC existant, sans serveur relais payant. Sa connexion effective dépend des réseaux des deux joueurs ; elle doit être vérifiée sur les appareils utilisés.
 

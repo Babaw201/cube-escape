@@ -60,7 +60,7 @@ button:hover:not(:disabled){background:#25415e}button:disabled{opacity:.45;curso
 <section class="panel shift-panel" id="swap"><div class="panel-label">Labyrinthe instable <span>⤨</span></div><div class="shift-value"><span>Mutation dans</span><strong><span id="sw">20</span> s</strong></div><div class="track"><i id="shift-fill"></i></div><div class="caption">Les murs marqués de violet changent toutes les 20 s.</div><div class="caption" id="shift-count">0 mutation</div><div id="laser-status" hidden></div></section>
 <section class="panel combat-panel"><div class="panel-label">Traqueurs <span>◎</span></div><div id="enemy-status">2 Traqueurs · patrouille</div><div class="caption"><span id="enemy-kills">0 détruit</span> · 3 impacts par drone</div></section>
 <section class="panel score-panel"><div><div class="panel-label">Score</div><div class="caption" id="record">Record personnel : 0</div></div><strong id="score">0000</strong></section>
-</aside></div><footer class="bottom"><span>ZQSD / WASD : déplacer · Clic : viser et tirer · Shift : dash · V : changer de vue<br>Vue subjective : souris pour regarder, clic pour tirer · Échap : pause · R : recommencer</span><span>3 CRISTAUX · 90 SECONDES · 1 ISSUE</span></footer>
+</aside></div><footer class="bottom"><span>Vue de suivi : ZQSD / WASD pour déplacer · V : changer de vue · Shift : dash<br>Vue subjective : Q/A tourner à gauche, D à droite, Z/W avancer, S reculer · Clic : tirer</span><span>3 CRISTAUX · 90 SECONDES · 1 ISSUE</span></footer>
 </main>
 <div id="net"><h2>Jouer en ligne</h2><p id="nm" style="max-width:540px;line-height:1.5"></p><textarea id="n1" readonly></textarea><textarea id="n2" placeholder="Colle le code ici"></textarea><div><button id="nb0"></button><button id="nb1"></button><button id="nb2"></button></div></div>
 
@@ -112,15 +112,13 @@ const send = o => { try { if (dc && dc.readyState === "open") dc.send(JSON.strin
 Array.prototype.shuf = function () { for (let i = this.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [this[i], this[j]] = [this[j], this[i]]; } return this; };
 let lasers = [], foes = [], shots = [], fx = [];
 const mouse = { x: 0, y: 0 };
-let firstPerson=false, viewYaw=0, draggingView=false, lastDragX=0;
+let firstPerson=false, viewYaw=0;
 const localIndex=()=>net==='guest'?1:0;
 function setCameraMode(enabled){
   if(enabled&&nP>1&&!net){flash('Vue subjective disponible en solo et en ligne.');return;}
   firstPerson=enabled;
   if(enabled)viewYaw=players[localIndex()]?.robot.rotation.y||0;
-  else if(typeof document.exitPointerLock==='function'&&document.pointerLockElement===renderer.domElement)document.exitPointerLock();
   if(!enabled&&players[localIndex()]){const a=players[localIndex()];a.robot.visible=a.alive;a.marker.visible=a.alive;}
-  draggingView=false;
   viewport.classList.toggle('first-person',enabled);
   camera.fov=enabled?72:55;camera.updateProjectionMatrix();
   $('camera-mode').textContent=enabled?'◉ Vue de suivi · V':'◉ Vue subjective · V';
@@ -784,8 +782,14 @@ function inputDirection(k){
   const c=net==='guest'&&k===1?CTRL[0]:CTRL[k],solo=nP===1||!!net,on=(ks,ex)=>ks.some(x=>keys[x])||(solo&&ex.some(x=>keys[x]));
   const side=(on(c.r,['arrowright'])?1:0)-(on(c.l,['arrowleft'])?1:0);
   const back=(on(c.d,['arrowdown'])?1:0)-(on(c.u,['arrowup'])?1:0);
-  if(firstPerson&&k===localIndex())return [side*Math.cos(viewYaw)-back*Math.sin(viewYaw),-side*Math.sin(viewYaw)-back*Math.cos(viewYaw)];
+  if(firstPerson&&k===localIndex())return [-back*Math.sin(viewYaw),-back*Math.cos(viewYaw)];
   return [side,back];
+}
+function turnView(dt,k){
+  if(!firstPerson||k!==localIndex()||state!=='play'||!players[k]?.alive)return;
+  const right=keys.d||keys.arrowright?1:0,left=keys.q||keys.a||keys.arrowleft?1:0;
+  viewYaw+=(right-left)*2.6*dt;
+  players[k].robot.rotation.y=viewYaw;
 }
 
 function update(dt) {
@@ -797,6 +801,7 @@ function update(dt) {
 
   players.forEach((a, k) => {
     if (!a.alive) return;
+    turnView(dt,k);
     let [dx,dz]=inputDirection(k);
     if (net && k === 1) { dx = rin.dx; dz = rin.dz; } // le joueur 2 est piloté à distance
     const p = a.g.position, o = players[1 - k];
@@ -893,7 +898,7 @@ function loop() {
   const dt = Math.min(clock.getDelta(), 0.05);
   if (state === "play") {
     if (net === "guest") {
-      guestStep(dt); inT += dt;
+      turnView(dt,1);guestStep(dt); inT += dt;
       if (inT > 0.033) {
         inT = 0;
         const [dx,dz]=inputDirection(1);
@@ -935,27 +940,13 @@ for(const [id,key] of [['move-up','z'],['move-left','q'],['move-down','s'],['mov
   for(const event of ['pointerup','pointercancel','lostpointercapture'])button.addEventListener(event,()=>{keys[key]=false;});
 }
 $("btn").addEventListener("click", () => btnAct());
-addEventListener("mousemove", e => {
-  mouse.x=e.clientX;mouse.y=e.clientY;
-  if(firstPerson&&state==='play'){
-    if(document.pointerLockElement===renderer.domElement)viewYaw+=e.movementX*.0025;
-    else if(draggingView&&e.buttons&1){viewYaw+=(e.clientX-lastDragX)*.005;lastDragX=e.clientX;}
-    players[localIndex()].robot.rotation.y=viewYaw;
-  }
-});
-addEventListener('mouseup',()=>{draggingView=false;});
+addEventListener("mousemove", e => {mouse.x=e.clientX;mouse.y=e.clientY;});
 renderer.domElement.addEventListener("mousedown", e => { if (e.button === 0 && state === "play") {
   mouse.x=e.clientX;mouse.y=e.clientY;
-  if(firstPerson){draggingView=true;lastDragX=e.clientX;const lock=renderer.domElement.requestPointerLock?.();if(lock?.catch)lock.catch(()=>{});}
   if (net === "guest") pend.f = aim(players[1]); else fire(players[0], ...aim(players[0]));
 } });
-let touchLookX=null;
-renderer.domElement.addEventListener('pointerdown',e=>{if(firstPerson&&e.pointerType==='touch'&&state==='play')touchLookX=e.clientX;});
-renderer.domElement.addEventListener('pointermove',e=>{if(firstPerson&&e.pointerType==='touch'&&touchLookX!==null){viewYaw+=(e.clientX-touchLookX)*.005;touchLookX=e.clientX;players[localIndex()].robot.rotation.y=viewYaw;}});
-renderer.domElement.addEventListener('pointerup',()=>{touchLookX=null;});
-renderer.domElement.addEventListener('pointercancel',()=>{touchLookX=null;});
 
-$("d").textContent = "Joueur 1 : ZQSD (ou flèches en solo), clic gauche pour tirer, Maj gauche pour le dash. V active la vue subjective en solo ou en ligne : déplace la souris pour regarder, puis clique pour tirer. Joueur 2 en duo local : flèches, Entrée, Maj droite. Ramasse les 3 cristaux, évite les drones rouges, puis rejoins le portail vert en 90 s. Choisis un niveau :";
+$("d").textContent = "Joueur 1 : ZQSD (ou flèches en solo), clic gauche pour tirer, Maj gauche pour le dash. V active la vue subjective en solo ou en ligne : Q/A tourne à gauche, D tourne à droite, Z/W avance et S recule. La souris sert seulement à tirer. Joueur 2 en duo local : flèches, Entrée, Maj droite. Ramasse les 3 cristaux, évite les drones rouges, puis rejoins le portail vert en 90 s. Choisis un niveau :";
 $("btn").style.display = "none"; renderLv();
 build();
 hud();
