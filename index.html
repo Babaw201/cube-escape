@@ -107,7 +107,7 @@ let grid, world, player, robot, crystals, portal, dyn;
 let cur = 0, nP = 1, players = [], laserOn = true, laserT = 3, maxLv = 1;
 const LEASH = 18;
 let net = null, dc, pc, seed = 1, evq = [], snapT = 0, inT = 0;
-const rin = { dx: 0, dz: 0 }, pend = { f: null, d: false };
+const rin = { dx: 0, dz: 0, yaw: null }, pend = { f: null, d: false };
 const send = o => { try { if (dc && dc.readyState === "open") dc.send(JSON.stringify(o)); } catch (e) {} };
 Array.prototype.shuf = function () { for (let i = this.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [this[i], this[j]] = [this[j], this[i]]; } return this; };
 let lasers = [], foes = [], shots = [], fx = [];
@@ -436,7 +436,7 @@ function end(win, why) {
 function start(lv = cur, sd = 0) {
   if(!Number.isInteger(lv)||lv<0||lv>=LV.length||(net==='guest'?!(sd>0):lv>=maxLv))return;
   if(firstPerson&&nP>1&&!net)setCameraMode(false);
-  for(const k in keys)keys[k]=false;rin.dx=rin.dz=0;pend.f=null;pend.d=false;inT=snapT=0;
+  for(const k in keys)keys[k]=false;rin.dx=rin.dz=0;rin.yaw=null;pend.f=null;pend.d=false;inT=snapT=0;
   cur = lv; seed = sd > 0 ? sd : (Math.random() * 1e9 | 0) + 1; evq = []; if (net === "host") send({ t: "start", lv, seed });
   laserOn = true; laserT = 3; bars[1].style.display = nP > 1 ? "block" : "none";
   build();
@@ -709,6 +709,7 @@ function onMsg(m) {
   if (m.t === "i" && net === 'host') {
     rin.dx = Number.isFinite(m.dx)?Math.max(-1,Math.min(1,m.dx)):0;
     rin.dz = Number.isFinite(m.dz)?Math.max(-1,Math.min(1,m.dz)):0;
+    rin.yaw = Number.isFinite(m.yaw)?m.yaw:null;
     const a = players[1];
     if (a && state === "play") {
       if(Number.isFinite(m.yaw))a.robot.rotation.y=m.yaw;
@@ -810,7 +811,7 @@ function update(dt) {
         if(!hit(nx,p.z)&&!far(nx,p.z))p.x=nx;
         if(!hit(p.x,nz)&&!far(p.x,nz))p.z=nz;
       }
-      a.robot.rotation.y = firstPerson&&k===localIndex()?viewYaw:Math.atan2(dx, dz);
+      a.robot.rotation.y = firstPerson&&k===localIndex()?viewYaw:net==='host'&&k===1&&rin.yaw!==null?rin.yaw:Math.atan2(dx, dz);
       a.robot.position.y = 0.75 + Math.abs(Math.sin(t * 14)) * 0.12;
     } else a.robot.position.y = 0.75;
     crystals.forEach(cr => {

@@ -60,6 +60,8 @@ test('online guest moves in the direction of its first-person view without losin
   assert.ok(host.run('rin.dx')>.99);
   assert.ok(Math.abs(host.run('rin.dz'))<1e-8);
   assert.ok(Math.abs(host.run('players[1].robot.rotation.y')-Math.PI/2)<1e-8);
+  host.run('foes=[];lasers=[];update(.02);');
+  assert.ok(Math.abs(host.run('players[1].robot.rotation.y')-Math.PI/2)<1e-8);
   host.run('snap();');
   assert.ok(Math.abs(guest.run('players[1].robot.rotation.y')-Math.PI/2)<1e-8);
 });
