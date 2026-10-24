@@ -1,0 +1,10 @@
+{
+  "name": "limbyrinth-online",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-24",
+  "workers_dev": true,
+  "durable_objects": { "bindings": [{ "name": "ROOMS", "class_name": "GameRoom" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["GameRoom"] }],
+  "ratelimits": [{ "name": "ROOM_LIMIT", "namespace_id": "72841563", "simple": { "limit": 20, "period": 60 } }],
+  "observability": { "enabled": true, "head_sampling_rate": 1, "redact_query_string": true }
+}

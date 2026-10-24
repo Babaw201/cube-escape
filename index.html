@@ -96,6 +96,21 @@ canvas{touch-action:none}#overlay{overflow:auto;touch-action:pan-y}#net textarea
 #tphase{background:#77d9ee;color:#071525!important;grid-column:1 / 3;height:42px!important;border-radius:12px!important;letter-spacing:1px}
 @media(pointer:coarse){#phase-help{bottom:calc(260px + env(safe-area-inset-bottom,0px));max-width:70%;font-size:12px;padding:8px 12px}#phase-status{font-size:10px;letter-spacing:.7px;text-align:left;margin-top:2px}#hud{flex-wrap:wrap}.box{font-size:10px;padding:6px}#bars{top:calc(88px + env(safe-area-inset-top,0px))}#mm{top:calc(88px + env(safe-area-inset-top,0px))}#msg{top:calc(190px + env(safe-area-inset-top,0px));font-size:12px}#bars2{bottom:210px!important}#sh-list{grid-template-columns:repeat(2,minmax(0,1fr))}#overlay{justify-content:flex-start;padding-top:calc(24px + env(safe-area-inset-top,0px))}#overlay p{font-size:13px}#overlay h1{font-size:32px}.lvb{font-size:12px;margin:4px;padding:10px}#robot-preview{min-height:200px}#robot-preview canvas{height:170px}}
 @media(prefers-reduced-motion:reduce){button{transition:none}#cin{animation:none}}
+
+#net{box-sizing:border-box;overflow:auto;padding:22px;background:radial-gradient(ellipse at top,#19384e,#060d19 75%)}
+.room-panel{width:min(100%,460px);box-sizing:border-box;margin:auto;padding:28px;border:1px solid #3c627d;border-radius:22px;background:#102235;box-shadow:0 24px 70px #0006;text-align:left}
+.room-panel h2{font-size:28px;margin:8px 0 16px;color:#e2f5ff}.room-eyebrow{font-size:10px;letter-spacing:.22em;color:#84adc5}
+#nm{font-size:14px;line-height:1.65;min-height:46px;color:#abc8db}
+#net button{width:100%;box-sizing:border-box;margin:10px 0;padding:13px 16px;font-size:15px;box-shadow:none;min-height:46px}
+#net input{box-sizing:border-box;width:100%;padding:13px;margin:9px 0;background:#071625;color:#e8f8ff;border:1px solid #527b95;border-radius:10px;font:18px ui-monospace,monospace;letter-spacing:.12em;-webkit-user-select:text;user-select:text;min-height:48px}
+#net label{display:block;margin-top:12px;color:#b7d5e6;font-size:13px}#net input:focus-visible{outline:2px solid #75e2d1;outline-offset:2px}
+#net button:disabled{opacity:.5;cursor:wait;transform:none}#room-details[hidden],#room-choices[hidden],#online-leave[hidden]{display:none!important}
+.room-separator{display:flex;align-items:center;gap:12px;margin:18px 0;color:#789ab2;font-size:12px}.room-separator::before,.room-separator::after{content:'';height:1px;background:#2d4c63;flex:1}
+#room-code{font-size:28px!important;text-align:center;font-weight:700;letter-spacing:.15em!important;color:#86f4df!important}
+#room-link{font-size:12px!important;letter-spacing:0!important}
+#room-back{background:#213e55;color:#c8e5f4}#room-copy-code,#room-copy-link{background:#24475f;color:#c8f4ec}
+#online-leave{pointer-events:auto;margin:0;padding:7px 10px;min-height:30px;font-size:11px;background:#16364a;color:#c3e6f6;box-shadow:none;border:1px solid #406b83;border-radius:10px}
+@media(max-width:480px){#net{padding:12px}.room-panel{padding:20px;border-radius:18px}.room-panel h2{font-size:24px}#net button{font-size:14px}}
 </style>
 </head>
 <body>
@@ -104,6 +119,7 @@ canvas{touch-action:none}#overlay{overflow:auto;touch-action:pan-y}#net textarea
   <div class="box" id="cn">🪙 <b id="coin">0</b></div>
   <div class="box" id="swap"><span id="swap-label">Murs mobiles dans </span><span id="sw">20</span> s</div>
   <div class="box" id="time"><span id="tm">90</span> s</div>
+  <button id="online-leave" type="button" hidden>Quitter le salon</button>
   <div id="phase-status" hidden></div>
 </div>
 <div id="msg" role="status" aria-live="polite"></div>
@@ -115,7 +131,22 @@ canvas{touch-action:none}#overlay{overflow:auto;touch-action:pan-y}#net textarea
 <div id="touch"><div id="joy"><i id="knob"></i></div><div id="tbtns"><button id="tphase" hidden>PHASE</button><button id="tview">VUE</button><button id="tpause">PAUSE</button><button id="tdash">DASH</button><button id="tfire">TIR</button></div></div>
 <div id="vig"></div>
 <canvas id="mm" width="112" height="112"></canvas>
-<div id="net"><h2>Jouer en ligne</h2><p id="nm" style="max-width:540px;line-height:1.5"></p><textarea id="n1" readonly></textarea><textarea id="n2" placeholder="Colle le code ici"></textarea><div><button id="nb0"></button><button id="nb1"></button><button id="nb2"></button></div></div>
+<div id="net" role="dialog" aria-labelledby="online-title">
+  <div class="room-panel">
+    <p class="room-eyebrow">COOPÉRATION · 2 JOUEURS</p><h2 id="online-title">Jouer avec un ami</h2>
+    <p id="nm" role="status" aria-live="polite"></p>
+    <div id="room-choices">
+      <button id="room-create" type="button">Créer un salon</button>
+      <div class="room-separator">ou rejoindre un ami</div>
+      <form id="room-form"><label for="room-input">Code du salon</label><input id="room-input" placeholder="ABCD-2345" maxlength="12" autocomplete="off" autocapitalize="characters" spellcheck="false"><button id="room-join" type="submit">Rejoindre le salon</button></form>
+    </div>
+    <div id="room-details" hidden>
+      <label for="room-code">Ton code de salon</label><input id="room-code" readonly aria-label="Code du salon à partager"><button id="room-copy-code" type="button">Copier le code</button>
+      <label for="room-link">Lien d’invitation</label><input id="room-link" readonly aria-label="Lien d’invitation"><button id="room-copy-link" type="button">Copier le lien</button>
+    </div>
+    <button id="room-back" type="button">Retour au menu</button>
+  </div>
+</div>
 <div id="overlay">
   <p class="eyebrow">CUBE ESCAPE · PROTOCOLE D’ÉVASION</p>
   <h1 id="t">LIMBYRINTH</h1>
@@ -184,7 +215,7 @@ let grid, world, player, robot, crystals, portal, dyn;
 let cur = 0, nP = 1, players = [], laserOn = true, laserT = 3, maxLv = 1;
 const LEASH = 18;
 let remoteRobotId = 'rclassic';
-let net = null, dc, pc, seed = 1, evq = [], snapT = 0, inT = 0;
+let net = null, dc, seed = 1, evq = [], snapT = 0, inT = 0;
 const rin = { dx: 0, dz: 0, yaw: null }, pend = { f: null, d: false, phase: false };
 const send = o => { try { if (dc && dc.readyState === "open") dc.send(JSON.stringify(o)); } catch (e) {} };
 Array.prototype.shuf = function () { for (let i = this.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [this[i], this[j]] = [this[j], this[i]]; } return this; };
@@ -794,6 +825,7 @@ function combat(dt) {
 
 function renderLv() {
   const box = $("lv"); box.innerHTML = "";
+  if(net){const leave=document.createElement('button');leave.className='lvb';leave.textContent='Quitter le salon';leave.onclick=()=>leaveOnline();box.appendChild(leave);}
   if (net !== "guest") {
     const mb = document.createElement("button"); mb.className = "lvb"; mb.style.background = "#3dff9a"; mb.style.color = "#05060f";
     mb.textContent = net ? "En ligne : ami connecté (2 joueurs)" : nP > 1 ? "2 joueurs (clavier partagé) - changer" : "1 joueur - changer";
@@ -811,7 +843,7 @@ function renderLv() {
   });
 }
 
-// ---------- Jeu en ligne (WebRTC pair à pair, sans serveur : on échange deux codes) ----------
+// ---------- Coopération : simulation hôte et salons à code court ----------
 function snap() {
   send({ t: "s", tl: timeLeft, sw: swapT, c: collected, k: kills, mt: missionElapsed, ov: overload ? 1 : 0, lo: laserOn ? 1 : 0, ls: laserT, l4: cur === 3 ? {...level4} : null,
     p: players.map(a => [a.g.position.x, a.g.position.z, a.robot.rotation.y, a.hp, a.alive ? 1 : 0, a.dashCd, a.inv > 0 ? 1 : 0, a.robot.position.y, a.rig.skinId]),
@@ -865,7 +897,7 @@ function onMsg(m) {
     if (a && state === "play") {
       if (Number.isFinite(m.yaw)) a.robot.rotation.y = m.yaw;
       if (m.phase) requestLevel4Phase(1);
-      if (Array.isArray(m.f) && m.f.every(Number.isFinite)) fire(a, m.f[0], m.f[1]);
+      if (Array.isArray(m.f) && m.f.length === 2 && m.f.every(Number.isFinite)) fire(a, m.f[0], m.f[1]);
       if (m.d && a.alive && a.dashCd <= 0) { a.dashCd = DASH_CD; a.dashT = 0.18; burst(a.g.position, 0x3dff9a, 6, 0.8); }
     }
   } else if (m.t === "start" && net === "guest") start(m.lv, m.seed);
@@ -879,51 +911,133 @@ function setupDC(ch, host) {
     net = host ? "host" : "guest"; nP = 2; state = "menu";
     send({t:"cosmetic",robot:save.robot});
     $("net").style.display = "none"; $("overlay").style.display = "flex";
-    $("t").textContent = "CUBE ESCAPE"; $("t").style.color = ""; $("best").textContent = ""; $("btn").style.display = "none";
+    $("t").textContent = "LIMBYRINTH"; $("t").style.color = ""; $("best").textContent = ""; $("btn").style.display = "none";
     $("d").textContent = (host ? "Ami connecté ! Tu es l’hôte : choisis un niveau." : "Connecté ! L’hôte va lancer la partie.") + " Contrôles : ZQSD ou flèches, clic gauche pour tirer, Maj pour le dash.";
+    $('online-leave').hidden=false;$('online-leave').textContent='Salon '+roomCodeLabel(roomSession.code)+' · Quitter';
     renderLv();
   };
-  ch.onmessage = e => onMsg(JSON.parse(e.data));
-  ch.onclose = () => {
-    if (!net) return;
-    net = null; nP = 1; state = "menu"; $("overlay").style.display = "flex"; $("t").textContent = "CUBE ESCAPE"; $("t").style.color = "";
-    $("d").textContent = "Connexion perdue."; $("btn").style.display = "none"; renderLv();
-  };
+  ch.onmessage = e => { let m; try { m=JSON.parse(e.data); } catch { return; } if(m && typeof m === "object") onMsg(m); };
+  ch.onclose = event => leaveOnline(event?.reason || 'Ton ami a quitté le salon.');
 }
 
-const ice = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-const back = () => { $("net").style.display = "none"; $("overlay").style.display = "flex"; };
-const wait = c => new Promise(res => { if (c.iceGatheringState === "complete") return res(); c.onicegatheringstatechange = () => c.iceGatheringState === "complete" && res(); setTimeout(res, 4000); });
-function netUI(msg, out, inp, bt) {
-  $("net").style.display = "flex"; $("overlay").style.display = "none"; $("nm").textContent = msg;
-  $("n1").style.display = out ? "" : "none"; $("n1").value = out || "";
-  $("n2").style.display = inp ? "" : "none"; $("n2").value = "";
-  [0, 1, 2].forEach(i => { const b = $("nb" + i); b.style.display = bt[i] ? "" : "none"; if (bt[i]) { b.textContent = bt[i][0]; b.onclick = bt[i][1]; } });
+const ONLINE_BASE = 'https://limbyrinth-online.baptiste-werner.workers.dev';
+const GAME_PUBLIC_URL = 'https://babaw201.github.io/cube-escape/';
+let onlineAttempt=0, onlineSocket=null, onlineChannel=null, onlineAbort=null, onlineTimeout=0, onlineHeartbeat=0, onlineReturnPlayers=1;
+let roomSession={code:'',host:false,opened:false};
+function normalizeRoomCode(value){return String(value||'').toUpperCase().replace(/[\s-]/g,'');}
+function validRoomCode(value){return /^[A-HJ-NP-Z2-9]{8}$/.test(value);}
+function roomInvite(value){return GAME_PUBLIC_URL+'#salon='+normalizeRoomCode(value);}
+function roomCodeLabel(value){return value.slice(0,4)+'-'+value.slice(4);}
+function roomUI(mode,message){
+  $('net').style.display='flex';$('overlay').style.display='none';
+  $('nm').textContent=message;$('nm').style.color=mode==='error'?'#ffb0bc':'#abc8db';
+  const busy=mode==='creating'||mode==='joining';
+  $('room-create').disabled=busy;$('room-join').disabled=busy;
+  $('room-choices').hidden=mode==='waiting';$('room-details').hidden=mode!=='waiting';
 }
-function openNet() {
-  netUI("Jeu en ligne sans serveur : un joueur crée la partie (hôte), l’autre la rejoint. Vous échangez deux codes (par message, mail...).", null, false,
-    [["Créer une partie", hostGame], ["Rejoindre", joinGame], ["Retour", back]]);
+function resetRoomTransport(){
+  onlineAttempt++;clearTimeout(onlineTimeout);onlineTimeout=0;clearInterval(onlineHeartbeat);onlineHeartbeat=0;
+  if(onlineAbort){onlineAbort.abort();onlineAbort=null;}
+  const socket=onlineSocket;onlineSocket=null;
+  if(socket){socket.onopen=socket.onmessage=socket.onclose=socket.onerror=null;try{socket.close(1000,'Sortie du salon');}catch{}}
+  if(onlineChannel){onlineChannel.onopen=onlineChannel.onmessage=onlineChannel.onclose=null;}
+  onlineChannel=null;dc=null;roomSession={code:'',host:false,opened:false};
 }
-async function hostGame() {
-  netUI("Création du code...", null, false, [["Retour", back]]);
-  try {
-    pc = new RTCPeerConnection(ice); setupDC(pc.createDataChannel("g"), true);
-    await pc.setLocalDescription(await pc.createOffer()); await wait(pc);
-    netUI("1) Envoie ce code à ton ami. 2) Colle sa réponse dans la case du bas, puis clique sur Connecter.", btoa(JSON.stringify(pc.localDescription)), true, [["Connecter", async () => {
-      try { await pc.setRemoteDescription(JSON.parse(atob($("n2").value.trim()))); $("nm").textContent = "Connexion en cours..."; } catch (e) { $("nm").textContent = "Code invalide, réessaie."; }
-    }], ["Retour", back]]);
-  } catch (e) { netUI("Le jeu en ligne n’est pas disponible dans ce navigateur.", null, false, [["Retour", back]]); }
+function leaveOnline(message='Tu as quitté le salon.'){
+  if(firstPerson&&players.length)setCameraMode(false);
+  resetRoomTransport();net=null;nP=onlineReturnPlayers;state='menu';
+  pend.f=null;pend.d=pend.phase=false;rin.dx=rin.dz=0;remoteRobotId='rclassic';
+  for(const k in keys)keys[k]=false;
+  $('net').style.display='none';$('overlay').style.display='flex';$('online-leave').hidden=true;
+  $('t').textContent='LIMBYRINTH';$('d').textContent=message;$('btn').style.display='none';bars[1].style.display='none';renderLv();hud();
 }
-function joinGame() {
-  netUI("Colle le code de l’hôte dans la case, puis clique sur Générer la réponse.", null, true, [["Générer la réponse", async () => {
-    try {
-      pc = new RTCPeerConnection(ice); pc.ondatachannel = e => setupDC(e.channel, false);
-      await pc.setRemoteDescription(JSON.parse(atob($("n2").value.trim())));
-      await pc.setLocalDescription(await pc.createAnswer()); await wait(pc);
-      netUI("Envoie ce code à l’hôte. La partie démarre dès qu’il clique sur Connecter.", btoa(JSON.stringify(pc.localDescription)), false, [["Retour", back]]);
-    } catch (e) { $("nm").textContent = "Code invalide, réessaie."; }
-  }], ["Retour", back]]);
+function openNet(){
+  if(net)return;
+  onlineReturnPlayers=nP;resetRoomTransport();
+  roomUI('idle','Crée un salon, puis partage son code ou son lien avec un ami. Deux joueurs par salon.');
 }
+function roomFailure(message,attempt){
+  if(attempt!==onlineAttempt)return;
+  const wasOpen=roomSession.opened;
+  if(wasOpen){leaveOnline(message);return;}
+  resetRoomTransport();roomUI('error',message);
+}
+async function roomFetch(path,options={}){
+  const controller=new AbortController();onlineAbort=controller;
+  const timeout=setTimeout(()=>controller.abort(),12000);
+  try{
+    const response=await fetch(ONLINE_BASE+path,{...options,signal:controller.signal,cache:'no-store'});
+    let data;try{data=await response.json();}catch{throw new Error('Le service de salons ne répond pas correctement. Réessaie.');}
+    if(!response.ok)throw new Error(data.error||'Le salon est indisponible. Réessaie.');
+    return data;
+  }finally{clearTimeout(timeout);if(onlineAbort===controller)onlineAbort=null;}
+}
+function roomErrorText(error){
+  if(error?.name==='AbortError')return 'Le service met trop de temps à répondre. Réessaie.';
+  const text=String(error?.message||'Connexion impossible.');
+  return /failed to fetch|fetch failed|networkerror/i.test(text)?'Connexion au service impossible. Vérifie ta connexion Internet.':text;
+}
+async function createOnlineRoom(){
+  if(net)return;resetRoomTransport();const attempt=onlineAttempt;
+  roomUI('creating','Création de ton salon…');
+  try{
+    const data=await roomFetch('/rooms',{method:'POST'});if(attempt!==onlineAttempt)return;
+    if(!validRoomCode(data.code)||typeof data.hostToken!=='string')throw new Error('Réponse de création invalide. Réessaie.');
+    connectOnlineRoom(data,true,attempt);
+  }catch(error){roomFailure(roomErrorText(error),attempt);}
+}
+async function joinOnlineRoom(){
+  if(net)return;
+  const code=normalizeRoomCode($('room-input').value);
+  if(!validRoomCode(code)){roomUI('error','Entre les 8 caractères du code de salon, par exemple ABCD-2345.');return;}
+  resetRoomTransport();const attempt=onlineAttempt;roomUI('joining','Recherche du salon '+roomCodeLabel(code)+'…');
+  try{
+    const data=await roomFetch('/rooms/'+code);if(attempt!==onlineAttempt)return;
+    if(data.state==='full')throw new Error('Ce salon est complet. Demande un nouveau code à ton ami.');
+    if(!data.hostReady)throw new Error('L’hôte prépare encore le salon. Réessaie dans quelques secondes.');
+    connectOnlineRoom({code},false,attempt);
+  }catch(error){roomFailure(roomErrorText(error),attempt);}
+}
+function connectOnlineRoom(info,host,attempt){
+  if(attempt!==onlineAttempt)return;
+  if(typeof WebSocket==='undefined')throw new Error('Ce navigateur ne prend pas en charge le jeu en ligne.');
+  roomSession={code:info.code,host,opened:false};
+  const protocols=['limbyrinth-v1'];if(host)protocols.push('host.'+info.hostToken);
+  const socket=new WebSocket(ONLINE_BASE.replace(/^https:/,'wss:')+'/rooms/'+info.code+'/socket',protocols);onlineSocket=socket;
+  onlineHeartbeat=setInterval(()=>{if(onlineSocket===socket&&socket.readyState===1)socket.send('ping');},25000);
+  const channel={get readyState(){return roomSession.opened&&onlineSocket===socket&&socket.readyState===1?'open':socket.readyState===3?'closed':'connecting';},send(data){if(this.readyState==='open')socket.send(data);},onopen:null,onmessage:null,onclose:null};
+  onlineChannel=channel;setupDC(channel,host);
+  onlineTimeout=setTimeout(()=>roomFailure('La connexion au salon a expiré. Réessaie.',attempt),15000);
+  socket.onmessage=event=>{
+    if(attempt!==onlineAttempt||onlineSocket!==socket)return;
+    let data;try{data=JSON.parse(event.data);}catch{return;}
+    if(data.t==='room'){
+      if(data.state==='waiting'&&host){
+        clearTimeout(onlineTimeout);onlineTimeout=0;
+        $('room-code').value=roomCodeLabel(info.code);$('room-link').value=roomInvite(info.code);
+        roomUI('waiting','Ton salon est prêt. En attente de ton ami : 1/2 joueurs. Le code expire après 15 minutes d’attente.');
+      }else if(data.state==='ready'&&!roomSession.opened){
+        if(data.role!==(host?'host':'guest')){roomFailure('Le rôle du salon est invalide. Recrée une partie.',attempt);return;}
+        clearTimeout(onlineTimeout);onlineTimeout=0;roomSession.opened=true;channel.onopen?.();
+      }else if(data.state==='closed')roomFailure(data.message||'Le salon est fermé.',attempt);
+      return;
+    }
+    if(roomSession.opened)channel.onmessage?.(event);
+  };
+  socket.onclose=event=>roomFailure(event.reason||'Connexion au salon interrompue. Crée ou rejoins un nouveau salon.',attempt);
+  socket.onerror=()=>roomFailure('Impossible de se connecter au salon. Il est peut-être fermé ; réessaie.',attempt);
+}
+async function copyRoomField(id){
+  const field=$(id);
+  try{if(!navigator.clipboard?.writeText)throw new Error('clipboard');await navigator.clipboard.writeText(field.value);$('nm').textContent=id==='room-code'?'Code copié ! Envoie-le à ton ami.':'Lien copié ! Envoie-le à ton ami.';}
+  catch{field.focus();field.select();$('nm').textContent='Texte sélectionné : copie-le pour le partager.';}
+}
+$('room-create').addEventListener('click',createOnlineRoom);
+$('room-form').addEventListener('submit',event=>{event.preventDefault();joinOnlineRoom();});
+$('room-copy-code').addEventListener('click',()=>copyRoomField('room-code'));
+$('room-copy-link').addEventListener('click',()=>copyRoomField('room-link'));
+$('room-back').addEventListener('click',()=>leaveOnline('Choisis un niveau pour jouer, ou crée un nouveau salon.'));
+$('online-leave').addEventListener('click',()=>leaveOnline());
 
 // ---------- Boutique, pièces, boosts et défis (pièces virtuelles gagnées en jouant) ----------
 const ROBOT_SKINS = [
@@ -1523,7 +1637,11 @@ function loop() {
 }
 
 addEventListener("keydown", e => {
-  if (e.target.tagName === "TEXTAREA") return;
+  if ($('net').style.display === 'flex') {
+    if(e.key==='Escape'&&!e.repeat){e.preventDefault();leaveOnline('Choisis un niveau pour jouer, ou crée un nouveau salon.');}
+    return;
+  }
+  if (["TEXTAREA","INPUT","SELECT","BUTTON"].includes(e.target.tagName) || e.target.isContentEditable) return;
   if (!e.repeat && state === 'play' && (e.key.toLowerCase() === 'e' || e.key.toLowerCase() === 'o')) {
     const index = e.key.toLowerCase() === 'o' && nP > 1 && !net ? 1 : localIndex();
     requestLevel4Phase(index);
@@ -1557,6 +1675,8 @@ $("btn").style.display = "none"; renderLv();
 build();
 try { const b = +localStorage.getItem("cubeEscapeBest"); if (b) $("best").textContent = "Meilleur score : " + b; } catch (e) {}
 camera.position.set(toW(1), 17, toW(1) + 9);
+const invitedRoom=normalizeRoomCode(new URLSearchParams(location.hash.slice(1)).get('salon'));
+if(validRoomCode(invitedRoom)){openNet();$('room-input').value=invitedRoom;$('nm').textContent='Invitation au salon '+roomCodeLabel(invitedRoom)+' : appuie sur Rejoindre le salon.';}
 loop();
 })();
 }

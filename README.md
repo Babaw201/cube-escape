@@ -1,6 +1,6 @@
 # Limbyrinth — Cube Escape
 
-Jeu 3D de labyrinthe en HTML et Three.js r128, avec quatre niveaux, coopération locale et WebRTC, commandes tactiles, progression et boutique.
+Jeu 3D de labyrinthe en HTML et Three.js r128, avec quatre niveaux, coopération locale et salons en ligne, commandes tactiles, progression et boutique.
 
 **[▶ Jouer sur GitHub Pages](https://babaw201.github.io/cube-escape/)**
 
@@ -25,13 +25,21 @@ Choisir **« Niveau 1 : Labyrinthe »** pour commencer. Sur téléphone, ouvrir 
 | Dash | Maj gauche | Maj droite |
 | Console du niveau 4 | E | O |
 
-**V** : vue subjective (solo ou WebRTC). **P** : pause solo/local. **M** : son. Sur mobile : joystick et boutons TIR, DASH, VUE et PHASE près de la console.
+**V** : vue subjective (solo ou en ligne). **P** : pause solo/local. **M** : son. Sur mobile : joystick et boutons TIR, DASH, VUE et PHASE près de la console.
 
 ## Jouer hors connexion
 
 Télécharger le dépôt et ouvrir `index.html` en conservant le dossier `vendor`, ou télécharger le fichier autonome [`Limbyrinth.html`](Limbyrinth.html) et l’ouvrir dans un navigateur compatible WebGL. Three.js est fourni localement avec sa licence.
 
-Le mode en ligne utilise le serveur STUN existant et l’échange manuel de codes. Les transitions, portes et ramassages sont validés par l’hôte.
+## Jouer avec un ami
+
+1. L’hôte ouvre **Jouer en ligne → Créer un salon**.
+2. Il partage le **code court** ou le **lien d’invitation**. Son ami ouvre le lien, ou saisit le code dans **Rejoindre le salon**.
+3. Une fois les deux joueurs connectés, l’hôte choisit le niveau.
+
+Les salons accueillent deux joueurs. Le code expire après 15 minutes d’attente ; une session connectée dure au maximum deux heures. **Quitter le salon** permet de revenir au jeu local. Un message explique les codes invalides, salons complets ou expirés et déconnexions.
+
+La connexion passe par un relais WebSocket ; aucun long code WebRTC à échanger. Les transitions, portes et ramassages restent validés par l’hôte. Le service et sa configuration sont dans [`online/`](online/README.md).
 
 ## Vérification
 
@@ -43,9 +51,9 @@ npm test
 npm run preview:robots
 ```
 
-**18 tests passent** : carte/BFS et accès aux ailes, 100 transitions avec occupants, portes fermées solides à l’approche, console/cooldown, clés et alarme, étourdissement, snapshots et autorité hôte, modèles en coopération, anciennes sauvegardes et régressions des niveaux 1–3. Le parcours complet sans ennemi utilise les mouvements et collisions réels.
+**41 tests passent** (jeu, client et service de salons) : carte/BFS et accès aux ailes, 100 transitions avec occupants, portes fermées solides à l’approche, console/cooldown, clés et alarme, étourdissement, snapshots et autorité hôte, modèles en coopération, anciennes sauvegardes et régressions des niveaux 1–3. Le parcours complet sans ennemi utilise les mouvements et collisions réels. Les tests de salons vérifient aussi les rôles, la capacité à deux joueurs, la déconnexion, l’expiration, les annulations et les raccourcis clavier pendant la saisie.
 
-Le démarrage d’un niveau a aussi été vérifié sur la version hébergée dans un navigateur, avec une fenêtre bureau et une fenêtre mobile de 390×844 : clic sur le niveau, fermeture du menu, animation et absence d’erreurs JavaScript lors de ces contrôles. La connexion WebRTC réelle entre deux navigateurs, la fluidité sur téléphone physique et le parcours complet avec le Traqueur restent à vérifier.
+Le démarrage d’un niveau a aussi été vérifié sur la version hébergée dans un navigateur, avec une fenêtre bureau et une fenêtre mobile de 390×844 : clic sur le niveau, fermeture du menu, animation et absence d’erreurs JavaScript lors de ces contrôles. Le nouveau service a été vérifié avec deux connexions WebSocket réelles. L’écran de connexion a été testé au format mobile : saisie sans déclenchement des raccourcis, arrivée d’un invité, départ au niveau 4, synchronisation de phase, commandes et sortie du salon. La fluidité sur téléphone physique et le parcours complet avec le Traqueur restent à vérifier.
 
 Pour lancer la suite navigateur complète :
 
