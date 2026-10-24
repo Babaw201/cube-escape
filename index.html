@@ -266,7 +266,6 @@ function build0() {
   const capMat = new THREE.MeshStandardMaterial({ color: L.cap, roughness: 0.48, metalness: 0.5 });
   const lightMat = new THREE.MeshBasicMaterial({ color: L.accent });
   skinMats = [lineMat, lightMat];
-  [wallMat, trimMat, capMat].forEach(installCutaway);
   const purpleMat = new THREE.MeshBasicMaterial({ color: 0xc098ff });
   const isDyn = new Set(m.dynCells.map(([x, y]) => x + "," + y));
   const bases = [], caps = [], strips = []; // panneaux instanciés : peu d'appels de dessin
@@ -523,26 +522,6 @@ function trackerAI(f, dt) {
   if(!hit(nx,q.z,.45))q.x=nx;if(!hit(q.x,nz,.45))q.z=nz;f.g.rotation.y=Math.atan2(dx,dz);
 }
 
-const cutaway = { positions: {value: new THREE.Vector4(1000,1000,1000,1000)}, enabled: {value:0} };
-function installCutaway(material) {
-  material.onBeforeCompile = shader => {
-    shader.uniforms.cutPositions=cutaway.positions;shader.uniforms.cutEnabled=cutaway.enabled;
-    shader.vertexShader='varying vec3 cutWorld;\n'+shader.vertexShader.replace('#include <project_vertex>',`vec4 cutPoint = vec4(transformed,1.0);
-      #ifdef USE_INSTANCING
-      cutPoint = instanceMatrix * cutPoint;
-      #endif
-      cutWorld = (modelMatrix * cutPoint).xyz;
-      #include <project_vertex>`);
-    shader.fragmentShader='uniform vec4 cutPositions; uniform float cutEnabled; varying vec3 cutWorld;\n'+shader.fragmentShader.replace('#include <clipping_planes_fragment>',`#include <clipping_planes_fragment>
-      if (cutEnabled > 0.5 && cutWorld.y > 0.55 && min(distance(cutWorld.xz,cutPositions.xy),distance(cutWorld.xz,cutPositions.zw)) < 2.9) discard;`);
-  };
-  material.customProgramCacheKey=()=> 'robot-cutaway-v1';
-}
-function updateCutaway() {
-  cutaway.enabled.value=!firstPerson && state==='play'?1:0;
-  const live=players.filter(a=>a.alive), a=live[0]?.g.position,b=live[1]?.g.position;
-  cutaway.positions.value.set(a?.x??1000,a?.z??1000,b?.x??1000,b?.z??1000);
-}
 function disposeTree(tree) {
   const shared=new Set([cubeGeometry,droneGeometry,rotorGeometry,shGeo,shMat,shotGeo,shotMat,fxGeo,droneGeo,eyeGeo,ringGeo,...Object.values(fxMats)]);
   const resources=new Set();
@@ -1503,7 +1482,6 @@ function animate(dt) {
     reactor.column.scale.x = reactor.column.scale.z = overload ? 1 + Math.sin(t * 8) * 0.12 : 1;
   }
   animateLevel4(dt);
-  updateCutaway();
   const on = collected >= 3;
   portal.ring.rotation.z += dt * (on ? 3 : 0.6);
   portal.disc.material.opacity = on ? 0.55 + Math.sin(t * 6) * 0.2 : 0.12;

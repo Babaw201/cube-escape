@@ -11,7 +11,7 @@ Choisir **« Niveau 1 : Labyrinthe »** pour commencer. Sur téléphone, ouvrir 
 - **Le Labyrinthe instable** : un quatrième niveau à carte fixe, trois phases cyan/magenta/ambre, console centrale, trois clés et portes définitivement ouvertes après stabilisation.
 - **Le Traqueur** : ennemi étourdissable par trois tirs, suivi d’une fuite finale de 35 secondes après collecte des trois clés.
 - **Quatre formes de robot gratuites** : Atlas bipède, Orbit flottant, Hexa à six pattes et Bastion à chenilles, avec aperçu 3D, animations et sauvegarde. Sélection dans **Boutique → Robots**.
-- Éclairage et couleurs ajustés, découpe des murs proches du robot en vue aérienne, HUD de phase et mini-carte complète au niveau 4.
+- Éclairage et couleurs ajustés, murs entiers en vue aérienne, HUD de phase et mini-carte complète au niveau 4.
 - Nouvelle fin de campagne après le quatrième niveau ; accès conservé pour les anciennes sauvegardes ayant terminé Le Noyau.
 
 ![Les quatre formes de robot](artifacts/robots.png)
