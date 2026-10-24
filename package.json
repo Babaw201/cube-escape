@@ -1,0 +1,13 @@
+{
+  "name": "limbyrinth-cube-escape",
+  "private": true,
+  "scripts": {
+    "test": "node tests/game.test.cjs",
+    "test:browser": "node tests/browser.test.cjs",
+    "preview:robots": "node tests/render-preview.cjs"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "0.1.100",
+    "playwright": "1.62.1"
+  }
+}
