@@ -53,11 +53,11 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
   });
   await t.test('top 10 mondial en ligne avec pseudo et filtre de niveau', async()=>{
     await page.locator('#home .hm-scores-button').click();
-    await page.waitForFunction(()=>document.querySelectorAll('#scores-screen .scores-online-table tbody tr').length===1);
+    await page.waitForFunction(()=>document.querySelectorAll('#scores-screen .scores-online-table tbody tr').length===1,null,{polling:50});
     assert.match(await page.locator('#scores-screen .scores-online-table').innerText(),/Aventurier32/);
     assert.match(await page.locator('#scores-screen .scores-online-table').innerText(),/920/);
     await page.locator('#scores-screen .scores-online select').selectOption('4');
-    await page.waitForFunction(()=>document.querySelector('#scores-screen .scores-online-table tbody tr td:nth-child(4)')?.textContent==='4');
+    await page.waitForFunction(()=>document.querySelector('#scores-screen .scores-online-table tbody tr td:nth-child(4)')?.textContent==='4',null,{polling:50});
     assert.equal(await page.locator('#scores-screen .scores-online-table tbody tr').count(),1);
     await page.locator('#scores-screen .scores-btn').first().click();
   });
