@@ -2367,7 +2367,7 @@ loop();
       }catch(err){status.classList.add("fb-error");status.textContent=err.name==="AbortError"?"Le serveur met trop de temps à répondre.":(err.message||"Erreur réseau.");}
       finally{clearTimeout(timeout);busy=false;send.disabled=false;}
     });
-    card.append(form,el("p","fb-hint","N’indique pas ton vrai nom, ton adresse ni tes coordonnées. Tes réponses sont transmises au créateur ; les bugs peuvent aussi être copiés dans son salon Discord privé pour le prévenir."));
+    card.append(form,el("p","fb-hint","N’indique pas ton vrai nom, ton adresse ni tes coordonnées. Tes réponses sont transmises au créateur ; les bugs peuvent aussi lui être envoyés par e-mail privé pour le prévenir."));
     wrap.append(top,card);root.replaceChildren(wrap);
     const selected=root.querySelector(".fb-tabs .on");if(selected)selected.focus({preventScroll:true});
   }

@@ -5,6 +5,16 @@ const TYPES=new Set(['bug','idea','poll']);
 const TOPICS=new Set(['niveau5','murs','ennemis','cooperation','autre']);
 const TOPIC_LABELS={niveau5:'Niveau 5 / niveaux',murs:'Murs et graphismes',ennemis:'Drones et ennemis',cooperation:'Coopération en ligne',autre:'Autre'};
 const ADMIN_INBOX='https://babaw201.github.io/cube-escape/retours-admin.html';
+const RESEND_URL='https://api.resend.com/emails';
+// Email recipient and API token are private Cloudflare configuration.
+function emailSettings(env){
+  const to=typeof env.FEEDBACK_EMAIL_TO==='string'?env.FEEDBACK_EMAIL_TO.trim():'';
+  const key=typeof env.RESEND_API_KEY==='string'?env.RESEND_API_KEY.trim():'';
+  const from=typeof env.FEEDBACK_EMAIL_FROM==='string'&&env.FEEDBACK_EMAIL_FROM.trim()?env.FEEDBACK_EMAIL_FROM.trim():'Limbyrinth <onboarding@resend.dev>';
+  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)||!/^re_[A-Za-z0-9_-]{16,}$/.test(key))return null;
+  return {to,key,from};
+}
+
 // Only HTTPS Discord webhook destinations are permitted; the URL comes from a Cloudflare secret.
 function discordWebhook(raw){
   if(typeof raw!=='string')return null;
@@ -52,7 +62,7 @@ export class FeedbackInbox extends DurableObject{
         const id=Number(this.sql.exec('SELECT last_insert_rowid() AS id').toArray()[0]?.id);
         this.sql.exec('INSERT OR IGNORE INTO bug_alerts(id,next_try) VALUES(?,?)',id,now);
         // Keep the bug report even if Discord is unreachable or not configured.
-        if(discordWebhook(this.env.FEEDBACK_DISCORD_WEBHOOK_URL))await this.deliverAlerts();
+        if(emailSettings(this.env)||discordWebhook(this.env.FEEDBACK_DISCORD_WEBHOOK_URL))await this.deliverAlerts();
       }
       return json({ok:true},201,origin);
     }
@@ -72,8 +82,10 @@ export class FeedbackInbox extends DurableObject{
     return json({error:'Route inconnue.'},404,origin);
   }
   async deliverAlerts(){
-    const webhook=discordWebhook(this.env.FEEDBACK_DISCORD_WEBHOOK_URL);
-    if(!webhook||this.sendingAlerts)return;
+    const email=emailSettings(this.env);
+    // Email takes priority when configured; Discord stays as a fallback.
+    const webhook=email?null:discordWebhook(this.env.FEEDBACK_DISCORD_WEBHOOK_URL);
+    if((!email&&!webhook)||this.sendingAlerts)return;
     this.sendingAlerts=true;
     try{
       const now=Date.now();
@@ -81,21 +93,41 @@ export class FeedbackInbox extends DurableObject{
         'SELECT a.id,a.attempts,f.topic,f.message,f.created FROM bug_alerts a JOIN feedback f ON f.id=a.id WHERE a.next_try<=? AND a.attempts<5 ORDER BY a.id LIMIT 5',now
       ).toArray();
       for(const bug of pending){
-        const content=[
-          '🐛 **Nouveau bug signalé dans Limbyrinth**',
-          '**Sujet :** '+(TOPIC_LABELS[bug.topic]||'Autre'),
-          '**Détail :** '+String(bug.message||'').slice(0,800),
-          '**Voir les retours :** '+ADMIN_INBOX
-        ].join('\n');
+        const detail=String(bug.message||'').slice(0,800);
+        const topic=TOPIC_LABELS[bug.topic]||'Autre';
         const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),4500);
         let delivered=false;
         try{
-          const response=await fetch(webhook,{method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({username:'Limbyrinth · Bugs',content,allowed_mentions:{parse:[]}}),
-            signal:controller.signal});
-          delivered=response.ok;
+          if(email){
+            const payload={
+              from:email.from,
+              to:[email.to],
+              subject:'[Limbyrinth] Nouveau bug - '+topic,
+              text:['Un joueur a signalé un bug dans Limbyrinth.','',
+                'Sujet : '+topic,'',
+                'Description :',detail,'',
+                'Tableau privé : '+ADMIN_INBOX].join('\n')
+            };
+            const response=await fetch(RESEND_URL,{method:'POST',headers:{
+              'Authorization':'Bearer '+email.key,
+              'Content-Type':'application/json',
+              'Idempotency-Key':'limbyrinth-bug-'+bug.id
+            },body:JSON.stringify(payload),signal:controller.signal});
+            delivered=response.ok;
+          }else{
+            const content=[
+              '🐛 **Nouveau bug signalé dans Limbyrinth**',
+              '**Sujet :** '+topic,
+              '**Détail :** '+detail,
+              '**Voir les retours :** '+ADMIN_INBOX
+            ].join('\n');
+            const response=await fetch(webhook,{method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({username:'Limbyrinth · Bugs',content,allowed_mentions:{parse:[]}}),
+              signal:controller.signal});
+            delivered=response.ok;
+          }
         }catch{
-          // Discord failures must never erase the user's saved bug report.
+          // Delivery errors never erase the user's report.
         }finally{clearTimeout(timer);}
         if(delivered)this.sql.exec('DELETE FROM bug_alerts WHERE id=?',bug.id);
         else{
