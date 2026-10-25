@@ -2,6 +2,55 @@
 (function () {
   "use strict";
   const KEY = "limbyrinthScoresV1";
+  const WORLD_BASE="https://limbyrinth-online.baptiste-werner.workers.dev";
+  const TOKEN_KEY="limbyrinthSocialTokenV1";
+  const PENDING_KEY="limbyrinthLeaderboardPendingV1";
+  let onlineLevel="all",onlineRequest=0,sending=false,uploadMessage="";
+  function getToken(){try{return localStorage.getItem(TOKEN_KEY)||"";}catch{return "";}}
+  function getPending(){
+    try{const val=JSON.parse(localStorage.getItem(PENDING_KEY)||"{}");return val&&typeof val==="object"&&!Array.isArray(val)?val:{};}
+    catch{return {};}
+  }
+  // Only freshly completed runs on a signed-in browser are eligible. Old local saves are never imported.
+  function queueOnline(data){
+    if(!getToken())return;
+    const payload={
+      level:data.level,score:data.score,won:data.won,mode:data.mode,
+      seconds:data.seconds,remaining:data.remaining,crystals:data.crystals
+    };
+    try{
+      const pending=getPending(),prev=pending[String(data.level)];
+      if(!prev||prev.score<payload.score){pending[String(data.level)]=payload;localStorage.setItem(PENDING_KEY,JSON.stringify(pending));}
+    }catch{return;}
+    void flushOnline();
+  }
+  async function flushOnline(){
+    const token=getToken();
+    if(!token||sending)return;
+    sending=true;
+    try{
+      const pending=getPending();
+      for(const [key,entry] of Object.entries(pending)){
+        let res;
+        const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
+        try{
+          res=await fetch(WORLD_BASE+"/social/score",{
+            method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+token},
+            body:JSON.stringify(entry),signal:controller.signal,cache:"no-store"
+          });
+        }catch{uploadMessage="Synchronisation impossible. Réessaie depuis Scores avec une connexion Internet.";break;}
+        finally{clearTimeout(timer);}
+        if(res.status===401){uploadMessage="Profil non connecté. Ouvre Amis & pseudo.";break;}
+        if(!res.ok&&res.status!==400){uploadMessage="Classement indisponible. La partie est conservée sur cet appareil.";break;}
+        const current=getPending();
+        if(current[key]&&JSON.stringify(current[key])===JSON.stringify(entry)){
+          delete current[key];try{localStorage.setItem(PENDING_KEY,JSON.stringify(current));}catch{}
+        }
+        uploadMessage=res.status===400?"Résultat non accepté par le classement (score à vérifier).":"";
+      }
+    }finally{sending=false;}
+  }
+
   let lastError = "";
   let filterLevel = "all", filterMode = "all", order = "recent";
 
@@ -39,6 +88,7 @@
       history.push(entry);
       localStorage.setItem(KEY, JSON.stringify(history));
       lastError = "";
+      queueOnline(data);
       return true;
     } catch (error) {
       lastError = "Impossible d’enregistrer le score : espace de stockage du navigateur insuffisant ou désactivé.";
@@ -100,6 +150,17 @@
     ".scores-empty{padding:32px 18px;text-align:center;color:#a6bfd2;line-height:1.5}",
     ".scores-small{color:#94afc0;font-size:12px;line-height:1.6}",
     ".scores-error{color:#ffb8bf;font-size:13px}",
+    ".scores-online{border-color:#49819a;margin:20px 0;background:linear-gradient(145deg,rgba(12,43,67,.94),rgba(9,26,42,.94))}",
+    ".scores-online h2{margin:0 0 6px;font-size:21px;color:#8ff3ff}",
+    ".scores-online-table{width:100%;border-collapse:collapse;font-size:13px}",
+    ".scores-online-table td,.scores-online-table th{padding:11px 9px;border-bottom:1px solid #264a5d;text-align:left}",
+    ".scores-online-table th{color:#a5cce1;font-size:11px;text-transform:uppercase}",
+    ".scores-online-table tr:first-child td{font-weight:700;color:#ffe3a2}",
+    ".scores-online-table tr:last-child td{border-bottom:0}",
+    ".scores-online-table td:nth-child(2){font-weight:700;overflow-wrap:anywhere}",
+    ".scores-online-table td:nth-child(3){font-weight:700;font-variant-numeric:tabular-nums}",
+    ".scores-online-table tbody tr:nth-child(even){background:rgba(255,255,255,.025)}",
+
     "@media(max-width:720px){.scores-stats,.scores-levels{grid-template-columns:repeat(2,minmax(0,1fr))}.scores-wrap{padding-left:12px;padding-right:12px}.scores-controls{align-items:flex-start}}",
     "@media(max-width:360px){.scores-stats,.scores-levels{grid-template-columns:1fr}}"
   ].join("\n");
@@ -166,6 +227,18 @@
       stat("Points cumulés", num(all.reduce((a,r)=>a+r.score,0)))
     );
     wrap.appendChild(stats);
+
+    const global=el("section","scores-card scores-online");
+    global.append(el("h2","","🏆 TOP 10 MONDIAL"),el("p","scores-small","Meilleur score d’une seule partie par joueur. Classement partagé sur Internet · joueurs avec pseudo."));
+    const globals=el("div","scores-controls"),output=el("div","scores-scroll");
+    globals.append(
+      select("Classement ",[["all","Tous les niveaux"],...levelNames.map((n,i)=>[String(i+1),"Niveau "+(i+1)])],onlineLevel,v=>{onlineLevel=v;void loadLeaderboard(output,v);}),
+      button("↻ Actualiser",()=>{void flushOnline().then(()=>loadLeaderboard(output,onlineLevel));},"scores-btn")
+    );
+    global.append(globals,output);
+    if(!getToken())global.appendChild(el("p","scores-small","Pour apparaître ici, crée d’abord ton pseudo dans 👥 Amis & pseudo, puis termine une nouvelle partie."));
+    global.appendChild(el("p","scores-small","Classement communautaire en bêta : les scores proviennent des jeux des participants et ne sont pas encore vérifiés par un système anti-triche. Les anciens scores locaux ne sont pas importés."));
+    wrap.appendChild(global);
     if (legacyBest && !all.some(r=>r.score===legacyBest)) {
       wrap.appendChild(el("p", "scores-small", "Ton ancien record de " + num(legacyBest) + " points a été conservé. Les anciennes parties ne peuvent pas être reconstituées."));
     }
@@ -180,7 +253,7 @@
     });
     wrap.appendChild(levels);
     wrap.appendChild(el("h2", "scores-section", "Historique des parties"));
-    const controls=el("div", "scores-controls");
+    const controls=el("div", "scores-controls scores-local-controls");
     controls.append(
       select("Niveau ", [["all","Tous"],...levelNames.map((n,i)=>[String(i+1),String(i+1)+" · "+n])], filterLevel, v=>{filterLevel=v;render();}),
       select("Mode ", [["all","Tous"],["Solo","Solo"],["Coop locale","Coop locale"],["En ligne","En ligne"]], filterMode, v=>{filterMode=v;render();}),
@@ -205,8 +278,39 @@
       });
       table.appendChild(body); scroll.appendChild(table); wrap.appendChild(scroll);
     }
-    wrap.appendChild(el("p","scores-small","Classement local : les scores restent dans ce navigateur. La coopération compte comme une partie sur chaque appareil. Aucun classement mondial n’est connecté."));
+    wrap.appendChild(el("p","scores-small","Historique ci-dessus : local à cet appareil. Seuls les meilleurs résultats des joueurs connectés avec un pseudo peuvent rejoindre le classement mondial."));
+
     screen.replaceChildren(wrap);
+    void flushOnline().then(()=>loadLeaderboard(output,onlineLevel));
+  }
+
+  async function loadLeaderboard(output,level){
+    const current=++onlineRequest;
+    output.replaceChildren(el("p","scores-empty","Chargement du classement en ligne…"));
+    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
+    try{
+      const res=await fetch(WORLD_BASE+"/social/leaderboard?level="+encodeURIComponent(level),{cache:"no-store",signal:controller.signal});
+      const data=await res.json();
+      if(!res.ok)throw Error(data.error||"Service indisponible.");
+      if(current!==onlineRequest||!output.isConnected)return;
+      const players=Array.isArray(data.top)?data.top:[];
+      output.replaceChildren();
+      if(!players.length){output.appendChild(el("p","scores-empty","Aucun joueur classé pour le moment. Termine une partie avec ton pseudo pour inaugurer le Top 10 !"));return;}
+      const table=el("table","scores-online-table"),head=el("thead"),tr=el("tr");
+      ["Rang","Pseudo","Points","Niveau","Mode"].forEach(label=>tr.appendChild(el("th","",label)));
+      head.appendChild(tr);table.appendChild(head);
+      const body=el("tbody");
+      players.slice(0,10).forEach((p,i)=>{
+        const row=el("tr");
+        [i===0?"🥇 1":i===1?"🥈 2":i===2?"🥉 3":String(i+1),p.pseudo||"Joueur",num(p.score),String(p.level),p.mode||"—"].forEach(value=>row.appendChild(el("td","",value)));
+        body.appendChild(row);
+      });
+      table.appendChild(body);output.appendChild(table);
+      output.appendChild(el("p","scores-small",num(data.totalPlayers||0)+" joueur(s) classé(s)."+(uploadMessage?" "+uploadMessage:"")));
+    }catch(error){
+      if(current!==onlineRequest||!output.isConnected)return;
+      output.replaceChildren(el("p","scores-empty","Classement momentanément indisponible. Vérifie ta connexion puis appuie sur Actualiser."));
+    }finally{clearTimeout(timer);}
   }
 
   function open() {
@@ -216,5 +320,5 @@
   }
 
   screen.addEventListener("keydown", e => { if (e.key==="Escape"){e.preventDefault();e.stopPropagation();close();} });
-  window.LimbyrinthScores = { record, open, close, read };
+  window.LimbyrinthScores = { record, open, close, read, refreshLeaderboard:flushOnline };
 })();

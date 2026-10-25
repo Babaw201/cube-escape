@@ -16,6 +16,14 @@ Choisir **« Niveau 1 : Labyrinthe »** pour commencer. Sur téléphone, ouvrir 
 
 ![Les quatre formes de robot](artifacts/robots.png)
 
+## 🏆 Classement mondial Top 10
+
+Depuis le menu **Scores & Top 10**, chaque joueur peut consulter un classement en ligne des **10 meilleurs pseudos**. Le tri porte sur le **meilleur score obtenu lors d'une seule partie** ; chaque joueur figure au plus une fois dans le Top 10 global. Un filtre permet aussi d'afficher les 10 meilleurs résultats de chaque niveau (1 à 4).
+
+Le serveur Cloudflare `SocialHub` conserve un record par joueur et par niveau et affiche le pseudo actuel du compte. Les scores sont envoyés automatiquement **à la fin des nouvelles parties si le joueur a déjà créé son profil** dans « Amis & pseudo ». Les parties jouées sans profil et l'historique local antérieur ne sont pas importés. En cas de panne réseau, les résultats terminés sous un pseudo sont conservés en attente localement et une synchronisation est retentée depuis l'écran Scores.
+
+**Bêta communautaire :** le serveur valide les formats, les valeurs de temps et les règles de calcul, mais un jeu web reste modifiable par son navigateur : **les scores ne bénéficient pas encore d'un anti-triche serveur faisant autorité**. Ne pas utiliser ce classement pour décerner des prix sans système de vérification. Le Top 10 est public : les pseudos qui participent y sont visibles.
+
 ## Scores et historique
 
 Depuis l'accueil, appuyer sur **🏆 Scores** pour consulter le tableau des résultats. Il est également accessible depuis l'écran de fin de partie.

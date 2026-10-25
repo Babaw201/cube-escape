@@ -77,3 +77,55 @@ test('amis : pseudonymes uniques, identité protégée, demandes et invitations'
     assert.deepEqual(Array.from((await (await app.call('me',{token:a.token})).json()).friends),[]);
   });
 });
+test('top 10 en ligne : pseudos, meilleurs scores et classement par niveau', async t=>{
+ const app=makeApp();
+ const users=[];
+ for(let i=0;i<12;i++) users.push(await app.register('Player'+String(i+1).padStart(2,'0')));
+ const submit=async(user,level,remaining,crystals=3,won=true,mode='Solo')=>{
+   const score=crystals*100+(won?Math.ceil(remaining)*10:0);
+   return app.call('score',{method:'POST',token:user.token,body:{level,remaining,crystals,won,score,seconds:45,mode}});
+ };
+ await t.test('écriture impossible sans pseudo, données incohérentes rejetées',async()=>{
+   assert.equal((await app.call('score',{method:'POST',body:{level:1,score:300}})).status,401);
+   const bad=await app.call('score',{method:'POST',token:users[0].token,body:{level:1,score:9000,crystals:3,remaining:50,won:true,seconds:40,mode:'Solo'}});
+   assert.equal(bad.status,400);
+   assert.equal((await app.call('leaderboard?level=abc')).status,400);
+   assert.deepEqual(Array.from((await (await app.call('leaderboard')).json()).top),[]);
+ });
+ await t.test('douze joueurs et seulement dix premières places',async()=>{
+   for(let i=0;i<users.length;i++)assert.equal((await submit(users[i],1,80-i)).status,200);
+   const data=await (await app.call('leaderboard')).json();
+   assert.equal(data.top.length,10);
+   assert.equal(data.totalPlayers,12);
+   assert.equal(data.top[0].pseudo,'Player01');
+   assert.equal(data.top[0].score,1100);
+   assert.equal(data.top[9].pseudo,'Player10');
+   assert.ok(data.top.every(r=>r.level===1));
+ });
+ await t.test('une mauvaise partie ne remplace pas le record',async()=>{
+   const last=await submit(users[0],1,20);
+   assert.equal((await last.json()).improved,false);
+   const ranked=await (await app.call('leaderboard?level=1')).json();
+   assert.equal(ranked.top[0].score,1100);
+ });
+ await t.test('classement par niveau et meilleur résultat global par pseudo',async()=>{
+   const improved=await submit(users[11],4,220);
+   assert.equal((await improved.json()).improved,true);
+   const lvl4=await (await app.call('leaderboard?level=4')).json();
+   assert.equal(lvl4.top.length,1);
+   assert.equal(lvl4.top[0].pseudo,'Player12');
+   assert.equal(lvl4.top[0].score,2500);
+   const overall=await (await app.call('leaderboard')).json();
+   assert.equal(overall.top[0].pseudo,'Player12');
+   assert.equal(overall.top.filter(r=>r.pseudo==='Player12').length,1);
+ });
+ await t.test('changer de pseudo actualise l’affichage sans perdre son score',async()=>{
+   assert.equal((await app.call('rename',{method:'POST',token:users[11].token,body:{pseudo:'Champion32'}})).status,200);
+   const ranked=await (await app.call('leaderboard?level=4')).json();
+   assert.equal(ranked.top[0].pseudo,'Champion32');
+ });
+ await t.test('le même score ne génère pas de doublons',async()=>{
+   assert.equal((await submit(users[11],4,220)).status,200);
+   assert.equal(app.db.prepare('SELECT count(*) AS n FROM leaderboard_scores WHERE level=4').get().n,1);
+ });
+});
