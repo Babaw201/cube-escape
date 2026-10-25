@@ -63,6 +63,21 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     await page.locator('#feedback-screen .fb-top button').click();
     assert.equal(await page.locator('#feedback-screen').isVisible(),false);
   });
+  await t.test('formulaire : un vote est bien transmis au serveur', async () => {
+    let body=null;
+    await page.route('https://limbyrinth-online.baptiste-werner.workers.dev/feedback', async route=>{
+      body=route.request().postDataJSON();
+      await route.fulfill({status:201,contentType:'application/json',body:'{"ok":true}'});
+    });
+    await page.locator('#home .hm-feedback-card').click();
+    assert.equal(await page.locator('#feedback-screen').isVisible(),true);
+    await page.locator('#fb-topic').selectOption('murs');
+    await page.locator('#feedback-screen form button[type=submit]').click();
+    await page.waitForFunction(()=>document.querySelector('#feedback-screen .fb-status')?.textContent.includes('transmis'));
+    assert.deepEqual(body,{kind:'poll',topic:'murs',message:''});
+    await page.locator('#feedback-screen .fb-top button').click();
+    await page.unroute('https://limbyrinth-online.baptiste-werner.workers.dev/feedback');
+  });
   await t.test('la campagne propose le quatrième niveau', async () => {
     assert.equal(await run('LV.length'), 4);
   });
