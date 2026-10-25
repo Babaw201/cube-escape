@@ -157,6 +157,7 @@ canvas{touch-action:none}#overlay{overflow:auto;touch-action:pan-y}#net textarea
   <button id="btn">Jouer</button>
 </div>
 
+<script src="scores.js"></script>
 <script src="vendor/three.min.js"></script>
 <script>
 if (typeof THREE === "undefined") {
@@ -608,6 +609,11 @@ function end(win, why) {
   if (win) [523, 659, 784].forEach((f, i) => setTimeout(() => snd(f, 0.25, "triangle", 0.07), i * 140)); else snd(200, 0.6, "sawtooth", 0.07, 50);
   if (win && cur + 1 < LV.length) { maxLv = Math.max(maxLv, cur + 2); try { localStorage.setItem("cubeEscapeUnlocked", maxLv); } catch (e) {} }
   const s = score(win);
+  if (window.LimbyrinthScores) window.LimbyrinthScores.record({
+    level: cur + 1, score: s, won: win, 
+    mode: net ? "En ligne" : nP > 1 ? "Coop locale" : "Solo",
+    seconds: missionElapsed, remaining: timeLeft, crystals: collected, kills: kills
+  });
   if (win) { run.t += missionElapsed; run.k += kills; run.s += s; }
   let best = 0;
   try { best = +localStorage.getItem("cubeEscapeBest") || 0; if (s > best) { best = s; localStorage.setItem("cubeEscapeBest", s); } } catch (e) { best = Math.max(best, s); }
@@ -835,6 +841,11 @@ function renderLv() {
     const sb = document.createElement("button"); sb.className = "lvb"; sb.style.background = "#ffb454"; sb.style.color = "#05060f"; sb.textContent = "Boutique \u{1FA99} " + save.coins; sb.onclick = openShop; box.appendChild(sb);
     box.appendChild(document.createElement("br"));
   }
+  const scoresButton = document.createElement("button");
+  scoresButton.className = "lvb";
+  scoresButton.textContent = "🏆 Scores";
+  scoresButton.onclick = () => window.LimbyrinthScores && window.LimbyrinthScores.open();
+  box.appendChild(scoresButton);
   LV.forEach((l, i) => {
     const b = document.createElement("button");
     b.className = "lvb" + (i ? " o" : ""); b.disabled = i >= maxLv || net === "guest";
