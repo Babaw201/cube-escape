@@ -41,12 +41,12 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     assert.match(await page.locator('#scores-screen').innerText(), /Aucun score/);
     await page.evaluate(() => window.LimbyrinthScores.record({level:2, score:830, won:true, mode:"Solo", seconds:57, remaining:21, crystals:3, kills:2}));
     await page.evaluate(() => window.LimbyrinthScores.open());
-    assert.equal(await page.locator('#scores-screen tbody tr').count(),1);
-    assert.match(await page.locator('#scores-screen tbody tr').innerText(),/830/);
-    await page.locator('#scores-screen select').first().selectOption('1');
+    assert.equal(await page.locator('#scores-screen .scores-table tbody tr').count(),1);
+    assert.match(await page.locator('#scores-screen .scores-table tbody tr').innerText(),/830/);
+    await page.locator('#scores-screen .scores-local-controls select').first().selectOption('1');
     assert.match(await page.locator('#scores-screen').innerText(), /Aucun score/);
-    await page.locator('#scores-screen select').first().selectOption('2');
-    assert.equal(await page.locator('#scores-screen tbody tr').count(),1);
+    await page.locator('#scores-screen .scores-local-controls select').first().selectOption('2');
+    assert.equal(await page.locator('#scores-screen .scores-table tbody tr').count(),1);
     await page.locator('#scores-screen .scores-btn').first().click();
     assert.equal(await page.locator('#scores-screen').isVisible(),false);
     await page.evaluate(() => localStorage.removeItem('limbyrinthScoresV1'));
