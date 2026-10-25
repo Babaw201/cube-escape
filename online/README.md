@@ -26,3 +26,16 @@ npx wrangler deploy
 La configuration et la migration SQLite sont dans `wrangler.jsonc`. Le client utilise `ONLINE_BASE` dans `index.html`. Aucun jeton de salon ne doit être enregistré dans le code ou les logs.
 
 Le site GitHub Pages sert seulement le client. Le service est déployé séparément sur `https://limbyrinth-online.baptiste-werner.workers.dev`.
+
+## Comptes et amis
+
+La migration `v2` crée le Durable Object SQLite `SocialHub`, singleton global sous `env.SOCIAL` ; il gère pseudonymes uniques, demandes, amis, blocages et invitations temporaires. Les jetons personnels sont hashés en SHA-256 côté serveur ; aucune donnée personnelle n'est demandée.
+
+API (authentification `Authorization: Bearer <token>`, sauf inscription) :
+- `POST /social/register` avec `{ "pseudo":"Robot32" }` retourne un jeton privé, une seule fois.
+- `GET /social/me` retourne son profil, ses amis, demandes et invitations valables.
+- `POST /social/rename`, `/social/request`, `/social/respond`, `/social/cancel`, `/social/remove`, `/social/block`, `/social/unblock` et `/social/invite`.
+- Les invitations nécessitent une amitié mutuelle et un salon valide au format de code attendu ; l'ouverture du salon reste sécurisée par le Worker de jeu déjà existant.
+- Les appels POST sont limités par le ratelimit Cloudflare déjà présent, plus plafonds de demandes et d'amis en base.
+
+Déploiement : `cd online && npx wrangler deploy` avec un accès authentifié à **ce** compte Cloudflare. Tester le service avant de laisser l'interface en production. Le frontend contient la nouvelle fonctionnalité mais les endpoints n'existent pas avant ce déploiement. Pour de nombreux utilisateurs, ajouter une récupération de compte et une modération robuste.

@@ -41,6 +41,17 @@ Depuis l'accueil, appuyer sur **🏆 Scores** pour consulter le tableau des rés
 
 Télécharger le dépôt et ouvrir `index.html` en conservant le dossier `vendor`, ou télécharger le fichier autonome [`Limbyrinth.html`](Limbyrinth.html) et l’ouvrir dans un navigateur compatible WebGL. Three.js est fourni localement avec sa licence.
 
+## Pseudos et amis (version expérimentale)
+
+Dans le menu **👥 Amis & pseudo**, créer un profil avec un pseudo unique (3–16 caractères : lettres non accentuées, chiffres, soulignement ; commence par une lettre). Ensuite, on peut envoyer une demande à un pseudo exact, accepter/refuser, retirer ou bloquer un joueur, et inviter un ami confirmé dans un salon coopératif.
+
+- Les profils et amitiés sont gérés par le service Cloudflare `/social/*` du Worker `limbyrinth-online`, avec stockage SQLite Durable Object.
+- **Déploiement du Worker nécessaire** : il faut déployer `online/wrangler.jsonc` (migration `v2` ajoutant `SocialHub`) et `online/social.mjs` avant d'activer l'interface sur le site. Test conseillé avec deux navigateurs distincts.
+- L'identifiant d'accès privé reste dans le stockage du navigateur, jamais dans un lien partagé ; il n'existe **pas de récupération de compte ou de synchronisation entre appareils** dans cette première version. Ne pas effacer les données du navigateur si l'on veut conserver ce profil.
+- Les demandes nécessitent l'acceptation explicite du destinataire ; pas d'annuaire public, pas de messagerie privée ; bloquer retire les liens existants.
+- Les invitations à rejoindre un salon expirent automatiquement après 15 minutes. La liste est rafraîchie lorsque le joueur ouvre **Amis & pseudo** ou clique sur *Actualiser*.
+- Ce n'est pas un système complet de comptes (absence d'e-mail, de mot de passe, de restauration et de modération avancée). Pour une diffusion publique importante, ajouter des protections renforcées et un mécanisme de récupération.
+
 ## Jouer avec un ami
 
 1. L’hôte ouvre **Jouer en ligne → Créer un salon**.

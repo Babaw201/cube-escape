@@ -15,7 +15,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
   await page.addInitScript(() => { window.requestAnimationFrame = () => 0; });
   await page.route('https://game.test/**', route => {
     const pathname = new URL(route.request().url()).pathname;
-    const file = pathname === '/vendor/three.min.js' ? 'vendor/three.min.js' : pathname === '/menu.js' ? 'menu.js' : pathname === '/scores.js' ? 'scores.js' : 'index.html';
+    const file = pathname === '/vendor/three.min.js' ? 'vendor/three.min.js' : pathname === '/menu.js' ? 'menu.js' : pathname === '/scores.js' ? 'scores.js' : pathname === '/friends.js' ? 'friends.js' : 'index.html';
     let data = fs.readFileSync(path.join(root, file), 'utf8');
     if (file === 'index.html') data = data.replace('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', '/vendor/three.min.js').replace('loop();\n})();', 'window.gameEval = code => eval(code); loop();\n})();');
     return route.fulfill({contentType: file.endsWith('.js') ? 'text/javascript' : 'text/html', body:data});
@@ -45,6 +45,14 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     await page.locator('#scores-screen .scores-btn').first().click();
     assert.equal(await page.locator('#scores-screen').isVisible(),false);
     await page.evaluate(() => localStorage.removeItem('limbyrinthScoresV1'));
+  });
+  await t.test('Profil et amis : ouverture du panneau depuis le menu', async () => {
+    assert.equal(await page.locator('#home .hm-friends-button').count(),1);
+    await page.locator('#home .hm-friends-button').click();
+    assert.equal(await page.locator('#friends-screen').isVisible(),true);
+    assert.match(await page.locator('#friends-screen').innerText(), /AMIS & PROFIL/);
+    await page.locator('#friends-screen .fr-btn').first().click();
+    assert.equal(await page.locator('#friends-screen').isVisible(),false);
   });
   await t.test('la campagne propose le quatrième niveau', async () => {
     assert.equal(await run('LV.length'), 4);

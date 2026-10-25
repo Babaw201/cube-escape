@@ -846,6 +846,10 @@ function renderLv() {
   scoresButton.textContent = "🏆 Scores";
   scoresButton.onclick = () => window.LimbyrinthScores && window.LimbyrinthScores.open();
   box.appendChild(scoresButton);
+  const friendsButton=document.createElement("button");
+  friendsButton.className="lvb";friendsButton.textContent="👥 Amis & pseudo";
+  friendsButton.onclick=()=>window.LimbyrinthFriends && window.LimbyrinthFriends.open();
+  box.appendChild(friendsButton);
   LV.forEach((l, i) => {
     const b = document.createElement("button");
     b.className = "lvb" + (i ? " o" : ""); b.disabled = i >= maxLv || net === "guest";
@@ -995,6 +999,11 @@ async function createOnlineRoom(){
     const data=await roomFetch('/rooms',{method:'POST'});if(attempt!==onlineAttempt)return;
     if(!validRoomCode(data.code)||typeof data.hostToken!=='string')throw new Error('Réponse de création invalide. Réessaie.');
     connectOnlineRoom(data,true,attempt);
+    const friend=window.limbyrinthPendingFriendInvite;window.limbyrinthPendingFriendInvite=null;
+    if(friend&&window.LimbyrinthFriends){
+      const ok=await window.LimbyrinthFriends.sendInvite(friend,data.code);
+      if(attempt===onlineAttempt&&roomSession.code===data.code&&!ok) $('nm').textContent='Salon créé, mais invitation non envoyée. Partage le code du salon manuellement.';
+    }
   }catch(error){roomFailure(roomErrorText(error),attempt);}
 }
 async function joinOnlineRoom(){
@@ -1043,6 +1052,14 @@ async function copyRoomField(id){
   try{if(!navigator.clipboard?.writeText)throw new Error('clipboard');await navigator.clipboard.writeText(field.value);$('nm').textContent=id==='room-code'?'Code copié ! Envoie-le à ton ami.':'Lien copié ! Envoie-le à ton ami.';}
   catch{field.focus();field.select();$('nm').textContent='Texte sélectionné : copie-le pour le partager.';}
 }
+window.LimbyrinthFriendsLaunch=pseudo=>{
+  if(net || $('net').style.display==='flex')return false;
+  window.limbyrinthPendingFriendInvite=pseudo;createOnlineRoom();return true;
+};
+window.LimbyrinthJoinFromFriends=code=>{
+  if(net || $('net').style.display==='flex'||!validRoomCode(code))return false;
+  openNet();$('room-input').value=roomCodeLabel(code);joinOnlineRoom();return true;
+};
 $('room-create').addEventListener('click',createOnlineRoom);
 $('room-form').addEventListener('submit',event=>{event.preventDefault();joinOnlineRoom();});
 $('room-copy-code').addEventListener('click',()=>copyRoomField('room-code'));
@@ -1693,6 +1710,7 @@ loop();
 }
 </script>
 <script src="menu.js"></script>
+<script src="friends.js"></script>
 </body>
 </html>
 
