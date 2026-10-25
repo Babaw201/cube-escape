@@ -114,8 +114,9 @@
     if (!guest) row.appendChild(btn("hm-btn gold", "\u{1F6D2} Boutique", () => press(/Boutique/)));
     row.appendChild(btn("hm-btn hm-scores-button", "🏆 Scores", () => window.LimbyrinthScores && window.LimbyrinthScores.open()));
     row.appendChild(btn("hm-btn hm-friends-button", "👥 Amis & pseudo", () => window.LimbyrinthFriends && window.LimbyrinthFriends.open()));
-    row.appendChild(btn("hm-btn hm-feedback-button", "💡 Donner mon avis", () => window.LimbyrinthFeedback && window.LimbyrinthFeedback.open("idea"));
-    hero.appendChild(row);    const infoBox = el("section", "hm-box hm-update-box");
+    row.appendChild(btn("hm-btn hm-feedback-button", "💡 Donner mon avis", () => window.LimbyrinthFeedback && window.LimbyrinthFeedback.open("idea")));
+    hero.appendChild(row);
+    const infoBox = el("section", "hm-box hm-update-box");
     infoBox.appendChild(el("h2", null, "📣 INFOS · PROCHAINES MISES À JOUR"));
     infoBox.appendChild(el("p", "hm-update-line", null, [
       el("b", null, "Lundi 26 octobre · matin"),
