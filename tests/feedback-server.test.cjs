@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const vm=require('node:vm');
 const {DatabaseSync}=require('node:sqlite');
 const {webcrypto,timingSafeEqual}=require('node:crypto');
-function createApp({discordWebhook='',failDelivery=false}={}){
+function createApp({discordWebhook='',emailTo='',emailApiKey='',failDelivery=false}={}){
  const db=new DatabaseSync(':memory:');
  const alerts=[],alarms=[];
  const delivery={fail:failDelivery};
@@ -26,7 +26,8 @@ function createApp({discordWebhook='',failDelivery=false}={}){
    return{toArray:()=>rows};
  }};
  const inbox=new ctx.FeedbackInbox({storage:{sql,setAlarm:async due=>alarms.push(due)}},{
-   FEEDBACK_ADMIN_KEY:'a'.repeat(32),FEEDBACK_DISCORD_WEBHOOK_URL:discordWebhook
+   FEEDBACK_ADMIN_KEY:'a'.repeat(32),FEEDBACK_DISCORD_WEBHOOK_URL:discordWebhook,
+   FEEDBACK_EMAIL_TO:emailTo,RESEND_API_KEY:emailApiKey
  });
  const send=(path,{method='GET',body=null,key=''}={})=>{
    const headers={Origin:'https://babaw201.github.io'};
