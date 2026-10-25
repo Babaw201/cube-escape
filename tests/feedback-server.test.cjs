@@ -111,3 +111,44 @@ test('alertes de bugs Discord : livraison privée, limites et reprise',async t=>
    assert.equal(app.alerts.length,0);
  });
 });
+
+test('email notifications preferred over Discord',async t=>{
+ const recipient='test-account@example.net';
+ const opts={emailTo:recipient,emailApiKey:'re_'+'a'.repeat(24)};
+ const bug={kind:'bug',topic:'ennemis',message:'Le drone est coincé dans le coin droit.'};
+ await t.test('one bug produces one private email',async()=>{
+   const app=createApp({...opts,discordWebhook:'https://discord.com/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwxyzABCDEF123456'});
+   assert.equal((await app.send('/feedback',{method:'POST',body:bug})).status,201);
+   assert.equal(app.alerts.length,1);
+   const item=app.alerts[0];
+   assert.equal(item.url,'https://api.resend.com/emails');
+   assert.deepEqual(JSON.parse(JSON.stringify(item.payload.to)),[recipient]);
+   assert.match(item.payload.subject,/Drones/);
+   assert.match(item.payload.text,/drone est coincé/);
+   assert.equal(item.options.headers['Idempotency-Key'],'limbyrinth-bug-1');
+   assert.equal(app.db.prepare('SELECT count(*) AS n FROM bug_alerts').get().n,0);
+ });
+ await t.test('other feedback does not trigger email',async()=>{
+   const app=createApp(opts);
+   await app.send('/feedback',{method:'POST',body:{kind:'poll',topic:'murs',message:''}});
+   await app.send('/feedback',{method:'POST',body:{kind:'idea',topic:'murs',message:'Ajouter des murs mobiles dans les labyrinthes.'}});
+   assert.equal(app.alerts.length,0);
+ });
+ await t.test('retry preserves report and the same unique send ID',async()=>{
+   const app=createApp({...opts,failDelivery:true});
+   assert.equal((await app.send('/feedback',{method:'POST',body:bug})).status,201);
+   assert.equal(app.db.prepare('SELECT attempts FROM bug_alerts').get().attempts,1);
+   assert.equal(app.db.prepare('SELECT count(*) AS n FROM feedback').get().n,1);
+   app.delivery.fail=false;
+   app.db.prepare('UPDATE bug_alerts SET next_try=0').run();
+   await app.inbox.alarm();
+   assert.equal(app.alerts.length,2);
+   assert.equal(app.alerts[0].options.headers['Idempotency-Key'],app.alerts[1].options.headers['Idempotency-Key']);
+   assert.equal(app.db.prepare('SELECT count(*) AS n FROM bug_alerts').get().n,0);
+ });
+ await t.test('incomplete email configuration never attempts delivery',async()=>{
+   const app=createApp({emailTo:recipient});
+   assert.equal((await app.send('/feedback',{method:'POST',body:bug})).status,201);
+   assert.equal(app.alerts.length,0);
+ });
+});
