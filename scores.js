@@ -210,7 +210,7 @@
   }
 
   function open() {
-    returnFocus = document.activeElement;
+    if (screen.hidden) returnFocus = document.activeElement;
     render(); screen.hidden = false;
     const back = screen.querySelector("button"); if (back) back.focus({preventScroll:true});
   }
