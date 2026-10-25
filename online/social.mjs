@@ -28,6 +28,9 @@ export class SocialHub extends DurableObject {
     this.sql.exec('CREATE TABLE IF NOT EXISTS friends(a TEXT NOT NULL, b TEXT NOT NULL, created INTEGER NOT NULL, PRIMARY KEY(a,b))');
     this.sql.exec('CREATE TABLE IF NOT EXISTS blocks(owner TEXT NOT NULL, target TEXT NOT NULL, PRIMARY KEY(owner,target))');
     this.sql.exec('CREATE TABLE IF NOT EXISTS invites(recipient TEXT NOT NULL, sender TEXT NOT NULL, room TEXT NOT NULL, created INTEGER NOT NULL, PRIMARY KEY(recipient,sender))');
+    // Best single run per player and level. Renames follow the stable user id.
+    this.sql.exec('CREATE TABLE IF NOT EXISTS leaderboard_scores(user_id TEXT NOT NULL, level INTEGER NOT NULL, score INTEGER NOT NULL, won INTEGER NOT NULL, mode TEXT NOT NULL, created INTEGER NOT NULL, PRIMARY KEY(user_id,level))');
+    this.sql.exec('CREATE INDEX IF NOT EXISTS leaderboard_best ON leaderboard_scores(level,score DESC,created ASC)');
   }
   one(query, ...args) { return this.sql.exec(query, ...args).toArray()[0] || null; }
   rows(query, ...args) { return this.sql.exec(query, ...args).toArray(); }
@@ -51,6 +54,20 @@ export class SocialHub extends DurableObject {
       try { body=await request.json(); if (!body || typeof body!=='object' || Array.isArray(body)) throw Error(); }
       catch { return error('JSON invalide.',400,origin); }
     }
+    if(path==='/social/leaderboard' && method==='GET'){
+      const scope=new URL(request.url).searchParams.get('level')||'all';
+      if(scope!=='all'&&!/^[1-4]$/.test(scope))return error('Niveau inconnu.',400,origin);
+      let top,totalPlayers;
+      if(scope==='all'){
+        top=this.rows('SELECT pseudo,score,level,mode,won,created FROM (SELECT u.pseudo AS pseudo,s.score AS score,s.level AS level,s.mode AS mode,s.won AS won,s.created AS created, ROW_NUMBER() OVER (PARTITION BY s.user_id ORDER BY s.score DESC,s.created ASC) AS rn FROM leaderboard_scores s JOIN users u ON u.id=s.user_id) WHERE rn=1 ORDER BY score DESC,created ASC,pseudo COLLATE NOCASE LIMIT 10');
+        totalPlayers=this.count('SELECT count(DISTINCT user_id) AS n FROM leaderboard_scores');
+      }else{
+        const level=Number(scope);
+        top=this.rows('SELECT u.pseudo,s.score,s.level,s.mode,s.won,s.created FROM leaderboard_scores s JOIN users u ON u.id=s.user_id WHERE s.level=? ORDER BY s.score DESC,s.created ASC,u.pseudo COLLATE NOCASE LIMIT 10',level);
+        totalPlayers=this.count('SELECT count(*) AS n FROM leaderboard_scores WHERE level=?',level);
+      }
+      return response({level:scope,totalPlayers,top:top.map(r=>({pseudo:r.pseudo,score:r.score,level:r.level,mode:r.mode,won:!!r.won,created:r.created}))},200,origin);
+    }
     if (path==='/social/register' && method==='POST') {
       const pseudo=asName(body.pseudo);
       if (!PSEUDO.test(pseudo)) return error('Pseudo : 3 à 16 caractères, commence par une lettre, puis lettres/chiffres/_ seulement.',400,origin);
@@ -65,6 +82,25 @@ export class SocialHub extends DurableObject {
     if (!token) return error('Profil non connecté sur cet appareil.',401,origin);
     const user=this.one('SELECT id,pseudo FROM users WHERE secret=?',await sha(token));
     if (!user) return error('Profil invalide. Vérifie ta connexion.',401,origin);
+    if(path==='/social/score' && method==='POST'){
+      const level=Number(body.level),score=Number(body.score),crystals=Number(body.crystals),
+        remaining=Number(body.remaining),seconds=Number(body.seconds);
+      const won=body.won,mode=body.mode;
+      const durations=[90,90,120,240];
+      if(!Number.isInteger(level)||level<1||level>4||
+        !Number.isInteger(score)||score<0||
+        !Number.isInteger(crystals)||crystals<0||crystals>3||
+        !Number.isFinite(remaining)||remaining<0||remaining>durations[level-1]||
+        !Number.isFinite(seconds)||seconds<0||seconds>3600||
+        typeof won!=='boolean'||!['Solo','Coop locale','En ligne'].includes(mode)||
+        (won&&crystals!==3)||
+        score!==(crystals*100+(won?Math.ceil(remaining)*10:0)))
+        return error('Score incohérent ou non pris en charge.',400,origin);
+      const old=this.one('SELECT score FROM leaderboard_scores WHERE user_id=? AND level=?',user.id,level);
+      if(old && Number(old.score)>=score)return response({ok:true,improved:false},200,origin);
+      this.sql.exec('INSERT INTO leaderboard_scores(user_id,level,score,won,mode,created) VALUES(?,?,?,?,?,?) ON CONFLICT(user_id,level) DO UPDATE SET score=excluded.score,won=excluded.won,mode=excluded.mode,created=excluded.created WHERE excluded.score>leaderboard_scores.score',user.id,level,score,won?1:0,mode,Date.now());
+      return response({ok:true,improved:true},200,origin);
+    }
     if (path==='/social/me' && method==='GET') {
       this.sql.exec('DELETE FROM invites WHERE created<?',Date.now()-INVITE_MS);
       const friends=this.rows('SELECT u.pseudo FROM friends f JOIN users u ON u.id=CASE WHEN f.a=? THEN f.b ELSE f.a END WHERE f.a=? OR f.b=? ORDER BY u.pseudo COLLATE NOCASE',user.id,user.id,user.id).map(r=>r.pseudo);
