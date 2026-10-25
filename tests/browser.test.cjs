@@ -66,8 +66,10 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
   await t.test('formulaire : un vote est bien transmis au serveur', async () => {
     let body=null;
     await page.route('https://limbyrinth-online.baptiste-werner.workers.dev/feedback', async route=>{
+      const cors={'Access-Control-Allow-Origin':'https://game.test','Access-Control-Allow-Methods':'POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type'};
+      if(route.request().method()==='OPTIONS') return route.fulfill({status:204,headers:cors});
       body=route.request().postDataJSON();
-      await route.fulfill({status:201,contentType:'application/json',body:'{"ok":true}'});
+      await route.fulfill({status:201,contentType:'application/json',headers:cors,body:'{"ok":true}'});
     });
     await page.locator('#home .hm-feedback-card').click();
     assert.equal(await page.locator('#feedback-screen').isVisible(),true);
