@@ -28,7 +28,7 @@ function makeApp(){
   }
   return{db,hub,call,async register(pseudo){
     const r=await call('register',{method:'POST',body:{pseudo}});
-    assert.equal(r.status,201,await r.text());
+    assert.equal(r.status,201);
     return r.json();
   }};
 }
