@@ -15,7 +15,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
   await page.addInitScript(() => { window.requestAnimationFrame = () => 0; });
   await page.route('https://game.test/**', route => {
     const pathname = new URL(route.request().url()).pathname;
-    const file = pathname === '/vendor/three.min.js' ? 'vendor/three.min.js' : pathname === '/menu.js' ? 'menu.js' : 'index.html';
+    const file = pathname === '/vendor/three.min.js' ? 'vendor/three.min.js' : pathname === '/menu.js' ? 'menu.js' : pathname === '/scores.js' ? 'scores.js' : 'index.html';
     let data = fs.readFileSync(path.join(root, file), 'utf8');
     if (file === 'index.html') data = data.replace('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', '/vendor/three.min.js').replace('loop();\n})();', 'window.gameEval = code => eval(code); loop();\n})();');
     return route.fulfill({contentType: file.endsWith('.js') ? 'text/javascript' : 'text/html', body:data});
@@ -29,6 +29,22 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     assert.equal(await page.locator('#home .hm-sec').count(), 4);
     assert.equal(await page.locator('#home .hm-play').count(), 1);
     assert.equal(await page.locator('#home .hm-seg button').count(), 2);
+  });
+  await t.test('tableau des scores : affichage, filtre, historique local', async () => {
+    await page.locator('#home .hm-scores-button').click();
+    assert.equal(await page.locator('#scores-screen').isVisible(), true);
+    assert.match(await page.locator('#scores-screen').innerText(), /Aucun score/);
+    await page.evaluate(() => window.LimbyrinthScores.record({level:2, score:830, won:true, mode:"Solo", seconds:57, remaining:21, crystals:3, kills:2}));
+    await page.evaluate(() => window.LimbyrinthScores.open());
+    assert.equal(await page.locator('#scores-screen tbody tr').count(),1);
+    assert.match(await page.locator('#scores-screen tbody tr').innerText(),/830/);
+    await page.locator('#scores-screen select').first().selectOption('1');
+    assert.match(await page.locator('#scores-screen').innerText(), /Aucun score/);
+    await page.locator('#scores-screen select').first().selectOption('2');
+    assert.equal(await page.locator('#scores-screen tbody tr').count(),1);
+    await page.locator('#scores-screen .scores-btn').first().click();
+    assert.equal(await page.locator('#scores-screen').isVisible(),false);
+    await page.evaluate(() => localStorage.removeItem('limbyrinthScoresV1'));
   });
   await t.test('la campagne propose le quatrième niveau', async () => {
     assert.equal(await run('LV.length'), 4);
@@ -99,6 +115,15 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
   });
   await t.test('coop réseau : le modèle de chaque joueur est préservé', async () => {
     assert.equal(await run(`(() => { net='host';nP=2;save.robot='rorb';onMsg({t:'cosmetic',robot:'rtrack'});start(3);const ok=players[0].rig.shape==='orb'&&players[1].rig.shape==='tracks';net=null;nP=1;return ok; })()`),true);
+  });
+  await t.test('fin de partie : score enregistré depuis le moteur', async () => {
+    const data = await run('(() => {net=null; nP=1; start(0); collected=2; timeLeft=12; missionElapsed=41; kills=1; end(false,"Test"); return window.LimbyrinthScores.read().at(-1);})()');
+    assert.equal(data.level,1);
+    assert.equal(data.score,200);
+    assert.equal(data.won,false);
+    assert.equal(data.mode,'Solo');
+    assert.equal(data.seconds,41);
+    assert.equal(data.crystals,2);
   });
   await t.test('aucune erreur JavaScript ou WebGL', () => assert.deepEqual(errors, []));
 });
