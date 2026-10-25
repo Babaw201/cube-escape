@@ -20,6 +20,11 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     if (file === 'index.html') data = data.replace('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', '/vendor/three.min.js').replace('loop();\n})();', 'window.gameEval = code => eval(code); loop();\n})();');
     return route.fulfill({contentType: file.endsWith('.js') ? 'text/javascript' : 'text/html', body:data});
   });
+  await page.route('https://limbyrinth-online.baptiste-werner.workers.dev/social/leaderboard*', route=>{
+    const level=new URL(route.request().url()).searchParams.get('level');
+    const sample={pseudo:'Aventurier32',score:920,level:level==='4'?4:1,won:true,mode:'Solo',created:Date.now()};
+    return route.fulfill({status:200,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'https://game.test'},body:JSON.stringify({level:level||'all',totalPlayers:1,top:[sample]})});
+  });
   await page.goto('https://game.test/');
   await page.waitForFunction(() => !!window.gameEval);
   const run = code => page.evaluate(code => window.gameEval(code), code);
@@ -45,6 +50,16 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     await page.locator('#scores-screen .scores-btn').first().click();
     assert.equal(await page.locator('#scores-screen').isVisible(),false);
     await page.evaluate(() => localStorage.removeItem('limbyrinthScoresV1'));
+  });
+  await t.test('top 10 mondial en ligne avec pseudo et filtre de niveau', async()=>{
+    await page.locator('#home .hm-scores-button').click();
+    await page.waitForFunction(()=>document.querySelectorAll('#scores-screen .scores-online-table tbody tr').length===1);
+    assert.match(await page.locator('#scores-screen .scores-online-table').innerText(),/Aventurier32/);
+    assert.match(await page.locator('#scores-screen .scores-online-table').innerText(),/920/);
+    await page.locator('#scores-screen .scores-online select').selectOption('4');
+    await page.waitForFunction(()=>document.querySelector('#scores-screen .scores-online-table tbody tr td:nth-child(4)')?.textContent==='4');
+    assert.equal(await page.locator('#scores-screen .scores-online-table tbody tr').count(),1);
+    await page.locator('#scores-screen .scores-btn').first().click();
   });
   await t.test('Profil et amis : ouverture du panneau depuis le menu', async () => {
     assert.equal(await page.locator('#home .hm-friends-button').count(),1);
