@@ -78,7 +78,7 @@ export default {
     const url=new URL(request.url),origin=request.headers.get('Origin');
     const allowed=!origin||ALLOWED.has(origin)||/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
     if(!allowed)return json({error:'Origine non autorisée.'},403);
-    if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{'Access-Control-Allow-Origin':origin||'*','Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type','Access-Control-Max-Age':'600','Vary':'Origin'}});
+    if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{'Access-Control-Allow-Origin':origin||'*','Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization','Access-Control-Max-Age':'600','Vary':'Origin'}});
     if(url.pathname==='/'&&request.method==='GET')return json({service:'limbyrinth-online',version:1},200,origin);
     if(url.pathname.startsWith('/social/')){
       // Same trusted origins and limits as the multiplayer service.
