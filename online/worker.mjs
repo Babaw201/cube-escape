@@ -1,3 +1,5 @@
+import { SocialHub } from './social.mjs';
+export { SocialHub };
 import { DurableObject } from 'cloudflare:workers';
 
 const CODE=/^[A-HJ-NP-Z2-9]{8}$/;
@@ -78,6 +80,17 @@ export default {
     if(!allowed)return json({error:'Origine non autorisée.'},403);
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{'Access-Control-Allow-Origin':origin||'*','Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type','Access-Control-Max-Age':'600','Vary':'Origin'}});
     if(url.pathname==='/'&&request.method==='GET')return json({service:'limbyrinth-online',version:1},200,origin);
+    if(url.pathname.startsWith('/social/')){
+      // Same trusted origins and limits as the multiplayer service.
+      if(request.method==='POST'){
+        const identity=request.headers.get('Authorization')||'';
+        const action=url.pathname==='/social/register'?'register':url.pathname;
+        const fingerprint=action==='register'?(request.headers.get('CF-Connecting-IP')||'unknown'):identity.slice(0,48);
+        const limit=await env.ROOM_LIMIT.limit({key:'social:'+action+':'+fingerprint});
+        if(!limit.success)return json({error:'Trop de demandes. Réessaie dans une minute.'},429,origin);
+      }
+      return env.SOCIAL.getByName('limbyrinth-social-global').fetch(request);
+    }
     if(request.method==='POST'&&url.pathname==='/rooms'){
       const limit=await env.ROOM_LIMIT.limit({key:'create:'+(request.headers.get('CF-Connecting-IP')||'unknown')});
       if(!limit.success)return json({error:'Trop de salons créés. Réessaie dans une minute.'},429,origin);
