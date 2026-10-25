@@ -12,6 +12,10 @@
       {
         "name": "SOCIAL",
         "class_name": "SocialHub"
+      },
+      {
+        "name": "FEEDBACK",
+        "class_name": "FeedbackInbox"
       }
     ]
   },
@@ -26,6 +30,12 @@
       "tag": "v2",
       "new_sqlite_classes": [
         "SocialHub"
+      ]
+    },
+    {
+      "tag": "v3",
+      "new_sqlite_classes": [
+        "FeedbackInbox"
       ]
     }
   ],
