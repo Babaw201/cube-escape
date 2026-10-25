@@ -253,7 +253,7 @@
     });
     wrap.appendChild(levels);
     wrap.appendChild(el("h2", "scores-section", "Historique des parties"));
-    const controls=el("div", "scores-controls");
+    const controls=el("div", "scores-controls scores-local-controls");
     controls.append(
       select("Niveau ", [["all","Tous"],...levelNames.map((n,i)=>[String(i+1),String(i+1)+" · "+n])], filterLevel, v=>{filterLevel=v;render();}),
       select("Mode ", [["all","Tous"],["Solo","Solo"],["Coop locale","Coop locale"],["En ligne","En ligne"]], filterMode, v=>{filterMode=v;render();}),
