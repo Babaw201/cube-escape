@@ -1074,7 +1074,7 @@ const DEFIS = [
   { id: "l3", txt: "Terminer Le Noyau", rew: 300, ok: () => save.l3 >= 1 }
 ];
 const run = { t: 0, k: 0, s: 0 }; // bilan de la campagne en cours
-const CREDITS = ["CUBE ESCAPE", "Un jeu créé par : (ton nom ici)", "Moteur 3D : Three.js", "Merci d’avoir joué !"];
+const CREDITS = ["CUBE ESCAPE", "Un jeu créé par : Baptiste Werner", "Moteur 3D : Three.js", "Merci d’avoir joué !"];
 const save = { coins: 0, earned: 0, skin: "def", robot: "rclassic", ray: "cy", own: ["def", "cy", "rclassic"], stock: {}, daily: "", streak: 0, kills: 0, clean: 0, l3: 0, done: [] };
 try { Object.assign(save, JSON.parse(localStorage.getItem("cubeEscapeSave") || "{}")); } catch (e) {}
 if (save.finished || save.l3 > 0 || save.level4Finished) maxLv = 4;
