@@ -49,3 +49,17 @@ La migration `v3` ajoute `FeedbackInbox` (SQLite) sous `FEEDBACK` :
 - Secret obligatoire côté serveur : `FEEDBACK_ADMIN_KEY` (ne jamais le committer, le laisser dans les variables secrètes Cloudflare).
 
 Le frontend d'administration est une page statique `retours-admin.html`, sans stockage local du code. L'historique est consultable en ouvrant ce tableau privé ; aucun envoi d'e-mail n'est configuré.
+
+## Alertes Discord sur téléphone (v3, sans nouvelle migration)
+
+Le backend `FeedbackInbox` envoie automatiquement une **notification Discord pour chaque signalement de bug**. Les votes et les idées restent consultables dans le tableau privé et ne déclenchent pas d'alerte instantanée.
+
+Pour activer ce service :
+1. Créer un serveur/salon Discord privé `#bugs-limbyrinth`, puis un webhook via **Paramètres du serveur → Intégrations → Webhooks**.
+2. Dans **Cloudflare → Workers & Pages → limbyrinth-online → Settings → Variables and Secrets**, enregistrer l'URL complète du webhook comme secret nommé **`FEEDBACK_DISCORD_WEBHOOK_URL`**.
+3. Sur le téléphone, installer Discord, activer les notifications push et définir les notifications de ce salon sur **Tous les messages** ; ne pas mettre le salon en sourdine.
+4. Sur Limbyrinth, envoyer un vrai bug de test d'au moins 10 caractères. Le signalement apparaît dans la boîte privée et une alerte arrive sur Discord.
+
+Le webhook n'est jamais publié dans GitHub, le frontend ou les liens partagés. Le Worker n'autorise que les URL HTTPS `discord.com/api/webhooks/…`. Le contenu est envoyé avec `allowed_mentions: { parse: [] }`, pour éviter les mentions indésirables. En cas d'échec Discord, le message reste enregistré, et les tentatives sont reprises grâce à une file SQLite et à un réveil Durable Object (jusqu'à cinq tentatives). Lorsque le webhook est absent, les signalements sont stockés, mais **aucune notification ne part sur le téléphone**.
+
+Le secret `FEEDBACK_ADMIN_KEY` pour la boîte privée `retours-admin.html` est **distinct** du webhook Discord : il reste à configurer séparément si ce n'est pas encore fait. Ni la clé administrateur ni l'URL webhook ne doivent être communiquées aux joueurs.
