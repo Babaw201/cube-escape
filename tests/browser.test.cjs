@@ -14,7 +14,8 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
   page.on('console', msg => {if(msg.type() === 'error') errors.push(msg.text());});
   await page.addInitScript(() => { window.requestAnimationFrame = () => 0; });
   await page.route('https://game.test/**', route => {
-    const file = route.request().url().endsWith('/vendor/three.min.js') ? 'vendor/three.min.js' : 'index.html';
+    const pathname = new URL(route.request().url()).pathname;
+    const file = pathname === '/vendor/three.min.js' ? 'vendor/three.min.js' : pathname === '/menu.js' ? 'menu.js' : 'index.html';
     let data = fs.readFileSync(path.join(root, file), 'utf8');
     if (file === 'index.html') data = data.replace('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', '/vendor/three.min.js').replace('loop();\n})();', 'window.gameEval = code => eval(code); loop();\n})();');
     return route.fulfill({contentType: file.endsWith('.js') ? 'text/javascript' : 'text/html', body:data});
@@ -23,6 +24,12 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
   await page.waitForFunction(() => !!window.gameEval);
   const run = code => page.evaluate(code => window.gameEval(code), code);
 
+  await t.test('nouvel accueil : quatre secteurs, jouer et modes solo / coop', async () => {
+    assert.equal(await page.locator('#home').isVisible(), true);
+    assert.equal(await page.locator('#home .hm-sec').count(), 4);
+    assert.equal(await page.locator('#home .hm-play').count(), 1);
+    assert.equal(await page.locator('#home .hm-seg button').count(), 2);
+  });
   await t.test('la campagne propose le quatrième niveau', async () => {
     assert.equal(await run('LV.length'), 4);
   });
