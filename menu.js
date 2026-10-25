@@ -106,6 +106,7 @@
     if (online) row.appendChild(btn("hm-btn viol", "Quitter le salon", () => press(/Quitter le salon/)));
     else row.appendChild(btn("hm-btn viol", "\u{1F310} Jouer en ligne", () => press(/Jouer en ligne/)));
     if (!guest) row.appendChild(btn("hm-btn gold", "\u{1F6D2} Boutique", () => press(/Boutique/)));
+    row.appendChild(btn("hm-btn hm-scores-button", "🏆 Scores", () => window.LimbyrinthScores && window.LimbyrinthScores.open()));
     hero.appendChild(row);
     if (online) hero.appendChild(el("div", "hm-note on", guest ? "Salon en ligne · tu es l’invité" : "Salon en ligne · ton ami est connecté, tu es l’hôte"));
     else if (/Connexion perdue|quitté le salon/.test(info)) hero.appendChild(el("div", "hm-note err", /perdue/.test(info) ? "Connexion perdue. Crée ou rejoins un nouveau salon." : "Le salon a été quitté."));
