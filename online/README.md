@@ -79,3 +79,11 @@ Configurer un compte Resend associé à l'adresse destinataire pour le mode de t
 L'API `POST https://api.resend.com/emails` est appelée avec une clé d'idempotence spécifique à chaque bug ; la file durable SQLite et les alarmes déjà présentes gèrent les échecs temporaires (5 essais maximum). Les rapports restent enregistrés dans `FeedbackInbox` quelle que soit la réussite de l'alerte.
 
 Le secret `FEEDBACK_ADMIN_KEY` de la boîte de retours est **indépendant** de la configuration e-mail. Ne pas envoyer ce secret par e-mail, ni l'ajouter au frontend. Le service n'est **pas prêt à envoyer réellement** avant d'avoir configuré les variables et testé la livraison.
+
+## Classement mondial Top 10 (social hub existant)
+
+`GET /social/leaderboard?level=all|1|2|3|4` retourne jusqu'à 10 pseudos et leur meilleur score par niveau, avec le nombre de joueurs classés. Route publique, jamais de jeton de profil dans la réponse.
+
+`POST /social/score` requiert le jeton du profil (en-tête `Authorization: Bearer`) et un objet `{level,score,won,mode,seconds,remaining,crystals}`. Le serveur vérifie les bornes et la formule de score `crystals × 100 + (won ? ceil(remaining) × 10 : 0)`; il conserve **un seul record par compte et par niveau**, sans doublons lors d'une nouvelle soumission équivalente ou inférieure. Les pseudos sont récupérés à la lecture, de sorte qu'un renommage se reflète dans le classement.
+
+Ceci n'est **pas un anti-triche fort** : le résultat et les valeurs justificatives sont envoyés par le navigateur. Pour des classements compétitifs avec prix, exécuter une simulation des scores ou une vérification de replay côté serveur. Aucun changement de migration Cloudflare n'est nécessaire : la table est créée dans `SocialHub` existant.
