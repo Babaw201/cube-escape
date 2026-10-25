@@ -40,7 +40,7 @@ test('amis : pseudonymes uniques, identité protégée, demandes et invitations'
     assert.equal(r.status,400);
     const a=await app.register('Robot32');
     assert.match(a.token,/^[0-9a-f-]{36}\.[0-9a-f-]{36}$/);
-    assert.equal((await app.call('register',{method:'POST',body:{pseudo:'robot32'})).status,409);
+    assert.equal((await app.call('register',{method:'POST',body:{pseudo:'robot32'}})).status,409);
     assert.equal((await app.call('me')).status,401);
     assert.equal((await app.call('me',{token:'nope'})).status,401);
     assert.equal((await app.call('me',{token:a.token})).status,200);
