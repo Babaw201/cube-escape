@@ -47,7 +47,8 @@ L'accueil présente les ajouts **annoncés pour le lundi 26 octobre 2026** (mati
 
 Les visiteurs peuvent, sans compte, voter pour une priorité (nouveaux niveaux, murs, ennemis, coopération, autre), proposer une amélioration ou signaler un bug. Les réponses sont stockées dans le Durable Object SQLite `FeedbackInbox` via `POST /feedback`, sans collecter d'adresse ni d'identifiant de joueur.
 
-Le créateur consulte les réponses sur [`retours-admin.html`](retours-admin.html), avec un **code secret Cloudflare `FEEDBACK_ADMIN_KEY` configuré exclusivement côté serveur**. Il peut voir les derniers retours, les votes et les messages non lus, et marquer le tout comme lu. **Ce n'est pas une notification par e-mail ni une alerte push** : il faut ouvrir le tableau privé pour consulter les nouveaux retours. Ne pas placer le code dans GitHub.
+Le créateur consulte les réponses sur [`retours-admin.html`](retours-admin.html), avec un **code secret Cloudflare `FEEDBACK_ADMIN_KEY` configuré exclusivement côté serveur**.
+Les bugs peuvent aussi déclencher un **message Discord dans un salon privé**, immédiatement après réception et avec reprise automatique en cas d'échec, si le secret Cloudflare `FEEDBACK_DISCORD_WEBHOOK_URL` a été configuré. Cela permet des notifications push via l'application Discord sur téléphone. Sans ce secret, les bugs sont seulement conservés dans le tableau de bord. Il peut voir les derniers retours, les votes et les messages non lus, et marquer le tout comme lu. **Ce n'est pas une notification par e-mail ni une alerte push** : il faut ouvrir le tableau privé pour consulter les nouveaux retours. Ne pas placer le code dans GitHub.
 
 Déployer la migration Durable Object `v3` et le secret Cloudflare avant de rendre l'interface accessible. Conserver les bindings `ROOMS` et `SOCIAL` pour ne pas affecter le multijoueur et les amitiés.
 
