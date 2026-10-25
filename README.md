@@ -41,6 +41,16 @@ Depuis l'accueil, appuyer sur **🏆 Scores** pour consulter le tableau des rés
 
 Télécharger le dépôt et ouvrir `index.html` en conservant le dossier `vendor`, ou télécharger le fichier autonome [`Limbyrinth.html`](Limbyrinth.html) et l’ouvrir dans un navigateur compatible WebGL. Three.js est fourni localement avec sa licence.
 
+## Actualités, sondages et signalements
+
+L'accueil présente les ajouts **annoncés pour le lundi 26 octobre 2026** (matin : niveau 5 prévu ; après-midi : conception des murs et sondages prévus). Ce sont des annonces : les nouvelles fonctionnalités ne sont pas considérées comme déjà déployées.
+
+Les visiteurs peuvent, sans compte, voter pour une priorité (nouveaux niveaux, murs, ennemis, coopération, autre), proposer une amélioration ou signaler un bug. Les réponses sont stockées dans le Durable Object SQLite `FeedbackInbox` via `POST /feedback`, sans collecter d'adresse ni d'identifiant de joueur.
+
+Le créateur consulte les réponses sur [`retours-admin.html`](retours-admin.html), avec un **code secret Cloudflare `FEEDBACK_ADMIN_KEY` configuré exclusivement côté serveur**. Il peut voir les derniers retours, les votes et les messages non lus, et marquer le tout comme lu. **Ce n'est pas une notification par e-mail ni une alerte push** : il faut ouvrir le tableau privé pour consulter les nouveaux retours. Ne pas placer le code dans GitHub.
+
+Déployer la migration Durable Object `v3` et le secret Cloudflare avant de rendre l'interface accessible. Conserver les bindings `ROOMS` et `SOCIAL` pour ne pas affecter le multijoueur et les amitiés.
+
 ## Pseudos et amis (version expérimentale)
 
 Dans le menu **👥 Amis & pseudo**, créer un profil avec un pseudo unique (3–16 caractères : lettres non accentuées, chiffres, soulignement ; commence par une lettre). Ensuite, on peut envoyer une demande à un pseudo exact, accepter/refuser, retirer ou bloquer un joueur, et inviter un ami confirmé dans un salon coopératif.

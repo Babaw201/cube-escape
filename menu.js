@@ -56,6 +56,12 @@
 .hm-keys{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13px;color:#b9d2e2;align-items:center}.hm-keys kbd{padding:2px 8px;border:1px solid #4a7390;border-bottom-width:3px;border-radius:6px;background:#10283b;font:700 12px/1.4 inherit;color:#e6f4ff}
 .hm-foot{text-align:center;font-size:11px;letter-spacing:.14em;color:#587790;padding-top:8px}
 @media(max-width:860px){.hm-main{grid-template-columns:1fr;padding-top:6px}.hm-top{justify-content:flex-start}.hm-cubewrap{margin-bottom:18px}.hm-play{width:100%}}
+.hm-update-box{margin-top:20px;border-color:#477b89!important;background:linear-gradient(125deg,rgba(22,61,81,.85),rgba(8,27,44,.93))!important}
+.hm-update-line{display:flex;flex-direction:column;gap:3px;padding:9px 0;margin:0;border-bottom:1px solid rgba(143,220,246,.16);font-size:13px;line-height:1.5}
+.hm-update-line b{font-size:12px;color:#8ff3ff;letter-spacing:.04em}
+.hm-update-line span{color:#e4f3fc}
+.hm-update-small{font-size:11px;color:#9dbed1;line-height:1.5;margin:10px 0}
+.hm-update-box .hm-btn{width:100%;justify-content:center}
 @media(prefers-reduced-motion:reduce){.hm-cube,.hm-grid,.hm-dot{animation:none}.hm-play,.hm-btn,.hm-sec{transition:none}}`;
   document.head.appendChild(css);
 
@@ -108,7 +114,22 @@
     if (!guest) row.appendChild(btn("hm-btn gold", "\u{1F6D2} Boutique", () => press(/Boutique/)));
     row.appendChild(btn("hm-btn hm-scores-button", "🏆 Scores", () => window.LimbyrinthScores && window.LimbyrinthScores.open()));
     row.appendChild(btn("hm-btn hm-friends-button", "👥 Amis & pseudo", () => window.LimbyrinthFriends && window.LimbyrinthFriends.open()));
+    row.appendChild(btn("hm-btn hm-feedback-button", "💡 Donner mon avis", () => window.LimbyrinthFeedback && window.LimbyrinthFeedback.open("idea")));
     hero.appendChild(row);
+    const infoBox = el("section", "hm-box hm-update-box");
+    infoBox.appendChild(el("h2", null, "📣 INFOS · PROCHAINES MISES À JOUR"));
+    infoBox.appendChild(el("p", "hm-update-line", null, [
+      el("b", null, "Lundi 26 octobre · matin"),
+      el("span", null, "Niveau 5 : arrivée prévue")
+    ]));
+    infoBox.appendChild(el("p", "hm-update-line", null, [
+      el("b", null, "Lundi 26 octobre · après-midi"),
+      el("span", null, "Nouvelle conception des murs et ouverture des sondages")
+    ]));
+    infoBox.appendChild(el("p", "hm-update-small", "Calendrier annoncé : ces nouveautés ne sont pas encore disponibles."));
+    infoBox.appendChild(btn("hm-btn hm-feedback-card", "📊 Sondage · idées · bugs", () => window.LimbyrinthFeedback && window.LimbyrinthFeedback.open("poll")));
+    hero.appendChild(infoBox);
+
     if (online) hero.appendChild(el("div", "hm-note on", guest ? "Salon en ligne · tu es l’invité" : "Salon en ligne · ton ami est connecté, tu es l’hôte"));
     else if (/Connexion perdue|quitté le salon/.test(info)) hero.appendChild(el("div", "hm-note err", /perdue/.test(info) ? "Connexion perdue. Crée ou rejoins un nouveau salon." : "Le salon a été quitté."));
     else if (bonus) hero.appendChild(el("div", "hm-note", "\u{1F381} " + bonus[0]));

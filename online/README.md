@@ -39,3 +39,13 @@ API (authentification `Authorization: Bearer <token>`, sauf inscription) :
 - Les appels POST sont limités par le ratelimit Cloudflare déjà présent, plus plafonds de demandes et d'amis en base.
 
 Déploiement : `cd online && npx wrangler deploy` avec un accès authentifié à **ce** compte Cloudflare. Tester le service avant de laisser l'interface en production. Le frontend contient la nouvelle fonctionnalité mais les endpoints n'existent pas avant ce déploiement. Pour de nombreux utilisateurs, ajouter une récupération de compte et une modération robuste.
+
+## Boîte à idées et bugs (v3)
+
+La migration `v3` ajoute `FeedbackInbox` (SQLite) sous `FEEDBACK` :
+- `POST /feedback` : `{ "kind":"poll|idea|bug", "topic":"niveau5|murs|ennemis|cooperation|autre", "message":"..." }` : réponses anonymes, limitées par IP, sans données de contact.
+- `GET /feedback/admin` : boîte des 500 dernières réponses + compteur non lus ; en-tête `Authorization: Bearer <clé privée>`.
+- `POST /feedback/read` : marque les messages lus, même authentification.
+- Secret obligatoire côté serveur : `FEEDBACK_ADMIN_KEY` (ne jamais le committer, le laisser dans les variables secrètes Cloudflare).
+
+Le frontend d'administration est une page statique `retours-admin.html`, sans stockage local du code. L'historique est consultable en ouvrant ce tableau privé ; aucun envoi d'e-mail n'est configuré.

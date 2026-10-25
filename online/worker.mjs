@@ -1,5 +1,7 @@
 import { SocialHub } from './social.mjs';
 export { SocialHub };
+import { FeedbackInbox } from './feedback.mjs';
+export { FeedbackInbox };
 import { DurableObject } from 'cloudflare:workers';
 
 const CODE=/^[A-HJ-NP-Z2-9]{8}$/;
@@ -80,6 +82,13 @@ export default {
     if(!allowed)return json({error:'Origine non autorisée.'},403);
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers:{'Access-Control-Allow-Origin':origin||'*','Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type, Authorization','Access-Control-Max-Age':'600','Vary':'Origin'}});
     if(url.pathname==='/'&&request.method==='GET')return json({service:'limbyrinth-online',version:1},200,origin);
+    if(url.pathname==='/feedback'||url.pathname==='/feedback/admin'||url.pathname==='/feedback/read'){
+      if(request.method==='POST'||url.pathname==='/feedback/admin'){
+        const limit=await env.ROOM_LIMIT.limit({key:'feedback:'+url.pathname+':'+(request.headers.get('CF-Connecting-IP')||'unknown')});
+        if(!limit.success)return json({error:'Trop de demandes. Réessaie plus tard.'},429,origin);
+      }
+      return env.FEEDBACK.getByName('limbyrinth-feedback-global').fetch(request);
+    }
     if(url.pathname.startsWith('/social/')){
       // Same trusted origins and limits as the multiplayer service.
       if(request.method==='POST'){
