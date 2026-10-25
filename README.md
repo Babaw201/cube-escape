@@ -16,6 +16,16 @@ Choisir **« Niveau 1 : Labyrinthe »** pour commencer. Sur téléphone, ouvrir 
 
 ![Les quatre formes de robot](artifacts/robots.png)
 
+## Scores et historique
+
+Depuis l'accueil, appuyer sur **🏆 Scores** pour consulter le tableau des résultats. Il est également accessible depuis l'écran de fin de partie.
+
+- Historique de toutes les parties **enregistrées à partir de cette version** : date, niveau, score, victoire/défaite, mode (solo, coop locale, en ligne), durée, cristaux, drones.
+- Meilleur score et nombre de parties/victoires par niveau, points cumulés et record global.
+- Filtres par niveau et mode ; tri chronologique ou par score ; export au format CSV.
+- Les données sont conservées localement dans le navigateur (`limbyrinthScoresV1`). Le record de l'ancien système (`cubeEscapeBest`) reste visible, sans créer d'historique fictif.
+- Les scores ne sont **pas** synchronisés entre appareils et ne forment **pas** un classement mondial. Vider les données du navigateur supprimera l'historique local (sauf sauvegarde CSV préalable).
+
 ## Commandes
 
 | Action | Joueur 1 | Joueur 2 local |
