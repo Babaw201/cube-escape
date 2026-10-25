@@ -63,3 +63,19 @@ Pour activer ce service :
 Le webhook n'est jamais publié dans GitHub, le frontend ou les liens partagés. Le Worker n'autorise que les URL HTTPS `discord.com/api/webhooks/…`. Le contenu est envoyé avec `allowed_mentions: { parse: [] }`, pour éviter les mentions indésirables. En cas d'échec Discord, le message reste enregistré, et les tentatives sont reprises grâce à une file SQLite et à un réveil Durable Object (jusqu'à cinq tentatives). Lorsque le webhook est absent, les signalements sont stockés, mais **aucune notification ne part sur le téléphone**.
 
 Le secret `FEEDBACK_ADMIN_KEY` pour la boîte privée `retours-admin.html` est **distinct** du webhook Discord : il reste à configurer séparément si ce n'est pas encore fait. Ni la clé administrateur ni l'URL webhook ne doivent être communiquées aux joueurs.
+
+## Alertes de bugs par e-mail (destinataire temporaire)
+
+Le code privilégie **Resend** lorsque le service d'envoi d'e-mails est configuré ; le webhook Discord existant est conservé comme recours **uniquement lorsque l'e-mail n'est pas configuré**. Les bugs seuls déclenchent ces alertes : les votes et suggestions restent consultables dans le tableau privé.
+
+Pour activer sur Cloudflare `limbyrinth-online`, enregistrer ces variables dans **Settings → Variables and Secrets** (jamais dans les fichiers publics ni le frontend) :
+
+- **`RESEND_API_KEY`** (secret) : clé d'API obtenue sur [Resend](https://resend.com/api-keys).
+- **`FEEDBACK_EMAIL_TO`** (secret ou variable privée) : la boîte Gmail qui recevra les bugs.
+- Facultatif : **`FEEDBACK_EMAIL_FROM`** : adresse d'expédition autorisée par Resend. En l'absence de ce paramètre, le backend utilise `Limbyrinth <onboarding@resend.dev>`, limité **aux e-mails envoyés à l'adresse titulaire du compte Resend** tant qu'aucun domaine d'expédition n'est vérifié.
+
+Configurer un compte Resend associé à l'adresse destinataire pour le mode de test, ou vérifier un domaine d'expédition si le fournisseur l'exige. Aucun accès ni mot de passe Gmail n'est nécessaire. Activer ensuite les notifications Gmail sur Android et déclencher un test via **Signaler un bug** dans le jeu. Si le fournisseur accepte l'e-mail, l'alerte arrive dans Gmail (éventuellement dans les spams). Ne jamais communiquer la clé d'API dans un message ou un dépôt public.
+
+L'API `POST https://api.resend.com/emails` est appelée avec une clé d'idempotence spécifique à chaque bug ; la file durable SQLite et les alarmes déjà présentes gèrent les échecs temporaires (5 essais maximum). Les rapports restent enregistrés dans `FeedbackInbox` quelle que soit la réussite de l'alerte.
+
+Le secret `FEEDBACK_ADMIN_KEY` de la boîte de retours est **indépendant** de la configuration e-mail. Ne pas envoyer ce secret par e-mail, ni l'ajouter au frontend. Le service n'est **pas prêt à envoyer réellement** avant d'avoir configuré les variables et testé la livraison.
