@@ -39,7 +39,7 @@ export class SocialHub extends DurableObject {
   auth(request) {
     const header=request.headers.get('Authorization') || '';
     // Authenticated callers use Bearer token; accept only random UUID pairs issued by this service.
-    return /^Bearer [0-9a-f-]{73}$/i.test(header) ? header.slice(7) : null;
+    return /^Bearer [0-9a-f-]{36}\.[0-9a-f-]{36}$/i.test(header) ? header.slice(7) : null;
   }
   async fetch(request) {
     const origin=request.headers.get('Origin') || '';
