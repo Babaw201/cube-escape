@@ -24,7 +24,7 @@ function runtime(initialSave = {}, overrides = {}) {
   Object.assign(context,{URL,URLSearchParams,AbortController,location:{href:'https://babaw201.github.io/cube-escape/',hash:''},navigator:{},...overrides});
   context.window=context;
   const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
-  const source=[...html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)].at(-1)[1].replace('loop();\n})();','window.gameEval = code => eval(code); loop();\n})();');
+  const source=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].at(-1)[1].replace('loop();\n})();','window.gameEval = code => eval(code); loop();\n})();');
   vm.runInContext(source,context,{filename:'index.html'});
   return {run:code=>{const data=context.gameEval(code);return data===undefined?undefined:JSON.parse(JSON.stringify(data));},runAsync:async code=>{const data=await context.gameEval(code);return data===undefined?undefined:JSON.parse(JSON.stringify(data));},context,storage,radar,warnings};
 }
