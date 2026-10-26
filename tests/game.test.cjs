@@ -34,6 +34,18 @@ test('Limbyrinth — logique réelle et géométrie Three.js', async t => {
     assert.equal(data.state,'play');
     assert.equal(data.timeLeft,0);
   });
+  await t.test('niveau 5 : un Titan arrive aussi avec 30 drones déjà présents', async () => {
+    const data=await run(`(() => {
+      start(4,123);
+      wave=4; missionElapsed=48.1;
+      for(let i=0;i<MAXF;i++) makeSwarmFoe(nextFoe++,toW(2),toW(2),0,4);
+      updateSurvival(.05);
+      return {wave,number:foes.length,titans:foes.filter(f=>f.kind===3).length};
+    })()`);
+    assert.equal(data.wave,5);
+    assert.equal(data.number,30);
+    assert.ok(data.titans>=1);
+  });
   await t.test('niveau 5 : Titan et résistance croissante même avec limite de drones', async () => {
     const data=await run(`(() => {
       start(4,123); wave=4; missionElapsed=48.1;
