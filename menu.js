@@ -144,6 +144,8 @@
 .hm-seg.hm-mode-options button .hm-mode-help{font-size:10px;color:#9aafc4;font-weight:500}
 .hm-seg.hm-mode-options button.on{background:linear-gradient(155deg,#3c291c,#1c2637);border:2px solid #ff9d46;color:#fff1cf;box-shadow:0 0 15px #ff832d52}
 .hm-seg.hm-mode-options button.on .hm-mode-icon{color:#ffb865}
+.hm-seg.hm-mode-options button:disabled{opacity:.45;cursor:not-allowed;filter:grayscale(.6)}
+
 .hm-seg.hm-mode-options button:focus-visible,.hm-sec:focus-visible{outline:3px solid #a5eeff;outline-offset:2px}
 .hm-level-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
 .hm-level-grid .hm-sec{display:flex;flex-direction:column;align-items:stretch;position:relative;gap:4px;min-width:0;margin:0;padding:7px;color:#ecf4ff;border:1px solid #305e7f;border-radius:9px;background:linear-gradient(#0b253e,#071828);text-align:center;overflow:hidden}
@@ -348,15 +350,16 @@
     const panel = el('section','hm-panel');
     if (!online) {
       const seg=el('div','hm-seg hm-mode-options');
-      const modeButton=(on,icon,name,help,cb)=>{
-        const b=btn('hm-mode-card'+(on?' on':''),null,cb);
+      const modeButton=(on,icon,name,help,cb,disabled=false)=>{
+        const b=btn('hm-mode-card'+(on?' on':''),null,cb,disabled);
         b.setAttribute('aria-pressed',String(on));
+        if(disabled)b.title='La coopération locale utilise deux joueurs au clavier. Sur téléphone, privilégie le jeu en ligne.';
         b.append(el('span','hm-mode-icon',icon),el('span','hm-mode-label',name),el('span','hm-mode-help',help));
         return b;
       };
       seg.append(
         modeButton(!duo,'👤','Solo','1 joueur',()=>{if(duo)press(/joueurs/);}),
-        modeButton(duo,'👥','Coop locale','2 joueurs · clavier',()=>{if(!duo)press(/1 joueur/);}),
+        modeButton(duo,'👥','Coop locale',tactile?'Clavier requis':'2 joueurs · clavier',()=>{if(!duo)press(/1 joueur/);},tactile),
         modeButton(false,'🌐','En ligne','Avec un ami',()=>press(/Jouer en ligne/))
       );
       panel.appendChild(el('div','hm-box hm-mode-section',null,[el('h2',null,'① CHOISIS TON MODE'),seg]));
