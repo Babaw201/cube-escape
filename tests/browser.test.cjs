@@ -51,6 +51,19 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     assert.equal(await page.locator('#scores-screen').isVisible(),false);
     await page.evaluate(() => localStorage.removeItem('limbyrinthScoresV1'));
   });
+  await t.test('mode survie valorisé dans le menu principal', async()=>{
+    assert.equal(await page.locator('#home .hm-survival-card').count(),1);
+    assert.match(await page.locator('#home .hm-survival-card').innerText(),/Vague 50/);
+    assert.equal(await page.locator('#home .hm-sec.survival-special').count(),1);
+  });
+  await t.test('tableau des scores reconnaît les runs survie et la vague', async()=>{
+    await page.evaluate(()=>window.LimbyrinthScores.record({level:5,score:1260,won:false,mode:'Solo',seconds:90,remaining:999999,crystals:0,kills:24,wave:8}));
+    await page.locator('#home .hm-scores-button').click();
+    assert.match(await page.locator('#scores-screen .scores-level').last().innerText(),/vague max 8/);
+    assert.match(await page.locator('#scores-screen .scores-table tbody').innerText(),/Vague 8/);
+    await page.locator('#scores-screen .scores-btn').first().click();
+    await page.evaluate(()=>localStorage.removeItem('limbyrinthScoresV1'));
+  });
   await t.test('top 10 mondial en ligne avec pseudo et filtre de niveau', async()=>{
     await page.locator('#home .hm-scores-button').click();
     await page.waitForFunction(()=>document.querySelectorAll('#scores-screen .scores-online-table tbody tr').length===1,null,{polling:50});
