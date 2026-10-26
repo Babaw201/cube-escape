@@ -157,6 +157,39 @@ test('Limbyrinth — logique réelle et géométrie Three.js', async t => {
     assert.equal(d.overload,true);
     assert.equal(d.completed,3);
   });
+  await t.test('réparation : partie locale vague 50 ou 100 redonne le skin manquant après rechargement',async()=>{
+    for(const threshold of [50,100]){
+      const archive=JSON.stringify([{level:5,score:11200,mode:'Solo',wave:threshold,seconds:threshold*12}]);
+      const gameOld=runtime({
+        'cubeEscapeSave':JSON.stringify({robot:'rclassic',survivalMaxWave:0,own:['def','cy','rclassic']}),
+        'limbyrinthScoresV1':archive
+      });
+      const result=gameOld.run(`({
+        wave:save.survivalMaxWave,
+        spectre:save.own.includes('rspectre'),
+        souverain:save.own.includes('rsovereign'),
+        persisted:JSON.parse(localStorage.getItem('cubeEscapeSave')).own
+      })`);
+      assert.ok(result.wave>=threshold,JSON.stringify(result));
+      assert.equal(result.spectre,true);
+      assert.equal(result.souverain,threshold===100);
+      assert.ok(result.persisted.includes('rspectre'));
+      assert.equal(result.persisted.includes('rsovereign'),threshold===100);
+    }
+  });
+  await t.test('réparation : un score sans preuve de vague ne déverrouille pas Spectre',async()=>{
+    const setup=runtime({
+      'cubeEscapeSave':JSON.stringify({survivalMaxWave:0,own:['def','cy','rclassic']}),
+      'limbyrinthScoresV1':JSON.stringify([{level:5,score:99999,kills:900,seconds:50}])
+    });
+    const result=setup.run(`({unlocked:save.own.includes('rspectre'),max:save.survivalMaxWave})`);
+    assert.equal(result.unlocked,false);
+    assert.ok(result.max<50);
+  });
+  await t.test('réparation : historique corrompu ne bloque pas le lancement',async()=>{
+    const setup=runtime({'limbyrinthScoresV1':'{broken'});
+    assert.equal(setup.run("save.own.includes('rspectre')"),false);
+  });
   await t.test('survie : skins bloqués puis débloqués aux vagues 50 et 100', async () => {
     const d=await run(`(() => {
       start(4,123);
