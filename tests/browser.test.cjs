@@ -68,7 +68,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     assert.equal(await run('state'),'menu');
     assert.equal(await page.locator('#friends-screen').isVisible(),true);
     await page.locator('#friends-screen input[aria-label="Ton pseudo"]').fill('JoueurRobot32');
-    await page.locator('#friends-screen button[type="submit"]').first().click();
+    await page.locator('#friends-screen form:has(input[aria-label="Ton pseudo"]) button[type="submit"]').click();
     await page.waitForFunction(()=>window.gameEval('state')==='play',null,{polling:50});
     assert.equal(await page.locator('#friends-screen').isVisible(),false);
     assert.equal(await page.locator('#home').isVisible(),false);
