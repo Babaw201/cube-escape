@@ -96,6 +96,30 @@ test('skin offert : Spectre lié au compte existant anna2 et jamais à un autre 
   assert.equal((await res.json()).unlockedRobots.includes('rspectre'),true);
   assert.equal(app.db.prepare('SELECT count(*) AS n FROM user_rewards').get().n,1);
 });
+test('code cadeau Spectre à usage unique : un nouveau compte peut le réclamer sans ancien pseudo',async()=>{
+  const app=makeApp();
+  const user=await app.register('AnnaNouveau');
+  const other=await app.register('AutreJoueur');
+  const voucher='SPECTRE-AAAAAA-BBBBBB-CCCCCC'; // code de TEST uniquement, non valide sur le serveur
+  const digest=await webcrypto.subtle.digest('SHA-256',new TextEncoder().encode(voucher));
+  const hash=Buffer.from(digest).toString('hex');
+  app.db.prepare("UPDATE gift_codes SET hash=? WHERE skin='rspectre' AND used_by IS NULL").run(hash);
+  const bad=await app.call('redeem',{method:'POST',token:user.token,body:{code:'SPECTRE-000000-000000-000000'}});
+  assert.equal(bad.status,404);
+  assert.equal((await app.call('redeem',{method:'POST',body:{code:voucher}})).status,401);
+  const awarded=await app.call('redeem',{method:'POST',token:user.token,body:{code:voucher}});
+  assert.equal(awarded.status,200);
+  assert.deepEqual(JSON.parse(JSON.stringify(await awarded.json())),{ok:true,skin:'rspectre',alreadyClaimed:false});
+  const info=await (await app.call('me',{token:user.token})).json();
+  assert.deepEqual(Array.from(info.unlockedRobots),['rspectre']);
+  const refused=await app.call('redeem',{method:'POST',token:other.token,body:{code:voucher}});
+  assert.equal(refused.status,409);
+  assert.deepEqual(Array.from((await (await app.call('me',{token:other.token})).json()).unlockedRobots),[]);
+  const repeated=await (await app.call('redeem',{method:'POST',token:user.token,body:{code:voucher}})).json();
+  assert.equal(repeated.alreadyClaimed,true);
+  app.restart();
+  assert.deepEqual(Array.from((await (await app.call('me',{token:user.token})).json()).unlockedRobots),['rspectre']);
+});
 test('top 10 en ligne : pseudos, meilleurs scores et classement par niveau', async t=>{
  const app=makeApp();
  const users=[];
