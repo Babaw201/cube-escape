@@ -5,6 +5,66 @@ const { runtime } = require('./runtime.cjs');
 test('Limbyrinth — logique réelle et géométrie Three.js', async t => {
   const game = runtime();
   const run = async code => game.run(code);
+  await t.test('six robots : tirs de base différents et ulti propre à chacun',async()=>{
+    const specs=[
+      ['rclassic',1,'Onde de choc'],['rorb',2,'Nova orbitale'],
+      ['rspider',1,'Toile paralysante'],['rtrack',3,'Barrage de Bastion'],
+      ['rspectre',1,'Phase fantôme'],['rsovereign',2,'Couronne du Souverain']
+    ];
+    const variants=await run(`(() => {
+      const specs=['rclassic','rorb','rspider','rtrack','rspectre','rsovereign'];
+      return specs.map(id=>{
+        save.robot=id; nP=1;net=null;start(4,123);
+        const a=players[0];shots=[];a.fireCd=0;
+        fire(a,1,0);
+        const basic={count:shots.length,color:shots[0]?.col||0,
+          piercing:shots[0]?.pierce||0,wallPass:!!shots[0]?.wallPass,
+          cooldown:a.fireCd};
+        a.ultCd=0;
+        const activated=useUltimate(a);
+        const after={ultimateName:kitOf(a).ulti,cooldown:a.ultCd,
+          reactivation:useUltimate(a),shots:shots.length,inv:a.inv,
+          shield:a.shield||0};
+        return {id,basic,activated,after};
+      });
+    })()`);
+    assert.equal(variants.length,6);
+    specs.forEach(([id,count,ultimate],index)=>{
+      const v=variants[index];
+      assert.equal(v.id,id);
+      assert.equal(v.basic.count,count,id);
+      assert.ok(v.basic.cooldown>0,id);
+      assert.equal(v.activated,true,id);
+      assert.equal(v.after.ultimateName,ultimate,id);
+      assert.ok(v.after.cooldown>=19,id);
+      assert.equal(v.after.reactivation,false,id);
+    });
+    assert.equal(variants[2].basic.piercing,1);
+    assert.equal(variants[4].basic.wallPass,true);
+    assert.ok(variants[1].after.shots>variants[1].basic.count);
+    assert.ok(variants[4].after.inv>=5);
+    assert.ok(variants[5].after.shield>=2);
+  });
+  await t.test('dégâts, ultis et cooldown synchronisés pour les joueurs hôte/invité',async()=>{
+    const data=await run(`(() => {
+      save.robot='rclassic';net=null;nP=2;start(4,123);
+      const friend=players[1];friend.ultCd=0;
+      const remote={t:'i',dx:0,dz:0,u:true};
+      net='host';onMsg(remote);const active=friend.ultCd>0;
+      const sent=friend.ultCd;
+      let packet=null;dc={readyState:'open',send:data=>packet=JSON.parse(data)};
+      snap();
+      const serialized=packet.p[1][9];
+      net='guest';friend.ultCd=0;
+      applySnap(packet);
+      const synced=friend.ultCd===sent;
+      dc=null;net=null;nP=1;
+      return {active,synced,serialized};
+    })()`);
+    assert.equal(data.active,true);
+    assert.equal(data.synced,true);
+    assert.ok(data.serialized>0);
+  });
   await t.test('fin de partie : retour automatique à l’accueil avec bilan conservé', async () => {
     const data=await run(`(() => {
       start(0,123);collected=2;timeLeft=0;kills=3;missionElapsed=90;
