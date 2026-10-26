@@ -193,7 +193,7 @@ survivalBanner.style.cssText = 'position:fixed;z-index:3;bottom:calc(14px + env(
 document.body.appendChild(survivalBanner);
 const compactSurvivalCSS=document.createElement('style');
 compactSurvivalCSS.textContent='@media(max-width:700px){#survival-banner{bottom:calc(114px + env(safe-area-inset-bottom,0px))!important;right:8px!important;width:min(230px,55vw)!important;padding:7px 9px!important;font-size:11px!important;}}';
-document.head.appendChild(compactSurvivalCSS);
+document.body.appendChild(compactSurvivalCSS);
 const PHASE_COLORS = [0x61eaff, 0xff78de, 0xffc86b];
 const LEVEL4 = { duration: 240, phaseSeconds: 28, phaseWarningSeconds: 4, manualWarningSeconds: 1.5, consoleCooldownSeconds: 8, finalSeconds: 35, consoleRadius: 2.4, safetyRadius: T / 2 + .9, patrolSpeed: 2.5, chaseSpeed: 4.8, sight: 9, investigateSeconds: 4, stunSeconds: 4 };
 const LEVEL4_MAP = [
