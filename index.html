@@ -225,9 +225,9 @@ const LV = [
   { name: "Arène infinie", subtitle: "Survie · l’armée de CORE", brief: "Enchaîne des vagues sans fin. Chaque vague devient plus dangereuse.", wall: 0x4a3a30, em: 0x2a1408, dyn: 0x6a5040, dynE: 0x8a3a10, accent: 0xff9c4d, floor: 0x1c1612, cap: 0x9a7a60, fog: 0x120c08, lasers: 0, foes: 0, duration: 999999 }
 ];
 const PHASES = ['CYAN', 'MAGENTA', 'AMBRE'];
-// Vagues sans limite. MAXF limite uniquement le nombre de drones simultanés :
-// vie, vitesse et élites progressent toujours, même après avoir atteint ce plafond.
-const WAVE_S = 12, MAXF = 30;
+// Niveau 5 plus accessible : 12 s par vague, moins de drones simultanés.
+// Le défi reste infini : résistance, vitesse et Titans continuent de progresser.
+const WAVE_S = 12, MAXF = 20;
 let wave = 0, healT = 0, trickle = 0, nextFoe = 0;
 let survivalStations = [];
 let survivalObjective = {index:-1,charge:0,cleared:false,completed:0};
@@ -850,12 +850,13 @@ const KINDS = [
   { name: 'Titan', hp: 11, spd: 2.7, col: 0xff3a72, em: 0x961334, sc: 1.85 }
 ];
 const fmtT = seconds => Math.floor(seconds / 60) + ' min ' + String(Math.floor(seconds % 60)).padStart(2, '0') + ' s';
-// Croissance sans plafond pour la vie, et progression jusqu'à une vitesse jouable.
+// La résistance progresse encore, mais deux fois moins vite ; les robots
+// restent rattrapables au-delà de la vague 50 sans perdre le défi à long terme.
 function swarmStats(kind, level = wave) {
   const K = KINDS[kind] || KINDS[0], w = Math.max(1, level);
-  const bonusHp = Math.floor((w - 1) / 3);
-  const bossHp = kind === 3 ? 2 * Math.floor(w / 5) : 0;
-  return { hp: K.hp + bonusHp + bossHp, spd: K.spd + Math.min(5, (w - 1) * 0.14), col: K.col, em: K.em, sc: K.sc };
+  const bonusHp = Math.floor((w - 1) / 6);
+  const bossHp = kind === 3 ? Math.floor(w / 5) : 0;
+  return { hp: K.hp + bonusHp + bossHp, spd: K.spd + Math.min(3.5, (w - 1) * 0.08), col: K.col, em: K.em, sc: K.sc };
 }
 function arenaMaze() {
   const g = Array.from({ length: N }, (_, z) => Array.from({ length: N }, (_, x) =>
@@ -900,9 +901,10 @@ function updateSurvivalObjective(dt) {
   if (!station) return;
   const nearby=players.some(a=>a.alive &&
     Math.hypot(a.g.position.x-station.root.position.x,a.g.position.z-station.root.position.z)<2.6);
-  survivalObjective.charge=Math.max(0,Math.min(2.4,
-    survivalObjective.charge+(nearby?dt:-dt*1.7)));
-  if (survivalObjective.charge<2.4) return;
+  // Relais faciles à activer : capture plus courte et moins pénalisante si on recule.
+  survivalObjective.charge=Math.max(0,Math.min(1.8,
+    survivalObjective.charge+(nearby?dt:-dt*0.9)));
+  if (survivalObjective.charge<1.8) return;
   survivalObjective.cleared=true;
   survivalObjective.completed++;
   const pos=station.root.position;
@@ -940,7 +942,7 @@ function updateSurvivalStations(dt){
     survivalBanner.textContent='✓ Relais réussi · '+survivalObjective.completed+' activés · prochain : vague '+(wave+1);
   } else {
     const device=SURVIVAL_DEVICES[survivalObjective.index];
-    const pct=Math.round(survivalObjective.charge/2.4*100);
+    const pct=Math.round(survivalObjective.charge/1.8*100);
     survivalBanner.textContent='◆ '+device.name+' · Capture '+pct+'% · Reste dans le cercle';
   }
 }
@@ -976,7 +978,7 @@ function swarmAI(f, dt) {
   }
   let mx = tx - q.x, mz = tz - q.z;
   const length = Math.hypot(mx, mz) || 1; mx /= length; mz /= length;
-  // Eviter les empilements de drones, avec 30 objets maximum.
+  // Éviter les empilements de drones, avec au plus MAXF objets.
   foes.forEach(other => {
     if (other === f) return;
     const dx = q.x - other.g.position.x, dz = q.z - other.g.position.z;
@@ -991,7 +993,7 @@ function swarmAI(f, dt) {
   f.g.rotation.y = Math.atan2(mx, mz);
 }
 function spawnSwarm(count, bossWave = false) {
-  // Un Titan doit apparaître à chaque 5e vague, même si les 30 places sont prises.
+  // Un Titan apparaît à chaque 5e vague, même si tous les emplacements sont pris.
   // On libère alors une place sans créditer de destruction au joueur.
   if (bossWave && foes.length >= MAXF) {
     const oldIndex = Math.max(0, foes.findIndex(f => f.kind !== 3));
@@ -1010,8 +1012,8 @@ function spawnSwarm(count, bossWave = false) {
   for (let i = 0; i < count && foes.length < MAXF; i++) {
     const cell = cells[Math.floor(Math.random() * cells.length)];
     const r = Math.random();
-    const heavyOdds = Math.min(0.55, Math.max(0, wave - 3) * 0.028);
-    const fastOdds = Math.min(0.45, Math.max(0, wave - 1) * 0.028);
+    const heavyOdds = Math.min(0.38, Math.max(0, wave - 4) * 0.018);
+    const fastOdds = Math.min(0.32, Math.max(0, wave - 2) * 0.02);
     const kind = bossWave && i === 0 ? 3 : r < heavyOdds ? 2 : r < heavyOdds + fastOdds ? 1 : 0;
     makeSwarmFoe(nextFoe++, toW(cell[0]), toW(cell[1]), kind, wave);
   }
@@ -1025,17 +1027,18 @@ function updateSurvival(dt) {
     // Ne pas simuler rétroactivement des centaines de vagues si l'onglet ralentit.
     wave = wantedWave;
     if (wave > 1 && wave % 5 === 0) {
-      // Le plafond de 30 drones n'empêche PAS la difficulté de croître.
-      foes.forEach(f => { f.hp += 1 + Math.floor(wave / 5); f.spd += 0.18; });
+      // Tous les 5 paliers, les drones présents se renforcent légèrement.
+      foes.forEach(f => { f.hp += 1; f.spd += 0.08; });
     }
     const isBoss = wave % 5 === 0;
-    spawnSwarm(wave === 1 ? 2 : wave === 2 ? 3 : wave === 3 ? 4 : Math.min(5 + wave, 14), isBoss);
+    const groupSize=wave===1?2:wave===2?2:wave===3?3:Math.min(4+Math.floor(wave/4),9);
+    spawnSwarm(groupSize,isBoss);
     flash(isBoss ? '⚠️ VAGUE ' + wave + ' : TITAN DE CORE !' : 'VAGUE ' + wave + ' — drones renforcés !', 2000);
     grantSurvivalRewards(); // après l'annonce de la vague : la récompense reste visible
     snd(isBoss ? 130 : 300, 0.3, 'sawtooth', 0.05, 110);
   }
   healT += dt;
-  const healAfter = Math.min(120, 32 + Math.floor((wave - 1) / 4) * 10);
+  const healAfter = 24; // un soin régulier, y compris dans les grandes vagues
   if (healT >= healAfter) {
     healT = 0;
     const wounded = players.filter(a => a.alive && a.hp < 3);
@@ -1043,8 +1046,8 @@ function updateSurvival(dt) {
   }
   updateSurvivalObjective(dt);
   trickle += dt;
-  const interval = Math.max(0.85, 3.1 - wave * 0.075);
-  if (wave >= 3 && trickle >= interval) { trickle = 0; spawnSwarm(1); }
+  const interval = Math.max(2.2, 4.5 - wave * 0.035);
+  if (wave >= 6 && trickle >= interval) { trickle = 0; spawnSwarm(1); }
 }
 function endSurvival() {
   // Aucun portail, aucun décompte : seule l'élimination de tous les joueurs finit la partie.
