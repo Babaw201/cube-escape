@@ -115,7 +115,7 @@ canvas{touch-action:none}#overlay{overflow:auto;touch-action:pan-y}#net textarea
 </head>
 <body>
 <div id="hud">
-  <div class="box" id="cr"><span id="objective-label">Cristaux </span><b><span id="n">0</span>/3</b></div>
+  <div class="box" id="cr"><span id="objective-label">Cristaux </span><b><span id="n">0</span><span id="n3">/3</span></b></div>
   <div class="box" id="cn">🪙 <b id="coin">0</b></div>
   <div class="box" id="swap"><span id="swap-label">Murs mobiles dans </span><span id="sw">20</span> s</div>
   <div class="box" id="time"><span id="tm">90</span> s</div>
@@ -170,9 +170,14 @@ const LV = [
   { name: "Labyrinthe", subtitle: "Laboratoire cryogénique", brief: "Récupérez les cristaux. Réveillez le portail.", wall: 0x23394e, em: 0x071a2f, dyn: 0x384b78, dynE: 0x58348c, accent: 0x70dfff, floor: 0x0e1d29, cap: 0x3b586c, fog: 0x07131f, lasers: 0, foes: 2, duration: 90 },
   { name: "Zone instable", subtitle: "Fonderie sous pression", brief: "Traversez les lasers et les machines en surchauffe.", wall: 0x574234, em: 0x261006, dyn: 0x93603d, dynE: 0x8a2f0a, accent: 0xffae62, floor: 0x241a17, cap: 0x826047, fog: 0x180f0c, lasers: 3, foes: 4, duration: 90 },
   { name: "Le Noyau", subtitle: "Chambre du réacteur", brief: "Réactivez les trois relais, puis échappez à la surcharge.", wall: 0x39434f, em: 0x210d19, dyn: 0x635365, dynE: 0x8a163e, accent: 0xff637f, floor: 0x171c28, cap: 0x8a96a2, fog: 0x0d101b, lasers: 0, foes: 4, duration: 120 },
-  { name: "Le Labyrinthe instable", subtitle: "Archives de confinement de CORE", brief: "Contrôlez les phases. Récupérez les trois clés de stabilisation.", wall: 0x30465d, em: 0x09233c, dyn: 0x48778b, dynE: 0x167b94, accent: 0x65e7ff, floor: 0x172a3d, cap: 0x66859e, fog: 0x081322, lasers: 0, foes: 1, duration: 240 }
+  { name: "Le Labyrinthe instable", subtitle: "Archives de confinement de CORE", brief: "Contrôlez les phases. Récupérez les trois clés de stabilisation.", wall: 0x30465d, em: 0x09233c, dyn: 0x48778b, dynE: 0x167b94, accent: 0x65e7ff, floor: 0x172a3d, cap: 0x66859e, fog: 0x081322, lasers: 0, foes: 1, duration: 240 },
+  { name: "Arène infinie", subtitle: "Survie · l’armée de CORE", brief: "Enchaîne des vagues sans fin. Chaque vague devient plus dangereuse.", wall: 0x4a3a30, em: 0x2a1408, dyn: 0x6a5040, dynE: 0x8a3a10, accent: 0xff9c4d, floor: 0x1c1612, cap: 0x9a7a60, fog: 0x120c08, lasers: 0, foes: 0, duration: 999999 }
 ];
 const PHASES = ['CYAN', 'MAGENTA', 'AMBRE'];
+// Vagues sans limite. MAXF limite uniquement le nombre de drones simultanés :
+// vie, vitesse et élites progressent toujours, même après avoir atteint ce plafond.
+const WAVE_S = 12, MAXF = 30;
+let wave = 0, healT = 0, trickle = 0, nextFoe = 0;
 const PHASE_COLORS = [0x61eaff, 0xff78de, 0xffc86b];
 const LEVEL4 = { duration: 240, phaseSeconds: 28, phaseWarningSeconds: 4, manualWarningSeconds: 1.5, consoleCooldownSeconds: 8, finalSeconds: 35, consoleRadius: 2.4, safetyRadius: T / 2 + .9, patrolSpeed: 2.5, chaseSpeed: 4.8, sight: 9, investigateSeconds: 4, stunSeconds: 4 };
 const LEVEL4_MAP = [
@@ -270,7 +275,7 @@ function build0() {
   occluders = []; phaseConsole = null;
   world = new THREE.Group(); scene.add(world);
   const L = Object.assign({}, LV[cur], (SKINS.find(q => q.id === save.skin) || SKINS[0]).o); foes = []; lasers = []; shots = []; fx = [];
-  const m = cur === 3 ? level4Maze() : genMaze(); grid = m.g;
+  const m = cur === 4 ? arenaMaze() : cur === 3 ? level4Maze() : genMaze(); grid = m.g;
   if (cur === 3) LEVEL4_GATES.forEach(g => { grid[g.z][g.x] = shouldGateBeOpen(g, level4) ? 0 : 1; });
   if (cur === 2) { // chambre centrale : anneau praticable autour du réacteur
     m.dynCells = m.dynCells.filter(([x, z]) => x < 5 || x > 9 || z < 5 || z > 9);
@@ -278,13 +283,13 @@ function build0() {
     grid[7][7] = 1;
   }
 
-  const tint = [0xffffff, 0xffbc99, 0xffb8cb, 0xb5d5ef][cur];
+  const tint = [0xffffff, 0xffbc99, 0xffb8cb, 0xb5d5ef, 0xffb08a][cur];
   scene.background.setHex(L.fog); scene.fog.color.setHex(L.fog);
   const ft = floorTex(); ft.repeat.set(N, N);
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(N * T, N * T), new THREE.MeshStandardMaterial({ map: ft, color: tint, roughness: 0.7, metalness: 0.2 }));
   floor.rotation.x = -Math.PI / 2; world.add(floor);
   const ft2 = floorTex(); ft2.repeat.set(N * 3, N * 3);
-  const out = new THREE.Mesh(new THREE.PlaneGeometry(N * T * 3, N * T * 3), new THREE.MeshStandardMaterial({ map: ft2, color: [0x445566, 0x553322, 0x553344, 0x334d65][cur], roughness: 0.9 }));
+  const out = new THREE.Mesh(new THREE.PlaneGeometry(N * T * 3, N * T * 3), new THREE.MeshStandardMaterial({ map: ft2, color: [0x445566, 0x553322, 0x553344, 0x334d65, 0x553a30][cur], roughness: 0.9 }));
   out.rotation.x = -Math.PI / 2; out.position.y = -0.05; world.add(out);
   const gh = new THREE.GridHelper(N * T, N, L.accent, L.wall); gh.position.y = 0.02; gh.material.transparent = true; gh.material.opacity = 0.28; world.add(gh);
   motes = mkMotes(L.accent); world.add(motes);
@@ -376,7 +381,7 @@ function build0() {
   // Robot cubique low-poly
   players = [];
   for (let pi = 0; pi < nP; pi++) {
-  const rig = creerRobot(toW(1) + (nP > 1 ? (pi ? 0.9 : -0.9) : 0), toW(1), !!pi, net && pi !== localIndex() ? remoteRobotId : save.robot), robot = rig.robot, player = rig.group;
+  const rig = creerRobot(toW(cur === 4 ? 7 : 1) + (nP > 1 ? (pi ? 0.9 : -0.9) : 0), toW(cur === 4 ? 7 : 1), !!pi, net && pi !== localIndex() ? remoteRobotId : save.robot), robot = rig.robot, player = rig.group;
   const vg = mkGlow(pi ? 0xffa040 : 0x00e5ff, 2.4, 0.5); vg.position.set(0, 0.5, 0.5); robot.add(vg);
   const sh = new THREE.Mesh(shGeo, shMat); sh.rotation.x = -Math.PI / 2; sh.position.y = 0.04; player.add(sh); world.add(player);
   players.push({ g: player, robot, rig, hp: 3, inv: 0, dashT: 0, dashCd: 0, fireCd: 0, alive: true });
@@ -391,9 +396,9 @@ function build0() {
   [-1.55, 1.55].forEach(xx => { const pb = new THREE.Mesh(new THREE.BoxGeometry(0.35, 3.2, 0.35), pm); pb.position.set(xx, -0.2, 0); g0.add(pb); });
   const beam = new THREE.Mesh(new THREE.CylinderGeometry(1.1, 1.1, 9, 12, 1, true), new THREE.MeshBasicMaterial({ color: 0x3dff9a, transparent: true, opacity: 0.15, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
   beam.position.y = 3; const pg = mkGlow(0x3dff9a, 6, 0.5);
-  g0.add(ring, disc, pl, beam, pg); g0.position.set(toW(N - 2), 1.6, toW(N - 2));
+  g0.add(ring, disc, pl, beam, pg); g0.position.set(toW(N - 2), 1.6, toW(N - 2)); g0.visible = cur !== 4;
   world.add(g0);
-  portal = { g: g0, beam, pg, ring, disc, light: pl, x: toW(N - 2), z: toW(N - 2) };
+  portal = { g: g0, beam, pg, ring, disc, light: pl, x: cur === 4 ? 1e4 : toW(N - 2), z: cur === 4 ? 1e4 : toW(N - 2) };
 
   // Cristaux : 3 cases éloignées du départ, de la sortie et entre elles
   const exitD = new Map([["13,13", 0]]), qu = [[13, 13]], gates = new Set(m.dynCells.map(q => q.join(",")));
@@ -411,6 +416,7 @@ function build0() {
     if (far(c, [1, 1], 8) && far(c, [N - 2, N - 2], 4) && picks.every(p => far(c, p, 6))) picks.push(c);
   }
   for (const c of cells) { if (picks.length === 3) break; if (!picks.includes(c) && far(c, [1, 1], 6)) picks.push(c); }
+  if (cur === 4) picks.length = 0; // pas de cristaux dans l’arène
   const cg = new THREE.OctahedronGeometry(0.6); cg.scale(1, 1.5, 1);
   const cm = new THREE.MeshStandardMaterial({ color: 0xa24bff, emissive: 0x6a1bd0, flatShading: true });
   crystals = picks.map(([x, y], index) => {
@@ -503,9 +509,10 @@ function labelSprite(text, color) {
 }
 function updatePhaseHUD() {
   const active = cur === 3 && state === 'play';
-  $('objective-label').textContent = cur === 3 ? 'Stabilisation ' : cur === 2 ? 'Relais ' : 'Cristaux ';
+  $('objective-label').textContent = cur === 4 ? 'Vague ' : cur === 3 ? 'Stabilisation '  : cur === 2 ? 'Relais ' : 'Cristaux ';
   $('phase-status').hidden = !active;
-  $('swap-label').textContent = cur === 3 ? 'Reconfiguration : ' : 'Murs mobiles dans ';
+  $('swap-label').textContent = cur === 4 ? 'Prochaine vague : ' : cur === 3 ? 'Reconfiguration : ' : 'Murs mobiles dans ';
+  if (cur === 4) { $('sw').textContent = Math.max(0, Math.ceil(WAVE_S - (missionElapsed % WAVE_S))); $('swap').classList.remove('warn'); }
   if (cur === 3) {
     const next = level4.pendingPhase ?? (level4.phase+1)%3;
     $('phase-status').textContent = PHASES[level4.phase] + ' → ' + PHASES[next];
@@ -587,9 +594,9 @@ function swapWalls() {
 }
 
 function hud() {
-  $("n").textContent = collected;
-  $("tm").textContent = Math.ceil(timeLeft);
-  $("time").classList.toggle("low", timeLeft <= 15);
+  $("n").textContent = cur === 4 ? wave + " · " + kills + " détruits" : collected; $("n3").hidden = cur === 4;
+  $("tm").textContent = cur === 4 ? fmtT(missionElapsed) : Math.ceil(timeLeft);
+  $("time").classList.toggle("low", cur !== 4 && timeLeft <= 15);
   $("sw").textContent = Math.ceil(swapT);
   $("swap").classList.toggle("warn", swapT <= 3);
   updatePhaseHUD();
@@ -601,9 +608,10 @@ function hud() {
   });
 }
 
-function score(win) { return collected * 100 + (win ? Math.ceil(timeLeft) * 10 : 0); }
+function score(win) { if (cur === 4) return Math.floor(missionElapsed) * 10 + kills * 15; return collected * 100 + (win ? Math.ceil(timeLeft) * 10 : 0); }
 
 function end(win, why) {
+  if (cur === 4) return endSurvival();
   state = win ? "win" : "lose";
   if (net === "host") send({ t: "end", win, why });
   if (win) [523, 659, 784].forEach((f, i) => setTimeout(() => snd(f, 0.25, "triangle", 0.07), i * 140)); else snd(200, 0.6, "sawtooth", 0.07, 50);
@@ -617,7 +625,7 @@ function end(win, why) {
   if (win) { run.t += missionElapsed; run.k += kills; run.s += s; }
   let best = 0;
   try { best = +localStorage.getItem("cubeEscapeBest") || 0; if (s > best) { best = s; localStorage.setItem("cubeEscapeBest", s); } } catch (e) { best = Math.max(best, s); }
-  const fin = win && cur === LV.length - 1; // dernier niveau gagné = fin de la campagne
+  const fin = win && cur === 3; // dernier niveau gagné = fin de la campagne
   $("t").textContent = fin ? "LE CYCLE EST BRISÉ" : win ? "VICTOIRE !" : "PERDU";
   $("t").style.color = win ? "#3dff9a" : "#ff4d6d";
   $("d").textContent = (win ? "Tu t’es échappé avec " + Math.ceil(timeLeft) + " s d’avance." : why) + (cur === 3 ? " Clés : " : " Cristaux : ") + collected + "/3.";
@@ -648,7 +656,7 @@ function start(lv = cur, sd = 0) {
   if (lv === 0) { run.t = run.k = run.s = 0; }
   $("credits").style.display = "none";
   viewYaw = 0; cur = Math.max(0, Math.min(LV.length - 1, lv | 0));
-  level4 = newLevel4(); pend.phase = false; rin.dx = rin.dz = 0;
+  level4 = newLevel4(); pend.phase = false; rin.dx = rin.dz = 0; wave = 0; healT = 0; trickle = 0; nextFoe = 0;
   for (const k in keys) keys[k] = false;
    seed = sd > 0 ? sd : (Math.random() * 1e9 | 0) + 1; evq = []; paused = false; if (net === "host") send({ t: "start", lv, seed });
   laserOn = true; laserT = 3; bars[1].style.display = nP > 1 ? "block" : "none";
@@ -738,7 +746,149 @@ function bfs(a, b) {
   return null;
 }
 
+// ---------- Niveau 5 : survie infinie (sans limite de vagues) ----------
+const KINDS = [
+  { name: 'Assaut', hp: 3, spd: 3.3, col: 0xd93144, em: 0x7a0000, sc: 1.0 },
+  { name: 'Sprinter', hp: 2, spd: 5.8, col: 0xe8a020, em: 0x6a4a00, sc: 0.8 },
+  { name: 'Blindé', hp: 6, spd: 2.2, col: 0x8a4bd8, em: 0x35106a, sc: 1.4 },
+  { name: 'Titan', hp: 11, spd: 2.7, col: 0xff3a72, em: 0x961334, sc: 1.85 }
+];
+const fmtT = seconds => Math.floor(seconds / 60) + ' min ' + String(Math.floor(seconds % 60)).padStart(2, '0') + ' s';
+// Croissance sans plafond pour la vie, et progression jusqu'à une vitesse jouable.
+function swarmStats(kind, level = wave) {
+  const K = KINDS[kind] || KINDS[0], w = Math.max(1, level);
+  const bonusHp = Math.floor((w - 1) / 3);
+  const bossHp = kind === 3 ? 2 * Math.floor(w / 5) : 0;
+  return { hp: K.hp + bonusHp + bossHp, spd: K.spd + Math.min(5, (w - 1) * 0.14), col: K.col, em: K.em, sc: K.sc };
+}
+function arenaMaze() {
+  const g = Array.from({ length: N }, (_, z) => Array.from({ length: N }, (_, x) =>
+    (x === 0 || z === 0 || x === N - 1 || z === N - 1 ? 1 : 0)));
+  for (const [x, z] of [[3,3],[11,3],[3,11],[11,11],[7,5],[7,9],[5,7],[9,7]]) g[z][x] = 1;
+  return { g, dynCells: [] };
+}
+function makeSwarmFoe(id, x, z, kind, level = wave) {
+  const K = swarmStats(kind, level);
+  const drone = creerDrone(x, z), g = drone.group, mat = g.children[0].material;
+  mat.color.setHex(K.col); mat.emissive.setHex(K.em);
+  g.scale.setScalar(K.sc); g.add(mkGlow(K.col, 2.2, 0.5)); world.add(g);
+  const f = { id, g, mat, drone, hp: K.hp, kind, spd: K.spd, em: K.em,
+    mode: 'chase', lost: 0, flash: 0, ph: Math.random() * 6,
+    stun: 0, recover: 0, pathCd: 0, tx: x, tz: z };
+  foes.push(f); return f;
+}
+function swarmAI(f, dt) {
+  const q = f.g.position, p = nearest(q);
+  f.flash = Math.max(0, f.flash - dt);
+  f.mat.emissive.setHex(f.flash > 0 ? 0xffffff : f.em);
+  f.drone.pointsDeVie = Math.min(3, f.hp);
+  f.drone.mode = 'poursuite'; animerDrone(f.drone, dt, t + f.ph);
+  let tx = p.x, tz = p.z;
+  // Mettre en cache la recherche de chemin pour préserver les FPS sur mobile.
+  if (!los(q, p)) {
+    f.pathCd -= dt;
+    if (f.pathCd <= 0) {
+      f.pathCd = 0.4 + Math.random() * 0.2;
+      const c = [fromW(q.x), fromW(q.z)], goal = [fromW(p.x), fromW(p.z)];
+      const next = (c[0] === goal[0] && c[1] === goal[1]) ? null : bfs(c, goal);
+      f.navX = next ? toW(next[0]) : p.x;
+      f.navZ = next ? toW(next[1]) : p.z;
+    }
+    tx = f.navX ?? p.x; tz = f.navZ ?? p.z;
+  }
+  let mx = tx - q.x, mz = tz - q.z;
+  const length = Math.hypot(mx, mz) || 1; mx /= length; mz /= length;
+  // Eviter les empilements de drones, avec 30 objets maximum.
+  foes.forEach(other => {
+    if (other === f) return;
+    const dx = q.x - other.g.position.x, dz = q.z - other.g.position.z;
+    const d = Math.hypot(dx, dz);
+    if (d > 0.001 && d < 1.2) { mx += dx / d * 0.65; mz += dz / d * 0.65; }
+  });
+  const n = Math.hypot(mx, mz) || 1;
+  const nx = q.x + (mx / n) * f.spd * dt;
+  const nz = q.z + (mz / n) * f.spd * dt;
+  if (!hit(nx, q.z, 0.4)) q.x = nx;
+  if (!hit(q.x, nz, 0.4)) q.z = nz;
+  f.g.rotation.y = Math.atan2(mx, mz);
+}
+function spawnSwarm(count, bossWave = false) {
+  // Un Titan doit apparaître à chaque 5e vague, même si les 30 places sont prises.
+  // On libère alors une place sans créditer de destruction au joueur.
+  if (bossWave && foes.length >= MAXF) {
+    const oldIndex = Math.max(0, foes.findIndex(f => f.kind !== 3));
+    const replaced = foes.splice(oldIndex, 1)[0];
+    if (replaced) { world.remove(replaced.g); disposeTree(replaced.g); }
+  }
+  if (foes.length >= MAXF) return;
+  const cells = [];
+  for (let z = 1; z < N - 1; z++) for (let x = 1; x < N - 1; x++) {
+    if (grid[z][x]) continue;
+    const nearestPlayer = Math.min(...players.filter(a => a.alive)
+      .map(a => Math.hypot(toW(x) - a.g.position.x, toW(z) - a.g.position.z)));
+    if (nearestPlayer >= 12) cells.push([x, z]);
+  }
+  if (!cells.length) return;
+  for (let i = 0; i < count && foes.length < MAXF; i++) {
+    const cell = cells[Math.floor(Math.random() * cells.length)];
+    const r = Math.random();
+    const heavyOdds = Math.min(0.55, Math.max(0, wave - 3) * 0.028);
+    const fastOdds = Math.min(0.45, Math.max(0, wave - 1) * 0.028);
+    const kind = bossWave && i === 0 ? 3 : r < heavyOdds ? 2 : r < heavyOdds + fastOdds ? 1 : 0;
+    makeSwarmFoe(nextFoe++, toW(cell[0]), toW(cell[1]), kind, wave);
+  }
+}
+function updateSurvival(dt) {
+  const wantedWave = 1 + Math.floor(missionElapsed / WAVE_S);
+  if (wantedWave > wave) {
+    // Ne pas simuler rétroactivement des centaines de vagues si l'onglet ralentit.
+    wave = wantedWave;
+    if (wave > 1 && wave % 5 === 0) {
+      // Le plafond de 30 drones n'empêche PAS la difficulté de croître.
+      foes.forEach(f => { f.hp += 1 + Math.floor(wave / 5); f.spd += 0.18; });
+    }
+    const isBoss = wave % 5 === 0;
+    spawnSwarm(Math.min(5 + wave, 14), isBoss);
+    flash(isBoss ? '⚠️ VAGUE ' + wave + ' : TITAN DE CORE !' : 'VAGUE ' + wave + ' — drones renforcés !', 2000);
+    snd(isBoss ? 130 : 300, 0.3, 'sawtooth', 0.05, 110);
+  }
+  healT += dt;
+  const healAfter = Math.min(120, 32 + Math.floor((wave - 1) / 4) * 10);
+  if (healT >= healAfter) {
+    healT = 0;
+    const wounded = players.filter(a => a.alive && a.hp < 3);
+    if (wounded.length) { wounded.forEach(a => a.hp++); flash('+1 PV (soin de survie)', 1200); }
+  }
+  trickle += dt;
+  const interval = Math.max(0.85, 3.1 - wave * 0.075);
+  if (trickle >= interval) { trickle = 0; spawnSwarm(1); }
+}
+function endSurvival() {
+  // Aucun portail, aucun décompte : seule l'élimination de tous les joueurs finit la partie.
+  state = 'lose'; paused = false;
+  if (net === 'host') send({ t: 'end', win: false, why: 'survie' });
+  const sec = Math.floor(missionElapsed), s = score(false);
+  const pay = Math.floor(sec / 3) + kills * 2;
+  const rec = sec > (save.bestSurvive || 0);
+  if (rec) save.bestSurvive = sec;
+  save.kills += kills; save.coins += pay; save.earned += pay;
+  store(); updCoins(); snd(200, 0.6, 'sawtooth', 0.07, 50);
+  $('t').textContent = 'SURVIE TERMINÉE'; $('t').style.color = '#ff9c4d';
+  $('d').textContent = 'Temps : ' + fmtT(sec) + ' · vague ' + wave + ' · ' + kills +
+    ' drones détruits.' + (rec ? ' Nouveau record !' : '');
+  $('best').textContent = 'Score : ' + s + ' · Meilleure survie : ' +
+    fmtT(save.bestSurvive || sec) + ' · +' + pay + ' pièces (total ' + save.coins + ').';
+  $('credits').style.display = 'none';
+  btnAct = () => start(4); $('btn').textContent = 'Rejouer la survie'; $('btn').style.display = '';
+  renderLv();
+  if (net === 'guest') {
+    $('btn').style.display = 'none'; $('d').textContent += ' En attente de l’hôte pour rejouer...';
+  }
+  $('overlay').style.display = 'flex'; $('btn').focus(); hud();
+}
+
 function foeAI(f, dt) {
+  if (cur === 4) return swarmAI(f, dt);
   if (cur === 3) return trackerAI(f, dt);
   const q = f.g.position, p = nearest(q), d = Math.hypot(p.x - q.x, p.z - q.z);
   if (d < 6 && los(q, p)) { f.mode = "chase"; f.lost = 0; }
@@ -782,7 +932,7 @@ function hitFoe(f, q) {
     return;
   }
   f.hp--; f.flash = 0.12; burst(q, 0xffe066, 5, 1);
-  if (f.hp <= 0) { kills++; burst(f.g.position, 0xff4040, 16, 1.6); world.remove(f.g); foes.splice(foes.indexOf(f), 1); }
+  if (f.hp <= 0) { kills++; burst(f.g.position, 0xff4040, 16, 1.6); world.remove(f.g); if (cur === 4) disposeTree(f.g); foes.splice(foes.indexOf(f), 1); }
 }
 
 function aim(a) {
@@ -860,19 +1010,27 @@ function renderLv() {
 
 // ---------- Coopération : simulation hôte et salons à code court ----------
 function snap() {
-  send({ t: "s", tl: timeLeft, sw: swapT, c: collected, k: kills, mt: missionElapsed, ov: overload ? 1 : 0, lo: laserOn ? 1 : 0, ls: laserT, l4: cur === 3 ? {...level4} : null,
+  send({ t: "s", tl: timeLeft, sw: swapT, c: collected, k: kills, mt: missionElapsed, wv: cur === 4 ? wave : 0, ov: overload ? 1 : 0, lo: laserOn ? 1 : 0, ls: laserT, l4: cur === 3 ? {...level4} : null,
     p: players.map(a => [a.g.position.x, a.g.position.z, a.robot.rotation.y, a.hp, a.alive ? 1 : 0, a.dashCd, a.inv > 0 ? 1 : 0, a.robot.position.y, a.rig.skinId]),
-    f: foes.map(f => [f.id, f.g.position.x, f.g.position.z, f.g.rotation.y, f.flash > 0 ? 1 : 0, f.hp, f.mode === "chase" || f.mode === "CHASE" ? 1 : 0, f.stun || 0, f.mode, f.recover || 0]),
+    f: foes.map(f => [f.id, f.g.position.x, f.g.position.z, f.g.rotation.y, f.flash > 0 ? 1 : 0, f.hp, f.mode === "chase" || f.mode === "CHASE" ? 1 : 0, f.stun || 0, f.mode, f.recover || 0, f.kind || 0]),
     d: dyn.map(d => (d.closed ? 1 : 0)).join(""), cg: crystals.map(c => (c.got ? 1 : 0)).join(""),
     sh: shots.map(s => [s.m.position.x, s.m.position.z, s.m.rotation.y]), ev: evq });
   evq = [];
 }
 
 function applySnap(m) {
-  timeLeft = m.tl; swapT = m.sw; collected = m.c; kills = m.k || 0; laserOn = !!m.lo; laserT = m.ls; missionElapsed = m.mt || 0; overload = !!m.ov;
+  timeLeft = m.tl; swapT = m.sw; collected = m.c; kills = m.k || 0; laserOn = !!m.lo; laserT = m.ls; missionElapsed = m.mt || 0; wave = cur === 4 ? (m.wv || 0) : 0; overload = !!m.ov;
   if (cur === 3 && m.l4) level4 = {...m.l4, latched: [...m.l4.latched]};
   m.p.forEach((q, k) => { const a = players[k]; if (!a) return; if(q[8] && q[8] !== a.rig.skinId) replacePlayerRig(a,q[8],k); a.tx = q[0]; a.tz = q[1]; a.robot.rotation.y = firstPerson && net === "guest" && k === 1 ? viewYaw : q[2]; a.hp = q[3]; a.alive = !!q[4]; a.dashCd = q[5]; a.inv = q[6]; a.robot.position.y = q[7]; });
-  foes = foes.filter(f => { const q = m.f.find(z => z[0] === f.id); if (!q) { world.remove(f.g); return false; } f.tx = q[1]; f.tz = q[2]; f.g.rotation.y = q[3]; f.flash = q[4]; f.hp = q[5]; f.mode = q[8] || (q[6] ? "chase" : "patrol"); f.stun = q[7] || 0; f.recover = q[9] || 0; return true; });
+  foes = foes.filter(f => { const q = m.f.find(z => z[0] === f.id); if (!q) { world.remove(f.g); if (cur === 4) disposeTree(f.g); return false; } f.tx = q[1]; f.tz = q[2]; f.g.rotation.y = q[3]; f.flash = q[4]; f.hp = q[5]; f.mode = q[8] || (q[6] ? "chase" : "patrol"); f.stun = q[7] || 0; f.recover = q[9] || 0; return true; });
+  if (cur === 4) {
+    m.f.forEach(q => {
+      if (!foes.some(f => f.id === q[0])) {
+        const f = makeSwarmFoe(q[0], q[1], q[2], q[10] || 0, wave);
+        f.tx = q[1]; f.tz = q[2]; f.hp = q[5];
+      }
+    });
+  }
   dyn.forEach((d, i) => { d.closed = m.d[i] === "1"; grid[d.j][d.i] = d.closed ? 1 : 0; if(d.closed) d.mesh.visible = true; d.deferred = cur === 3 && !d.closed && !shouldGateBeOpen(d.gate,level4); });
   crystals.forEach((c, i) => { c.got = m.cg[i] === "1"; c.mesh.visible = cur === 2 || !c.got; });
   while (shots.length > m.sh.length) world.remove(shots.pop().m);
@@ -890,7 +1048,7 @@ function guestStep(dt) {
   });
   foes.forEach(f => {
     if (f.tx !== undefined) { f.g.position.x += (f.tx - f.g.position.x) * k; f.g.position.z += (f.tz - f.g.position.z) * k; }
-    f.drone.pointsDeVie = f.stun > 0 ? 0 : f.hp; f.drone.mode = f.mode === "chase" || f.mode === "CHASE" ? "poursuite" : "patrouille"; animerDrone(f.drone, dt, t + f.ph); f.mat.emissive.setHex(f.stun > 0 ? 0x16487d : f.flash ? 0xffe2ad : 0x7a0000);
+    f.drone.pointsDeVie = f.stun > 0 ? 0 : f.hp; f.drone.mode = f.mode === "chase" || f.mode === "CHASE" ? "poursuite" : "patrouille"; animerDrone(f.drone, dt, t + f.ph); f.mat.emissive.setHex(f.stun > 0 ? 0x16487d : f.flash ? 0xffe2ad : (cur === 4 ? f.em : 0x7a0000));
   });
   for (let i = fx.length - 1; i >= 0; i--) {
     const e = fx[i]; e.life -= dt; e.m.position.addScaledVector(e.v, dt); e.m.scale.setScalar(Math.max(0.01, e.life / e.max));
@@ -1105,8 +1263,9 @@ const run = { t: 0, k: 0, s: 0 }; // bilan de la campagne en cours
 const CREDITS = ["CUBE ESCAPE", "Un jeu créé par : Baptiste Werner", "Moteur 3D : Three.js", "Merci d’avoir joué !"];
 const save = { coins: 0, earned: 0, skin: "def", robot: "rclassic", ray: "cy", own: ["def", "cy", "rclassic"], stock: {}, daily: "", streak: 0, kills: 0, clean: 0, l3: 0, done: [] };
 try { Object.assign(save, JSON.parse(localStorage.getItem("cubeEscapeSave") || "{}")); } catch (e) {}
-if (save.finished || save.l3 > 0 || save.level4Finished) maxLv = 4;
-maxLv = Math.max(1, Math.min(4, maxLv));
+if (save.finished || save.l3 > 0) maxLv = Math.max(maxLv, 4);
+if (save.level4Finished) maxLv = 5;
+maxLv = Math.max(1, Math.min(LV.length, maxLv));
 if (!ROBOT_SKINS.some(s=>s.id===save.robot)) save.robot = 'rclassic';
 let curRay = RAYS[0], rayCol = 0x66f0ff, skinMats = [], DASH_CD = 5, PICKUP = 1.5, shopTab = "robot";
 const store = () => { try { localStorage.setItem("cubeEscapeSave", JSON.stringify(save)); } catch (e) {} };
@@ -1549,11 +1708,12 @@ const CTRL = [
 
 function update(dt) {
   dt = Math.min(Math.max(dt, 0), .05);
-  timeLeft -= dt; missionElapsed += dt;
+  if (cur !== 4) timeLeft -= dt; missionElapsed += dt;
   if (cur === 3) updateLevel4(dt); else swapT -= dt;
-  if (timeLeft <= 0) { timeLeft = 0; hud(); return end(false, "Le temps est écoulé."); }
-  if (cur !== 3 && swapT <= 0) { swapWalls(); swapT = SWAP; }
+  if (cur !== 4 && timeLeft <= 0) { timeLeft = 0; hud(); return end(false, "Le temps est écoulé."); }
+  if (cur !== 3 && cur !== 4 && swapT <= 0) { swapWalls(); swapT = SWAP; }
   if (combat(dt)) return;
+  if (cur === 4) updateSurvival(dt);
 
   players.forEach((a, k) => {
     if (!a.alive) return;
@@ -1589,8 +1749,8 @@ function update(dt) {
   });
 
   const live = players.filter(a => a.alive), dp = a => Math.hypot(portal.x - a.g.position.x, portal.z - a.g.position.z);
-  if (collected >= 3 && live.every(a => dp(a) < 2.2)) { hud(); return end(true); }
-  if (live.some(a => dp(a) < 1.6) && performance.now() - lastWarn > 2500) { lastWarn = performance.now(); flash(collected < 3 ? (cur === 3 ? "Il manque des clés !" : "Il manque des cristaux !") : "Attends ton coéquipier !"); }
+  if (cur !== 4 && collected >= 3 && live.every(a => dp(a) < 2.2)) { hud(); return end(true); }
+  if (cur !== 4 && live.some(a => dp(a) < 1.6) && performance.now() - lastWarn > 2500) { lastWarn = performance.now(); flash(collected < 3 ? (cur === 3 ? "Il manque des clés !" : "Il manque des cristaux !") : "Attends ton coéquipier !"); }
   hud();
 }
 

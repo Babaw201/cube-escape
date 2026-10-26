@@ -29,9 +29,9 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
   await page.waitForFunction(() => !!window.gameEval);
   const run = code => page.evaluate(code => window.gameEval(code), code);
 
-  await t.test('nouvel accueil : quatre secteurs, jouer et modes solo / coop', async () => {
+  await t.test('nouvel accueil : cinq secteurs, jouer et modes solo / coop', async () => {
     assert.equal(await page.locator('#home').isVisible(), true);
-    assert.equal(await page.locator('#home .hm-sec').count(), 4);
+    assert.equal(await page.locator('#home .hm-sec').count(), 5);
     assert.equal(await page.locator('#home .hm-play').count(), 1);
     assert.equal(await page.locator('#home .hm-seg button').count(), 2);
   });
@@ -99,8 +99,21 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     assert.match(await page.locator('#feedback-screen .fb-status').innerText(),/transmis/);
     await page.locator('#feedback-screen .fb-top button').click();
   });
-  await t.test('la campagne propose le quatrième niveau', async () => {
-    assert.equal(await run('LV.length'), 4);
+  await t.test('quatre niveaux de campagne et une arène infinie', async () => {
+    assert.equal(await run('LV.length'), 5);
+  });
+  await t.test('niveau 5 : démarre en WebGL et affiche la première vague', async () => {
+    const data=await run(`(() => {
+      start(4); update(.05);
+      return {wave,foes:foes.length,crystals:crystals.length,live:state,
+        noDeadline:timeLeft===999999,hasTimer:document.querySelector('#tm').textContent.includes('min')};
+    })()`);
+    assert.equal(data.wave,1);
+    assert.ok(data.foes>0);
+    assert.equal(data.crystals,0);
+    assert.equal(data.live,'play');
+    assert.equal(data.noDeadline,true);
+    assert.equal(data.hasTimer,true);
   });
   await t.test('carte : dimensions et marqueurs uniques', async () => {
     assert.deepEqual(await run(`({rows:LEVEL4_MAP.length,lengths:LEVEL4_MAP.map(r=>r.length),markers:[...'SO123ABCE'].map(c=>LEVEL4_MAP.join('').split(c).length-1)})`),{rows:15,lengths:Array(15).fill(15),markers:Array(9).fill(1)});

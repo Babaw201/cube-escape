@@ -1,10 +1,24 @@
 # Limbyrinth — Cube Escape
 
-Jeu 3D de labyrinthe en HTML et Three.js r128, avec quatre niveaux, coopération locale et salons en ligne, commandes tactiles, progression et boutique.
+Jeu 3D de labyrinthe en HTML et Three.js r128, avec quatre niveaux de campagne et un cinquième niveau en survie infinie, coopération locale et salons en ligne, commandes tactiles, progression et boutique.
 
 **[▶ Jouer sur GitHub Pages](https://babaw201.github.io/cube-escape/)**
 
 Choisir **« Niveau 1 : Labyrinthe »** pour commencer. Sur téléphone, ouvrir le lien dans Chrome ou Safari.
+
+## Niveau 5 — Survie infinie (bêta)
+
+Après avoir terminé le niveau 4, l'arène **Survie · l'armée de CORE** est débloquée.
+
+- Une nouvelle vague toutes les **12 secondes** sans limite de vagues ou de durée.
+- Ennemis d'assaut, sprinters, blindés, et **Titan toutes les 5 vagues**.
+- Vitesse des drones progressivement croissante (plafonnée pour conserver une maniabilité possible) et résistance augmentant sans plafond.
+- **Maximum 30 drones simultanés** pour préserver les performances sur mobile ; les vagues continuent de gagner en difficulté même lorsque ce plafond est atteint.
+- Un soin d'un point de vie devient possible après un délai qui augmente avec les vagues.
+- Score de fin de partie = secondes survécues × 10 + drones détruits × 15. Record de survie stocké localement.
+- Pas de portail ni de limite de temps : la session s'arrête quand tous les joueurs sont détruits.
+
+**À savoir :** le classement en ligne historique couvre les niveaux 1 à 4. Le niveau 5 conserve son record localement jusqu'à l'ajout d'un classement serveur adapté. Cette fonctionnalité doit encore être validée en jeu sur PC et mobile.
 
 ## Nouveautés
 
