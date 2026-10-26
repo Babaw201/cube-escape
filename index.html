@@ -667,8 +667,7 @@ function hud() {
   if(a0) {
     const left=Math.ceil(Math.max(0,a0.ultCd||0));
     const stateText=left?left+" s":"PRÊT";
-    $("ult-state").textContent=stateText;
-    $("ult-info").firstChild.textContent="ULTI "+kitOf(a0).ulti+" · ";
+    $("ult-info").textContent="⚡ "+kitOf(a0).ulti+" · "+stateText;
     $("tulti").textContent=left?"ULTI "+left+" s":"⚡ ULTI";
     $("tulti").disabled=left>0 || !a0.alive;
   }
