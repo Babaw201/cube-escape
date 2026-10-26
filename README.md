@@ -6,6 +6,13 @@ Jeu 3D de labyrinthe en HTML et Three.js r128, avec quatre niveaux de campagne e
 
 Choisir **« Niveau 1 : Labyrinthe »** pour commencer. Sur téléphone, ouvrir le lien dans Chrome ou Safari.
 
+## Accueil compact sans défilement
+
+- L'accueil est un écran fixe conçu pour être **entièrement utilisable sans faire défiler**, en particulier sur téléphone en paysage. Il conserve l'affichage de la sélection de niveau, du mode, du pseudo, de l'action « Jouer », des scores et des options principales.
+- Direction artistique simplifiée : fond sombre avec anneau lumineux, composition plus aérée, miniatures discrètes des niveaux, un seul bouton de jeu orange qui domine.
+- Les actualités, retours de bugs et commandes sont accessibles depuis deux menus compacts ; leurs sous-panneaux ne modifient pas la hauteur de l'accueil.
+- Responsive pour **1440×900**, **844×390** (paysage) et **390×844** (portrait) avec des tests de visibilité et de non-défilement. Les écrans secondaires (scores, profil, boutique) conservent leur propre défilement si nécessaire.
+
 ## Interface futuriste et paysage mobile
 
 - Menu principal inspiré de la maquette Limbyrinth : logo lumineux, grand bouton orange, modes **solo / coopération locale à 2 / jeu en ligne avec un ami**, cinq cartes de niveaux et mini-visuels graphiques CSS, galerie de records et accès direct au profil, aux scores et à la boutique.
