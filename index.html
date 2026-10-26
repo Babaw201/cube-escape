@@ -114,7 +114,7 @@ canvas{touch-action:none}#overlay{overflow:auto;touch-action:pan-y}#net textarea
 @media(max-width:480px){#net{padding:12px}.room-panel{padding:20px;border-radius:18px}.room-panel h2{font-size:24px}#net button{font-size:14px}}
 
 /* Tactile paysage : commandes au bord de l'écran et visibilité maximale. */
-@media(pointer:coarse){#touch{display:none}body.playing-game #touch{display:block}#joy,#tbtns button{touch-action:none;-webkit-tap-highlight-color:transparent}}
+@media(pointer:coarse){#touch{display:none}body.playing-game #touch{display:block}#joy,#tbtns button{touch-action:none;-webkit-tap-highlight-color:transparent}#knob{left:50%;top:50%;width:43%;height:43%;margin:0;transform:translate(-50%,-50%)}}
 @media(pointer:coarse) and (orientation:landscape) and (max-height:600px){
 #hud{top:calc(4px + env(safe-area-inset-top,0px));left:calc(7px + env(safe-area-inset-left,0px));right:calc(7px + env(safe-area-inset-right,0px));gap:4px;flex-wrap:nowrap;align-items:center;font-size:10px}
 #hud .box{padding:3px 7px;border-radius:7px;white-space:nowrap;font-size:10px;letter-spacing:0;min-height:22px;box-sizing:border-box}
