@@ -178,6 +178,18 @@ const PHASES = ['CYAN', 'MAGENTA', 'AMBRE'];
 // vie, vitesse et élites progressent toujours, même après avoir atteint ce plafond.
 const WAVE_S = 12, MAXF = 30;
 let wave = 0, healT = 0, trickle = 0, nextFoe = 0;
+let survivalStations = [];
+let survivalObjective = {index:-1,charge:0,cleared:false,completed:0};
+const SURVIVAL_DEVICES = [
+  {name:'IMPULSION EMP',effect:'Neutralise les drones 4 s',col:0x5feaff,x:2,z:7},
+  {name:'STATION MÉDICALE',effect:'Répare les robots et ajoute un bouclier',col:0x55ff9e,x:12,z:7},
+  {name:'SURCHARGE DE CORE',effect:'Décharge électrique contre les drones proches',col:0xffc16b,x:7,z:2}
+];
+const survivalBanner = document.createElement('aside');
+survivalBanner.id = 'survival-banner';
+survivalBanner.setAttribute('role','status');
+survivalBanner.style.cssText = 'position:fixed;z-index:3;top:165px;left:50%;transform:translateX(-50%);display:none;max-width:min(90vw,480px);padding:10px 16px;border:1px solid #fba45c;border-radius:12px;background:#0b1c2ee8;color:#f7e7d2;text-align:center;font:700 13px/1.5 system-ui;pointer-events:none;box-shadow:0 5px 25px #0009';
+document.body.appendChild(survivalBanner);
 const PHASE_COLORS = [0x61eaff, 0xff78de, 0xffc86b];
 const LEVEL4 = { duration: 240, phaseSeconds: 28, phaseWarningSeconds: 4, manualWarningSeconds: 1.5, consoleCooldownSeconds: 8, finalSeconds: 35, consoleRadius: 2.4, safetyRadius: T / 2 + .9, patrolSpeed: 2.5, chaseSpeed: 4.8, sight: 9, investigateSeconds: 4, stunSeconds: 4 };
 const LEVEL4_MAP = [
@@ -433,7 +445,7 @@ function build0() {
     }
     return { mesh, lamp, light: l, got: false };
   });
-  spawnLasers(); spawnFoes(); buildReactor();
+  spawnLasers(); spawnFoes(); buildReactor(); buildSurvivalStations();
   if (cur === 3) { buildLevel4Console(); syncLevel4Gates(); }
 }
 
@@ -657,6 +669,7 @@ function start(lv = cur, sd = 0) {
   $("credits").style.display = "none";
   viewYaw = 0; cur = Math.max(0, Math.min(LV.length - 1, lv | 0));
   level4 = newLevel4(); pend.phase = false; rin.dx = rin.dz = 0; wave = 0; healT = 0; trickle = 0; nextFoe = 0;
+  survivalObjective={index:-1,charge:0,cleared:false,completed:0}; survivalBanner.style.display='none';
   for (const k in keys) keys[k] = false;
    seed = sd > 0 ? sd : (Math.random() * 1e9 | 0) + 1; evq = []; paused = false; if (net === "host") send({ t: "start", lv, seed });
   laserOn = true; laserT = 3; bars[1].style.display = nP > 1 ? "block" : "none";
@@ -767,6 +780,90 @@ function arenaMaze() {
   for (const [x, z] of [[3,3],[11,3],[3,11],[11,11],[7,5],[7,9],[5,7],[9,7]]) g[z][x] = 1;
   return { g, dynCells: [] };
 }
+function buildSurvivalStations() {
+  survivalStations = [];
+  if (cur !== 4) return;
+  SURVIVAL_DEVICES.forEach((device,i)=>{
+    const root=new THREE.Group();root.position.set(toW(device.x),0,toW(device.z));
+    const metal=new THREE.MeshStandardMaterial({color:0x2c3d4b,metalness:0.7,roughness:0.42});
+    const lit=new THREE.MeshBasicMaterial({color:device.col});
+    const base=new THREE.Mesh(new THREE.CylinderGeometry(.80,.90,.33,12),metal);
+    base.position.y=.18;root.add(base);
+    const core=new THREE.Mesh(new THREE.CylinderGeometry(.30,.38,1.1,8),lit);
+    core.position.y=.91;root.add(core);
+    const ring=new THREE.Mesh(new THREE.TorusGeometry(1.4,.085,6,32),lit);
+    ring.rotation.x=Math.PI/2;ring.position.y=.12;root.add(ring);
+    const light=new THREE.PointLight(device.col,.7,8);
+    light.position.y=1.4;root.add(light);
+    world.add(root);
+    survivalStations.push({root,ring,light,index:i});
+  });
+}
+function grantSurvivalRewards() {
+  if (net==='guest') return;
+  save.survivalMaxWave=Math.max(save.survivalMaxWave||0,wave);
+  if (!Array.isArray(save.own)) save.own=['def','cy','rclassic'];
+  for (const [threshold,id,name] of [[50,'rspectre','Spectre'],[100,'rsovereign','Souverain']]) {
+    if (wave>=threshold && !save.own.includes(id)) {
+      save.own.push(id);
+      flash('🏆 VAGUE '+threshold+' : skin '+name+' débloqué dans la boutique !',4600);
+    }
+  }
+  store(); // la récompense persiste même si le navigateur se ferme avant la fin
+}
+function updateSurvivalObjective(dt) {
+  if (cur!==4 || wave<2) return;
+  const target=survivalObjective.index;
+  if (target<0 || survivalObjective.cleared) return;
+  const device=SURVIVAL_DEVICES[target];
+  const station=survivalStations[target];
+  if (!station) return;
+  const nearby=players.some(a=>a.alive &&
+    Math.hypot(a.g.position.x-station.root.position.x,a.g.position.z-station.root.position.z)<2.6);
+  survivalObjective.charge=Math.max(0,Math.min(2.4,
+    survivalObjective.charge+(nearby?dt:-dt*1.7)));
+  if (survivalObjective.charge<2.4) return;
+  survivalObjective.cleared=true;
+  survivalObjective.completed++;
+  const pos=station.root.position;
+  if(target===0){
+    foes.forEach(f=>{f.stun=Math.max(f.stun||0,4);f.pathCd=0;});
+    burst(pos,device.col,24,3);flash('⚡ EMP ACTIVÉ : drones neutralisés pendant 4 s !');
+  }else if(target===1){
+    players.forEach(a=>{if(a.alive){a.hp=Math.min(3,a.hp+1);a.shield=Math.min(2,(a.shield||0)+1);}});
+    burst(pos,device.col,18,2);flash('💚 RÉPARATION : +1 PV et +1 bouclier !');
+  }else{
+    // Décharge tactique : les cibles proches subissent des dégâts et sont ralenties.
+    for(const f of [...foes]){
+      if(Math.hypot(f.g.position.x-pos.x,f.g.position.z-pos.z)>18) continue;
+      f.hp=Math.min(f.hp,3);
+      hitFoe(f,f.g.position); if(foes.includes(f))f.stun=3;
+    }
+    burst(pos,device.col,24,3);flash('🔥 SURCHARGE : drones voisins électrocutés !');
+  }
+  snd(780,.27,'triangle',.06,1300);
+}
+function updateSurvivalStations(dt){
+  if(cur!==4) { survivalBanner.style.display='none'; return; }
+  const active=survivalObjective.index>=0 && !survivalObjective.cleared;
+  survivalStations.forEach(st=>{
+    const selected=active && st.index===survivalObjective.index;
+    st.ring.material.opacity=1;
+    st.ring.scale.setScalar(selected?1+.07*Math.sin(t*4):.72);
+    st.ring.visible=selected;
+    st.light.intensity=selected?1.25:.15;
+  });
+  survivalBanner.style.display='block';
+  if(wave<2) {
+    survivalBanner.textContent='⚔️ ARÈNE INFINIE · VAGUE '+wave+' · Déverrouille les relais dès la vague 2';
+  } else if(!active) {
+    survivalBanner.textContent='✓ RELAIS ACTIVÉ · '+survivalObjective.completed+' objectifs réussis · prochain relais à la vague '+(wave+1);
+  } else {
+    const device=SURVIVAL_DEVICES[survivalObjective.index];
+    const pct=Math.round(survivalObjective.charge/2.4*100);
+    survivalBanner.textContent='◆ '+device.name+' · '+device.effect+' · Reste dans le cercle : '+pct+'%';
+  }
+}
 function makeSwarmFoe(id, x, z, kind, level = wave) {
   const K = swarmStats(kind, level);
   const drone = creerDrone(x, z), g = drone.group, mat = g.children[0].material;
@@ -783,6 +880,7 @@ function swarmAI(f, dt) {
   f.mat.emissive.setHex(f.flash > 0 ? 0xffffff : f.em);
   f.drone.pointsDeVie = Math.min(3, f.hp);
   f.drone.mode = 'poursuite'; animerDrone(f.drone, dt, t + f.ph);
+  if(f.stun>0) { f.stun=Math.max(0,f.stun-dt);f.mat.emissive.setHex(0x33b7eb);return; }
   let tx = p.x, tz = p.z;
   // Mettre en cache la recherche de chemin pour préserver les FPS sur mobile.
   if (!los(q, p)) {
@@ -841,8 +939,12 @@ function spawnSwarm(count, bossWave = false) {
 function updateSurvival(dt) {
   const wantedWave = 1 + Math.floor(missionElapsed / WAVE_S);
   if (wantedWave > wave) {
+    survivalObjective.index=wantedWave>=2?Math.floor((wantedWave-2)/3)%SURVIVAL_DEVICES.length:-1;
+    survivalObjective.charge=0;
+    survivalObjective.cleared=false;
     // Ne pas simuler rétroactivement des centaines de vagues si l'onglet ralentit.
     wave = wantedWave;
+    if(wave===50||wave===100)grantSurvivalRewards();
     if (wave > 1 && wave % 5 === 0) {
       // Le plafond de 30 drones n'empêche PAS la difficulté de croître.
       foes.forEach(f => { f.hp += 1 + Math.floor(wave / 5); f.spd += 0.18; });
@@ -859,6 +961,7 @@ function updateSurvival(dt) {
     const wounded = players.filter(a => a.alive && a.hp < 3);
     if (wounded.length) { wounded.forEach(a => a.hp++); flash('+1 PV (soin de survie)', 1200); }
   }
+  updateSurvivalObjective(dt);
   trickle += dt;
   const interval = Math.max(0.85, 3.1 - wave * 0.075);
   if (trickle >= interval) { trickle = 0; spawnSwarm(1); }
@@ -1010,7 +1113,7 @@ function renderLv() {
 
 // ---------- Coopération : simulation hôte et salons à code court ----------
 function snap() {
-  send({ t: "s", tl: timeLeft, sw: swapT, c: collected, k: kills, mt: missionElapsed, wv: cur === 4 ? wave : 0, ov: overload ? 1 : 0, lo: laserOn ? 1 : 0, ls: laserT, l4: cur === 3 ? {...level4} : null,
+  send({ t: "s", tl: timeLeft, sw: swapT, c: collected, k: kills, mt: missionElapsed, wv: cur === 4 ? wave : 0, sv: cur===4?[survivalObjective.index,survivalObjective.charge,survivalObjective.cleared,survivalObjective.completed]:null, ov: overload ? 1 : 0, lo: laserOn ? 1 : 0, ls: laserT, l4: cur === 3 ? {...level4} : null,
     p: players.map(a => [a.g.position.x, a.g.position.z, a.robot.rotation.y, a.hp, a.alive ? 1 : 0, a.dashCd, a.inv > 0 ? 1 : 0, a.robot.position.y, a.rig.skinId]),
     f: foes.map(f => [f.id, f.g.position.x, f.g.position.z, f.g.rotation.y, f.flash > 0 ? 1 : 0, f.hp, f.mode === "chase" || f.mode === "CHASE" ? 1 : 0, f.stun || 0, f.mode, f.recover || 0, f.kind || 0]),
     d: dyn.map(d => (d.closed ? 1 : 0)).join(""), cg: crystals.map(c => (c.got ? 1 : 0)).join(""),
@@ -1024,6 +1127,7 @@ function applySnap(m) {
   m.p.forEach((q, k) => { const a = players[k]; if (!a) return; if(q[8] && q[8] !== a.rig.skinId) replacePlayerRig(a,q[8],k); a.tx = q[0]; a.tz = q[1]; a.robot.rotation.y = firstPerson && net === "guest" && k === 1 ? viewYaw : q[2]; a.hp = q[3]; a.alive = !!q[4]; a.dashCd = q[5]; a.inv = q[6]; a.robot.position.y = q[7]; });
   foes = foes.filter(f => { const q = m.f.find(z => z[0] === f.id); if (!q) { world.remove(f.g); if (cur === 4) disposeTree(f.g); return false; } f.tx = q[1]; f.tz = q[2]; f.g.rotation.y = q[3]; f.flash = q[4]; f.hp = q[5]; f.mode = q[8] || (q[6] ? "chase" : "patrol"); f.stun = q[7] || 0; f.recover = q[9] || 0; return true; });
   if (cur === 4) {
+    if(Array.isArray(m.sv)) { survivalObjective.index=m.sv[0];survivalObjective.charge=m.sv[1];survivalObjective.cleared=!!m.sv[2];survivalObjective.completed=m.sv[3]||0; }
     m.f.forEach(q => {
       if (!foes.some(f => f.id === q[0])) {
         const f = makeSwarmFoe(q[0], q[1], q[2], q[10] || 0, wave);
@@ -1756,6 +1860,7 @@ function update(dt) {
 
 function animate(dt) {
   t += dt;
+  updateSurvivalStations(dt);
   const blink = Math.sin(t * 16) > 0;
   dyn.forEach(d => {
     d.h += ((d.closed ? 1 : 0) - d.h) * Math.min(1, dt * 6);
