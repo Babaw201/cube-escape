@@ -66,6 +66,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
   });
 
   await t.test('navigation : sélectionner un niveau ne lance pas immédiatement une partie', async()=>{
+    await run('maxLv=5;renderLv()');
     assert.equal(await page.locator('#home .hm-sec').count(),5);
     await page.locator('#home .hm-sec').nth(2).click();
     assert.match(await page.locator('#home .hm-play').innerText(),/Niveau 3/);
@@ -99,7 +100,10 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
         return {main:Math.round(main.width),sideBySide:hero.right<=panel.left+4};
       });
       assert.equal(layout.sideBySide,true,JSON.stringify(layout));
-      await mobile.evaluate(()=>{window.LimbyrinthFriends.hasProfile=()=>true;});
+      await mobile.evaluate(()=>{
+        window.LimbyrinthFriends.hasProfile=()=>true;
+        window.gameEval('maxLv=5;renderLv()');
+      });
       await mobile.locator('#home .hm-sec').nth(4).click();
       await mobile.locator('#home .hm-play').click();
       assert.equal(await mobile.locator('#home').isVisible(),false);
