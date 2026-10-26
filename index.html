@@ -1595,9 +1595,13 @@ function reconcileSurvivalRewards() {
   const fromTime=Number(save.bestSurvive)>0?1+Math.floor(Number(save.bestSurvive)/12):0;
   const maxWave=Math.max(0,oldWave,fromTime,bestRecordedSurvivalWave());
   const owned=Array.isArray(save.own)?save.own:[];
+  // Récompenses attestées par le serveur pour le compte connecté.
+  const grantedByAccount=window.LimbyrinthFriends?.getRewards?.()||[];
   const added=[];
   for(const [threshold,id,name] of [[50,'rspectre','Spectre'],[100,'rsovereign','Souverain']]) {
-    if(maxWave>=threshold&&!owned.includes(id)){owned.push(id);added.push(name);}
+    if((maxWave>=threshold||grantedByAccount.includes(id))&&!owned.includes(id)){
+      owned.push(id);added.push(name);
+    }
   }
   if(maxWave!==oldWave || !Array.isArray(save.own) || added.length){
     save.survivalMaxWave=maxWave;save.own=owned;store();
@@ -1605,6 +1609,11 @@ function reconcileSurvivalRewards() {
   return added;
 }
 reconcileSurvivalRewards();
+window.addEventListener('limbyrinth-rewards',()=>{
+  const added=reconcileSurvivalRewards();
+  if(added.length)flash('🏆 Récompense de compte débloquée : '+added.join(', ')+' ! Boutique → Robots → Équiper',5000);
+  if($('shop')?.style.display==='flex')drawShop();
+});
 const h6 = n => n.toString(16).padStart(6, "0");
 const updCoins = () => { $("coin").textContent = save.coins; };
 function applyRay() { curRay = RAYS.find(x => x.id === save.ray) || RAYS[0]; rayCol = curRay.col; shotMat.color.setHex(rayCol); }

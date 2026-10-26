@@ -19,14 +19,14 @@ function makeApp(){
     const rows=statement.columns().length?statement.all(...args):(statement.run(...args),[]);
     return{toArray:()=>rows};
   }};
-  const hub=new context.SocialHub({storage:{sql}},{});
+  let hub=new context.SocialHub({storage:{sql}},{});
   function call(path,{method='GET',token='',body=null}={}){
     const headers={Origin:'https://babaw201.github.io'};
     if(token)headers.Authorization='Bearer '+token;
     if(body)headers['Content-Type']='application/json';
     return hub.fetch(new Request('https://relay.example/social/'+path,{method,headers,body:body?JSON.stringify(body):undefined}));
   }
-  return{db,hub,call,async register(pseudo){
+  return{db,hub,call,restart(){hub=new context.SocialHub({storage:{sql}},{});},async register(pseudo){
     const r=await call('register',{method:'POST',body:{pseudo}});
     assert.equal(r.status,201);
     return r.json();
@@ -76,6 +76,25 @@ test('amis : pseudonymes uniques, identité protégée, demandes et invitations'
     assert.equal((await app.call('respond',{method:'POST',token:b.token,body:{pseudo:'Alpha42',accept:false}})).status,200);
     assert.deepEqual(Array.from((await (await app.call('me',{token:a.token})).json()).friends),[]);
   });
+});
+test('skin offert : Spectre lié au compte existant anna2 et jamais à un autre pseudo',async()=>{
+  const app=makeApp();
+  const anna=await app.register('anna2');
+  const other=await app.register('AutreRobot');
+  // Un ancien compte existe avant la livraison de la nouvelle version du Worker.
+  app.restart();
+  let res=await app.call('me',{token:anna.token});
+  assert.equal(res.status,200);
+  assert.deepEqual(Array.from((await res.json()).unlockedRobots),['rspectre']);
+  res=await app.call('me',{token:other.token});
+  assert.deepEqual(Array.from((await res.json()).unlockedRobots),[]);
+  assert.equal(app.db.prepare('SELECT count(*) AS n FROM user_rewards').get().n,1);
+  // Le redémarrage et le changement de pseudo ne dupliquent pas la récompense.
+  await app.call('rename',{method:'POST',token:anna.token,body:{pseudo:'RobotAnna2'}});
+  app.restart();
+  res=await app.call('me',{token:anna.token});
+  assert.equal((await res.json()).unlockedRobots.includes('rspectre'),true);
+  assert.equal(app.db.prepare('SELECT count(*) AS n FROM user_rewards').get().n,1);
 });
 test('top 10 en ligne : pseudos, meilleurs scores et classement par niveau', async t=>{
  const app=makeApp();

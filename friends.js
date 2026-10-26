@@ -55,7 +55,7 @@
   }
   async function refresh(notify=true) {
     if(!token()){profile=null;render();return;}
-    try{profile=await api('me');if(notify){notice='Liste actualisée.';isError=false;}render();}
+    try{profile=await api('me');if(notify){notice='Liste actualisée.';isError=false;}render();window.dispatchEvent(new Event('limbyrinth-rewards'));}
     catch(err){profile=null;notice=err.message||'Service des amis indisponible.';isError=true;render();}
   }
   function close(){ui.hidden=true;if(lastFocus&&lastFocus.isConnected)lastFocus.focus({preventScroll:true});}
@@ -75,7 +75,7 @@
       if(!verified || typeof verified.pseudo!=='string')throw Error('Profil non reconnu.');
       localStorage.setItem(AUTH,code);
       profile=verified;notice='Compte '+verified.pseudo+' reconnecté !';isError=false;
-      render();continuePending();
+      render();window.dispatchEvent(new Event('limbyrinth-rewards'));continuePending();
     }catch(err){alertMessage(err.message||'Code refusé ou connexion indisponible.',true);}
     finally{busy=false;}
   }
@@ -212,6 +212,8 @@
     const renameSubmit=button('Modifier',null);renameSubmit.type='submit';rename.append(input,renameSubmit);
     rename.addEventListener('submit',e=>{e.preventDefault();if(input.value.trim())act('rename',{pseudo:input.value.trim()},'Pseudo modifié.');});
     me.append(own,rename,el('p','fr-hint','Ne communique pas ton vrai nom ou tes coordonnées. Sauvegarde ton code d’accès pour retrouver ce profil.'));
+    if(Array.isArray(profile.unlockedRobots)&&profile.unlockedRobots.includes('rspectre'))
+      me.append(el('p','fr-status','🏆 Spectre : récompense associée à ce compte · Boutique → Robots → Équiper'));
     const add=el('form','fr-form'),target=el('input');target.placeholder='Pseudo exact';target.maxLength=16;target.setAttribute('aria-label','Pseudo de l’ami à ajouter');
     const submit=button('Envoyer une demande',null,'fr-btn fr-primary');submit.type='submit';
     add.append(target,submit);add.addEventListener('submit',e=>{e.preventDefault();if(target.value.trim())act('request',{pseudo:target.value.trim()},'Demande envoyée à '+target.value.trim()+'.');});
@@ -242,7 +244,8 @@
     catch(err){alertMessage('Salon créé, mais invitation non envoyée : '+err.message,true);return false;}
   }
   ui.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();e.preventDefault();close();}});
-  window.LimbyrinthFriends={open,close,refresh,sendInvite,hasProfile,requireProfile};
+  window.LimbyrinthFriends={open,close,refresh,sendInvite,hasProfile,requireProfile,
+    getRewards:()=>profile&&token()&&Array.isArray(profile.unlockedRobots)?profile.unlockedRobots.slice():[]};
   // Précharge la session sauvegardée au lieu de redemander un pseudo à chaque visite.
   if(token())void refresh(false);
 })();
