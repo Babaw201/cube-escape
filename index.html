@@ -939,12 +939,12 @@ function spawnSwarm(count, bossWave = false) {
 function updateSurvival(dt) {
   const wantedWave = 1 + Math.floor(missionElapsed / WAVE_S);
   if (wantedWave > wave) {
-    survivalObjective.index=wantedWave>=2?Math.floor((wantedWave-2)/3)%SURVIVAL_DEVICES.length:-1;
+    survivalObjective.index=wantedWave>=2?(wantedWave-2)%SURVIVAL_DEVICES.length:-1;
     survivalObjective.charge=0;
     survivalObjective.cleared=false;
     // Ne pas simuler rétroactivement des centaines de vagues si l'onglet ralentit.
     wave = wantedWave;
-    if(wave===50||wave===100)grantSurvivalRewards();
+    grantSurvivalRewards();
     if (wave > 1 && wave % 5 === 0) {
       // Le plafond de 30 drones n'empêche PAS la difficulté de croître.
       foes.forEach(f => { f.hp += 1 + Math.floor(wave / 5); f.spd += 0.18; });
@@ -974,13 +974,22 @@ function endSurvival() {
   const pay = Math.floor(sec / 3) + kills * 2;
   const rec = sec > (save.bestSurvive || 0);
   if (rec) save.bestSurvive = sec;
+  save.survivalMaxWave=Math.max(save.survivalMaxWave||0,wave);
+  save.bestSurvivalScore=Math.max(save.bestSurvivalScore||0,s);
+  if(window.LimbyrinthScores)window.LimbyrinthScores.record({
+    level:5, score:s, won:false,
+    mode:net?'En ligne':nP>1?'Coop locale':'Solo',
+    seconds:missionElapsed,remaining:999999,crystals:0,kills,wave
+  });
   save.kills += kills; save.coins += pay; save.earned += pay;
   store(); updCoins(); snd(200, 0.6, 'sawtooth', 0.07, 50);
   $('t').textContent = 'SURVIE TERMINÉE'; $('t').style.color = '#ff9c4d';
   $('d').textContent = 'Temps : ' + fmtT(sec) + ' · vague ' + wave + ' · ' + kills +
     ' drones détruits.' + (rec ? ' Nouveau record !' : '');
-  $('best').textContent = 'Score : ' + s + ' · Meilleure survie : ' +
-    fmtT(save.bestSurvive || sec) + ' · +' + pay + ' pièces (total ' + save.coins + ').';
+  $('best').textContent = 'Score : '+s+' · Record : '+fmtT(save.bestSurvive||sec)+
+    ' · Vague record : '+(save.survivalMaxWave||wave)+
+    ' · Relais activés : '+survivalObjective.completed+
+    ' · +'+pay+' pièces · Voir Scores & Top 10 pour le classement survie.';
   $('credits').style.display = 'none';
   btnAct = () => start(4); $('btn').textContent = 'Rejouer la survie'; $('btn').style.display = '';
   renderLv();
@@ -1334,7 +1343,9 @@ const ROBOT_SKINS = [
   {id:'rclassic',name:'Atlas',shape:'classic',desc:'Bipède d’exploration · pas articulés et propulseurs',price:0,rar:0,body:0xe3edf5,accent:0x65dcff},
   {id:'rorb',name:'Orbit',shape:'orb',desc:'Sphère en lévitation · anneaux gyroscopiques',price:0,rar:1,body:0xe3daff,accent:0xc08aff},
   {id:'rspider',name:'Hexa',shape:'spider',desc:'Araignée mécanique · six pattes synchronisées',price:0,rar:1,body:0x486677,accent:0x73ffd0},
-  {id:'rtrack',name:'Bastion',shape:'tracks',desc:'Robot à chenilles · tourelle et roulements animés',price:0,rar:1,body:0xe5b574,accent:0xffd77f}
+  {id:'rtrack',name:'Bastion',shape:'tracks',desc:'Robot à chenilles · tourelle et roulements animés',price:0,rar:1,body:0xe5b574,accent:0xffd77f},
+  {id:'rspectre',name:'Spectre',shape:'orb',desc:'Édition onde fantôme · débloqué vague 50',price:0,rar:2,body:0x191932,accent:0x9b7dff,requiresWave:50},
+  {id:'rsovereign',name:'Souverain',shape:'spider',desc:'Couronne plasma · récompense ultime vague 100',price:0,rar:3,body:0x16151c,accent:0xffd36e,requiresWave:100}
 ];
 const SKINS = [
   { id: "def", name: "Standard", price: 0, rar: 0, o: {} },
@@ -1370,6 +1381,10 @@ try { Object.assign(save, JSON.parse(localStorage.getItem("cubeEscapeSave") || "
 if (save.finished || save.l3 > 0) maxLv = Math.max(maxLv, 4);
 if (save.level4Finished) maxLv = 5;
 maxLv = Math.max(1, Math.min(LV.length, maxLv));
+// Conservation des réussites des anciennes parties de survie (avant les récompenses).
+save.survivalMaxWave = Math.max(save.survivalMaxWave||0,save.bestSurvive>0?1+Math.floor(save.bestSurvive/12):0);
+if(!Array.isArray(save.own))save.own=['def','cy','rclassic'];
+for(const skin of ROBOT_SKINS)if(skin.requiresWave && save.survivalMaxWave>=skin.requiresWave&&!save.own.includes(skin.id))save.own.push(skin.id);
 if (!ROBOT_SKINS.some(s=>s.id===save.robot)) save.robot = 'rclassic';
 let curRay = RAYS[0], rayCol = 0x66f0ff, skinMats = [], DASH_CD = 5, PICKUP = 1.5, shopTab = "robot";
 const store = () => { try { localStorage.setItem("cubeEscapeSave", JSON.stringify(save)); } catch (e) {} };
@@ -1405,6 +1420,7 @@ function applyBoosts() {
 function act(it) {
   if (shopTab === "boost") { if (save.coins < it.price) return; save.coins -= it.price; save.stock[it.id] = (save.stock[it.id] || 0) + 1; }
   else {
+    if(it.requiresWave && (save.survivalMaxWave||0)<it.requiresWave)return;
     if (!save.own.includes(it.id)) { if (save.coins < it.price) return; save.coins -= it.price; save.own.push(it.id); }
     save[shopTab] = it.id; applyRay();
     if(shopTab === "robot" && net) send({t:"cosmetic",robot:save.robot});
@@ -1429,13 +1445,13 @@ function drawShop() {
     else if (shopTab === "ray") sw.style.background = it.rainbow ? "linear-gradient(90deg,red,yellow,lime,cyan,blue,magenta)" : "linear-gradient(90deg,transparent,#" + h6(it.col) + ",transparent)";
     else sw.textContent = shopTab === "boost" ? "\u26A1" : save.done.includes(it.id) ? "\u2713" : "\u2605";
     nm.textContent = it.name || it.txt;
-    info.textContent = shopTab === "boost" ? it.desc + " · en stock : " + (save.stock[it.id] || 0) : shopTab === "defi" ? "Récompense : " + it.rew + " pièces" : ["Commun", "Rare", "Épique", "Légendaire"][it.rar];
+    info.textContent = shopTab === 'boost' ? it.desc + ' · en stock : ' + (save.stock[it.id] || 0) : shopTab === 'defi' ? 'Récompense : ' + it.rew + ' pièces' : it.requiresWave ? '🏆 Récompense de la vague '+it.requiresWave : ['Commun','Rare','Épique','Légendaire'][it.rar];
     c.append(sw, nm, info);
     if (shopTab === 'robot') { const b=document.createElement('button');b.className='preview-btn';b.textContent='Voir en 3D';b.onclick=()=>showRobotPreview(it.id);c.appendChild(b); }
     if (shopTab !== "defi") {
       const own = shopTab !== "boost" && save.own.includes(it.id), on = save[shopTab] === it.id, b = document.createElement("button");
-      b.textContent = on ? "Équipé \u2713" : own || it.price === 0 ? "Équiper" : "Acheter · " + it.price + " \u{1FA99}";
-      b.disabled = on || (!own && save.coins < it.price); b.onclick = () => act(it); c.appendChild(b);
+      b.textContent = it.requiresWave && (save.survivalMaxWave||0)<it.requiresWave ? '🔒 Vague '+it.requiresWave : on ? 'Équipé ✓' : own || it.price === 0 ? 'Équiper' : 'Acheter · '+it.price+' pièces';
+      b.disabled = on || (!!it.requiresWave && (save.survivalMaxWave||0)<it.requiresWave) || (!own && save.coins < it.price); b.onclick = () => act(it); c.appendChild(b);
     } else { const st = document.createElement("small"); st.textContent = save.done.includes(it.id) ? "Réussi \u2713" : "À accomplir"; c.appendChild(st); }
     box.appendChild(c);
   });
@@ -1645,6 +1661,18 @@ function creerRobotVariant(x,z,joueur2,skin) {
     cube(robot,dark,-.2,.99,-.12,.04,.3,.04);sphere(robot,.06,light,-.2,1.15,-.12);
     rig.thrusters.push(cube(robot,light,0,-.08,-.39,.25,.1,.08));
   }
+  if(skin.id==='rspectre') {
+    const halo=new THREE.Mesh(new THREE.TorusGeometry(.79,.055,6,32),light);
+    halo.rotation.x=Math.PI/2;halo.position.y=.55;robot.add(halo);rig.rings.push(halo);
+  }
+  if(skin.id==='rsovereign') {
+    for(const x of [-.22,0,.22]) {
+      const spike=new THREE.Mesh(new THREE.ConeGeometry(.12,x===0?.47:.32,5),light);
+      spike.position.set(x,1.04,-.13);robot.add(spike);
+    }
+    const crown=new THREE.Mesh(new THREE.TorusGeometry(.40,.055,6,20),light);
+    crown.rotation.x=Math.PI/2;crown.position.y=.89;robot.add(crown);
+  }
   const repere=new THREE.Mesh(new THREE.RingGeometry(.68,.74,joueur2?3:4),new THREE.MeshBasicMaterial({color:joueur2?0xffd27a:0xa8eaff,side:THREE.DoubleSide,transparent:true,opacity:.8}));
   repere.rotation.x=-Math.PI/2;repere.rotation.z=Math.PI/4;repere.position.y=.035;group.add(repere);rig.repere=repere;
   return rig;
@@ -1669,7 +1697,7 @@ function showRobotPreview(id) {
     preview={renderer:pr,scene:sc,camera:cam,rig:null,id:null,time:0};
   }
   if(preview.id!==skin.id){if(preview.rig){preview.scene.remove(preview.rig.group);disposeTree(preview.rig.group);}preview.rig=creerRobot(0,0,false,skin.id);preview.scene.add(preview.rig.group);preview.id=skin.id;}
-  $('preview-name').textContent=skin.name.toUpperCase();$('preview-desc').textContent=skin.desc+' · Apparence gratuite';
+  $('preview-name').textContent=skin.name.toUpperCase();$('preview-desc').textContent=skin.desc+(skin.requiresWave?' · '+((save.survivalMaxWave||0)>=skin.requiresWave?'Débloqué':'Verrouillé'):' · Apparence gratuite');
   preview.renderer.render(preview.scene,preview.camera);
 }
 function animatePreview(dt) {
