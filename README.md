@@ -6,6 +6,16 @@ Jeu 3D de labyrinthe en HTML et Three.js r128, avec quatre niveaux de campagne e
 
 Choisir **« Niveau 1 : Labyrinthe »** pour commencer. Sur téléphone, ouvrir le lien dans Chrome ou Safari.
 
+## Interface futuriste et paysage mobile
+
+- Menu principal inspiré de la maquette Limbyrinth : logo lumineux, grand bouton orange, modes **solo / coopération locale à 2 / jeu en ligne avec un ami**, cinq cartes de niveaux et mini-visuels graphiques CSS, galerie de records et accès direct au profil, aux scores et à la boutique.
+- **Choisir une carte de niveau** met à jour la sélection sans lancer immédiatement le jeu. Appuyer ensuite sur **Commencer à jouer** pour lancer le secteur sélectionné (pseudo toujours obligatoire).
+- Sur téléphone en **mode paysage**, le menu conserve ses deux colonnes et ses cinq niveaux en grille compacte ; sur téléphone vertical, le menu défile naturellement et la grille des niveaux devient horizontale.
+- En jeu, le joystick suit la taille réelle de sa zone, les boutons tactiles TIR/DASH/VUE/PAUSE restent accessibles dans les coins, le radar et la barre de vie s'écartent des commandes, les notifications restent aux bords de l'écran.
+- Le bouton **Plein écran · paysage**, disponible sur mobile, tente d'activer le plein écran et le verrouillage paysage lorsque le navigateur le permet. Tourner le téléphone manuellement reste possible.
+- Les commandes tactiles ne s'affichent que pendant la partie ; elles disparaissent automatiquement au retour à l'accueil.
+- Aucun modèle ou service 3D supplémentaire n'est téléchargé pour ce menu : les miniatures sont réalisées avec des styles CSS, pour garder un chargement léger.
+
 ## Accueil, profil et fin de partie
 
 - **Pseudo obligatoire** avant une partie, y compris en solo : le premier clic sur « Commencer à jouer » ouvre la création du profil, puis lance le niveau demandé après validation. Un pseudo déjà enregistré est vérifié avant de jouer ; aucun pseudo invité anonyme n'est prévu.

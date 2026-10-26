@@ -112,6 +112,44 @@ canvas{touch-action:none}#overlay{overflow:auto;touch-action:pan-y}#net textarea
 #room-back{background:#213e55;color:#c8e5f4}#room-copy-code,#room-copy-link{background:#24475f;color:#c8f4ec}
 #online-leave{pointer-events:auto;margin:0;padding:7px 10px;min-height:30px;font-size:11px;background:#16364a;color:#c3e6f6;box-shadow:none;border:1px solid #406b83;border-radius:10px}
 @media(max-width:480px){#net{padding:12px}.room-panel{padding:20px;border-radius:18px}.room-panel h2{font-size:24px}#net button{font-size:14px}}
+
+/* Tactile paysage : commandes au bord de l'écran et visibilité maximale. */
+@media(pointer:coarse){#touch{display:none}body.playing-game #touch{display:block}#joy,#tbtns button{touch-action:none;-webkit-tap-highlight-color:transparent}#knob{left:50%;top:50%;width:43%;height:43%;margin:0;transform:translate(-50%,-50%)}}
+@media(pointer:coarse) and (orientation:landscape) and (max-height:600px){
+#hud{top:calc(4px + env(safe-area-inset-top,0px));left:calc(7px + env(safe-area-inset-left,0px));right:calc(7px + env(safe-area-inset-right,0px));gap:4px;flex-wrap:nowrap;align-items:center;font-size:10px}
+#hud .box{padding:3px 7px;border-radius:7px;white-space:nowrap;font-size:10px;letter-spacing:0;min-height:22px;box-sizing:border-box}
+#hud #cn{display:none}
+#hud #phase-status{position:fixed;top:calc(33px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);font-size:9px;max-width:34vw;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#hud #online-leave{max-width:130px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:9px;padding:3px 6px;min-height:26px}
+#bars{top:calc(47px + env(safe-area-inset-top,0px))!important;left:calc(9px + env(safe-area-inset-left,0px));bottom:auto;transform:scale(.83);transform-origin:top left;z-index:3}
+#bars2{top:calc(47px + env(safe-area-inset-top,0px));bottom:auto!important;right:calc(88px + env(safe-area-inset-right,0px));transform:scale(.72);transform-origin:top right}
+#mm{top:calc(46px + env(safe-area-inset-top,0px))!important;right:calc(9px + env(safe-area-inset-right,0px));width:72px!important;height:72px!important;border-radius:8px}
+#msg{top:calc(38px + env(safe-area-inset-top,0px))!important;right:calc(90px + env(safe-area-inset-right,0px))!important;left:auto!important;max-width:min(240px,37vw)!important;font-size:10px!important;padding:5px 8px;line-height:1.25}
+#joy{width:clamp(92px,27vh,122px)!important;height:clamp(92px,27vh,122px)!important;left:calc(16px + env(safe-area-inset-left,0px))!important;bottom:calc(12px + env(safe-area-inset-bottom,0px))!important;border-color:#65c8ff;background:rgba(5,40,72,.47);box-shadow:inset 0 0 16px #459ffb28,0 0 13px #080f22b0}
+#knob{width:43%;height:43%;margin:0!important;transform:translate(-50%,-50%);background:linear-gradient(145deg,#94d5ff,#2a6cba);box-shadow:0 0 12px #409aff61}
+#tbtns{right:calc(14px + env(safe-area-inset-right,0px))!important;bottom:calc(12px + env(safe-area-inset-bottom,0px))!important;grid-template-columns:repeat(2,clamp(54px,16vh,70px))!important;gap:6px!important}
+#tbtns button{width:100%;min-height:50px;height:clamp(54px,16vh,70px)!important;margin:0;border-radius:14px!important;font-size:12px!important;opacity:.96;box-shadow:0 0 11px #0009,inset 0 -3px 0 #0004;font-weight:800}
+#tview,#tpause{min-height:30px!important;height:31px!important;background:rgba(9,36,61,.92)!important;border:1px solid #3a718b;color:#b7e9ff!important;font-size:10px!important}
+#tdash{background:linear-gradient(155deg,#86dffe,#277bba)!important;color:#001b2b}
+#tfire{background:linear-gradient(155deg,#ffab71,#db4e26)!important;border:1px solid #ffbf8f;color:#1b0d08}
+#tphase:not([hidden]){height:32px!important;min-height:30px!important;grid-column:1/3;border-radius:8px!important;background:#ffe195!important;color:#241408!important}
+#survival-banner{right:calc(158px + env(safe-area-inset-right,0px))!important;bottom:calc(12px + env(safe-area-inset-bottom,0px))!important;top:auto!important;left:auto!important;width:min(200px,30vw)!important;max-width:30vw!important;font-size:10px!important;padding:6px 8px!important;line-height:1.2}
+#phase-help{bottom:calc(15px + env(safe-area-inset-bottom,0px))!important;left:50%;max-width:24vw!important;padding:6px 8px!important;font-size:10px!important;line-height:1.25}
+#crosshair{font-size:20px}
+#net{padding:8px calc(12px + env(safe-area-inset-right,0px)) 8px calc(12px + env(safe-area-inset-left,0px))}
+.room-panel{max-width:600px;padding:12px 16px}
+.room-panel h2{font-size:18px;margin:5px 0}
+#net button{padding:8px 12px;font-size:12px}
+#shop{padding-top:calc(8px + env(safe-area-inset-top,0px))}
+#sh-head{font-size:13px}
+}
+@media(pointer:coarse) and (orientation:landscape) and (max-height:380px){
+#joy{width:92px!important;height:92px!important}
+#tbtns{grid-template-columns:54px 54px!important;gap:5px!important}
+#tbtns button{height:52px!important}
+#bars{transform:scale(.73)}
+#mm{width:60px!important;height:60px!important}
+}
 </style>
 </head>
 <body>
@@ -627,6 +665,7 @@ function hud() {
 function score(win) { if (cur === 4) return Math.floor(missionElapsed) * 10 + kills * 15; return collected * 100 + (win ? Math.ceil(timeLeft) * 10 : 0); }
 
 function backToHome(result) {
+  document.body.classList.remove('playing-game');
   save.lastRun = {level:cur+1,score:Math.floor(result.score||0),title:result.title,details:result.details||'',wave:cur===4?wave:0,date:new Date().toISOString()};
   store();
   if(net)leaveOnline('Partie terminée. Retrouve ton dernier résultat sur cet accueil.');
@@ -697,7 +736,7 @@ function start(lv = cur, sd = 0) {
   laserOn = true; laserT = 3; bars[1].style.display = nP > 1 ? "block" : "none";
   collected = 0; missionElapsed = 0; overload = false;
   build();
-  state = "play"; timeLeft = LV[cur].duration; swapT = SWAP; collected = 0; kills = 0; missionElapsed = 0; overload = false; applyBoosts();
+  state = "play"; document.body.classList.add('playing-game'); timeLeft = LV[cur].duration; swapT = SWAP; collected = 0; kills = 0; missionElapsed = 0; overload = false; applyBoosts();
   $("overlay").style.display = "none";
   if(cur === 4) flash('SURVIE : commence doucement, active les relais lumineux dès la vague 2.',2400);
   else if(cur === 3) flash("CORE : Vous n’avez pas quitté le système. Vous en avez atteint le cœur. Phase CYAN — Archives Est.",3500);
@@ -1256,7 +1295,7 @@ function resetRoomTransport(){
 }
 function leaveOnline(message='Tu as quitté le salon.'){
   if(firstPerson&&players.length)setCameraMode(false);
-  resetRoomTransport();net=null;nP=onlineReturnPlayers;state='menu';
+  resetRoomTransport();net=null;nP=onlineReturnPlayers;state='menu';document.body.classList.remove('playing-game');
   pend.f=null;pend.d=pend.phase=false;rin.dx=rin.dz=0;remoteRobotId='rclassic';
   for(const k in keys)keys[k]=false;
   $('net').style.display='none';$('overlay').style.display='flex';$('online-leave').hidden=true;
@@ -1496,14 +1535,16 @@ const joy = { x: 0, z: 0 }, coarse = matchMedia("(pointer: coarse)").matches;
   const el = $("joy"), kn = $("knob"); let id = null;
   const set = e => {
     const r2 = el.getBoundingClientRect();
-    let x = (e.clientX - r2.left - r2.width / 2) / 50, z = (e.clientY - r2.top - r2.height / 2) / 50; const l = Math.hypot(x, z);
+    const radius = Math.max(1, r2.width*.39);
+    let x = (e.clientX - r2.left - r2.width / 2) / radius, z = (e.clientY - r2.top - r2.height / 2) / radius; const l = Math.hypot(x, z);
     if (l > 1) { x /= l; z /= l; }
-    kn.style.transform = "translate(" + x * 40 + "px," + z * 40 + "px)";
+    const travel=r2.width*.30;
+    kn.style.transform = "translate(calc(-50% + " + x*travel + "px),calc(-50% + " + z*travel + "px))";
     joy.x = Math.abs(x) > 0.2 ? x : 0; joy.z = Math.abs(z) > 0.2 ? z : 0;
   };
-  el.addEventListener("pointerdown", e => { e.preventDefault(); id = e.pointerId; el.setPointerCapture(id); set(e); });
+  el.addEventListener("pointerdown", e => { e.preventDefault(); if(id!==null)return; id = e.pointerId; el.setPointerCapture(id); set(e); });
   el.addEventListener("pointermove", e => { if (e.pointerId === id) set(e); });
-  const end = e => { if (e.pointerId === id) { id = null; joy.x = joy.z = 0; kn.style.transform = ""; } };
+  const end = e => { if (e.pointerId === id) { id = null; joy.x = joy.z = 0; kn.style.transform = "translate(-50%,-50%)"; } };
   el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
 })();
 function fireAuto() { // vise le drone visible le plus proche, sinon tire devant soi
@@ -1519,7 +1560,7 @@ function doDash() {
   if (a.alive && a.dashCd <= 0) { a.dashCd = DASH_CD; a.dashT = 0.18; burst(a.g.position, 0x3dff9a, 6, 0.8); }
 }
 const key = k => dispatchEvent(new KeyboardEvent("keydown", { key: k }));
-for (const [id, fn, hold] of [["tphase", () => requestLevel4Phase(localIndex())], ["tfire", fireAuto, true], ["tdash", doDash], ["tview", () => key("v")], ["tpause", () => key("p")]]) {
+for (const [id, fn, hold] of [["tphase", () => requestLevel4Phase(localIndex())], ["tfire", fireAuto, true], ["tdash", doDash], ["tview", () => key("v")], ["tpause", () => net ? flash("Pause indisponible en ligne",1100) : key("p")]]) {
   const b = $(id); let iv;
   b.addEventListener("pointerdown", e => { e.preventDefault(); fn(); if (hold) iv = setInterval(fn, 130); });
   for (const ev of ["pointerup", "pointercancel", "pointerleave"]) b.addEventListener(ev, () => clearInterval(iv));

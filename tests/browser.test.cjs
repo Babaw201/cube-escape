@@ -34,7 +34,8 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     assert.equal(await page.locator('#home .hm-sec').count(), 5);
     assert.equal(await page.locator('#home .hm-play').count(), 1);
     assert.equal(await page.locator('#home .hm-auth-hint').count(),1);
-    assert.equal(await page.locator('#home .hm-seg button').count(), 2);
+    assert.equal(await page.locator('#home .hm-seg button').count(), 3);
+    assert.equal(await page.locator('#home .hm-thumb').count(),5);
     assert.equal(await page.locator('#home .hm-updates-details').count()>=1,true);
   });
   await t.test('pseudo obligatoire : un nouveau joueur ne peut pas démarrer sans inscription', async () => {
@@ -62,6 +63,67 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     assert.match(await page.locator('#home .hm-last-run').innerText(),/Vague 3/);
     assert.equal(await page.locator('#home .hm-auth-hint').innerText().then(x=>x.includes('Pseudo confirmé')),true);
     await page.evaluate(()=>localStorage.removeItem('limbyrinthScoresV1'));
+  });
+
+  await t.test('navigation : sélectionner un niveau ne lance pas immédiatement une partie', async()=>{
+    await run('maxLv=5;renderLv()');
+    assert.equal(await page.locator('#home .hm-sec').count(),5);
+    await page.locator('#home .hm-sec').nth(2).click();
+    assert.match(await page.locator('#home .hm-play').innerText(),/Niveau 3/);
+    assert.equal(await page.locator('#home .hm-sec[aria-pressed="true"]').count(),1);
+    assert.equal(await run('state'),'menu');
+  });
+  await t.test('écran paysage mobile : accueil compact et boutons tactiles sans chevauchement', async()=>{
+    const mobile=await browser.newPage({viewport:{width:844,height:390},isMobile:true,hasTouch:true,deviceScaleFactor:2});
+    try{
+      await mobile.addInitScript(()=>{window.requestAnimationFrame=()=>0;});
+      await mobile.route('https://game.test/**',route=>{
+        const pathname=new URL(route.request().url()).pathname;
+        const file=pathname==='/vendor/three.min.js'?'vendor/three.min.js':
+          pathname==='/menu.js'?'menu.js':pathname==='/scores.js'?'scores.js':
+          pathname==='/friends.js'?'friends.js':pathname==='/feedback.js'?'feedback.js':'index.html';
+        let data=fs.readFileSync(path.join(root,file),'utf8');
+        if(file==='index.html')data=data.replace('loop();\n})();','window.gameEval = code => eval(code); loop();\n})();');
+        return route.fulfill({contentType:file.endsWith('.js')?'text/javascript':'text/html',body:data});
+      });
+      await mobile.goto('https://game.test/');
+      await mobile.waitForFunction(()=>!!document.querySelector('#home .hm-level-grid'),null,{polling:50});
+      assert.equal(await mobile.evaluate(()=>matchMedia('(pointer:coarse)').matches),true);
+      assert.equal(await mobile.evaluate(()=>matchMedia('(orientation:landscape)').matches),true);
+      assert.equal(await mobile.locator('#home .hm-level-grid .hm-sec').count(),5);
+      assert.equal(await mobile.locator('#home .hm-fullscreen-button').count(),1);
+      assert.equal(await mobile.locator('#joy').isVisible(),false);
+      const layout=await mobile.evaluate(()=>{
+        const main=document.querySelector('#home .hm-main').getBoundingClientRect();
+        const hero=document.querySelector('#home .hm-main section').getBoundingClientRect();
+        const panel=document.querySelector('#home .hm-panel').getBoundingClientRect();
+        return {main:Math.round(main.width),sideBySide:hero.right<=panel.left+4};
+      });
+      assert.equal(layout.sideBySide,true,JSON.stringify(layout));
+      await mobile.evaluate(()=>{
+        window.LimbyrinthFriends.hasProfile=()=>true;
+        window.gameEval('maxLv=5;renderLv()');
+      });
+      await mobile.locator('#home .hm-sec').nth(4).click();
+      await mobile.locator('#home .hm-play').click();
+      assert.equal(await mobile.locator('#home').isVisible(),false);
+      assert.equal(await mobile.locator('#joy').isVisible(),true);
+      const controls=await mobile.evaluate(()=>{
+        const box=id=>{const r=document.getElementById(id).getBoundingClientRect();return {x:r.left,y:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height};};
+        return {joy:box('joy'),fire:box('tfire'),dash:box('tdash'),map:box('mm'),
+          phaseVisible:getComputedStyle(document.getElementById('tphase')).display!=='none',
+          klass:document.body.classList.contains('playing-game'),screen:[innerWidth,innerHeight]};
+      });
+      assert.equal(controls.klass,true,JSON.stringify(controls));
+      assert.equal(controls.phaseVisible,false);
+      assert.ok(controls.joy.width>=88 && controls.joy.width<=123,JSON.stringify(controls));
+      assert.ok(controls.fire.width>=50 && controls.fire.height>=50,JSON.stringify(controls));
+      assert.ok(controls.joy.right<controls.dash.x,JSON.stringify(controls));
+      assert.ok(controls.map.bottom<controls.fire.y,JSON.stringify(controls));
+      await mobile.evaluate(()=>window.gameEval('endSurvival()'));
+      assert.equal(await mobile.locator('#home').isVisible(),true);
+      assert.equal(await mobile.locator('#joy').isVisible(),false);
+    }finally{await mobile.close();}
   });
   await t.test('tableau des scores : affichage, filtre, historique local', async () => {
     await page.locator('#home .hm-scores-button').click();
