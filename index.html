@@ -665,6 +665,7 @@ function hud() {
 function score(win) { if (cur === 4) return Math.floor(missionElapsed) * 10 + kills * 15; return collected * 100 + (win ? Math.ceil(timeLeft) * 10 : 0); }
 
 function backToHome(result) {
+  document.body.classList.remove('playing-game');
   save.lastRun = {level:cur+1,score:Math.floor(result.score||0),title:result.title,details:result.details||'',wave:cur===4?wave:0,date:new Date().toISOString()};
   store();
   if(net)leaveOnline('Partie terminée. Retrouve ton dernier résultat sur cet accueil.');
@@ -735,7 +736,7 @@ function start(lv = cur, sd = 0) {
   laserOn = true; laserT = 3; bars[1].style.display = nP > 1 ? "block" : "none";
   collected = 0; missionElapsed = 0; overload = false;
   build();
-  state = "play"; timeLeft = LV[cur].duration; swapT = SWAP; collected = 0; kills = 0; missionElapsed = 0; overload = false; applyBoosts();
+  state = "play"; document.body.classList.add('playing-game'); timeLeft = LV[cur].duration; swapT = SWAP; collected = 0; kills = 0; missionElapsed = 0; overload = false; applyBoosts();
   $("overlay").style.display = "none";
   if(cur === 4) flash('SURVIE : commence doucement, active les relais lumineux dès la vague 2.',2400);
   else if(cur === 3) flash("CORE : Vous n’avez pas quitté le système. Vous en avez atteint le cœur. Phase CYAN — Archives Est.",3500);
@@ -1294,7 +1295,7 @@ function resetRoomTransport(){
 }
 function leaveOnline(message='Tu as quitté le salon.'){
   if(firstPerson&&players.length)setCameraMode(false);
-  resetRoomTransport();net=null;nP=onlineReturnPlayers;state='menu';
+  resetRoomTransport();net=null;nP=onlineReturnPlayers;state='menu';document.body.classList.remove('playing-game');
   pend.f=null;pend.d=pend.phase=false;rin.dx=rin.dz=0;remoteRobotId='rclassic';
   for(const k in keys)keys[k]=false;
   $('net').style.display='none';$('overlay').style.display='flex';$('online-leave').hidden=true;
@@ -1534,14 +1535,16 @@ const joy = { x: 0, z: 0 }, coarse = matchMedia("(pointer: coarse)").matches;
   const el = $("joy"), kn = $("knob"); let id = null;
   const set = e => {
     const r2 = el.getBoundingClientRect();
-    let x = (e.clientX - r2.left - r2.width / 2) / 50, z = (e.clientY - r2.top - r2.height / 2) / 50; const l = Math.hypot(x, z);
+    const radius = Math.max(1, r2.width*.39);
+    let x = (e.clientX - r2.left - r2.width / 2) / radius, z = (e.clientY - r2.top - r2.height / 2) / radius; const l = Math.hypot(x, z);
     if (l > 1) { x /= l; z /= l; }
-    kn.style.transform = "translate(" + x * 40 + "px," + z * 40 + "px)";
+    const travel=r2.width*.30;
+    kn.style.transform = "translate(calc(-50% + " + x*travel + "px),calc(-50% + " + z*travel + "px))";
     joy.x = Math.abs(x) > 0.2 ? x : 0; joy.z = Math.abs(z) > 0.2 ? z : 0;
   };
-  el.addEventListener("pointerdown", e => { e.preventDefault(); id = e.pointerId; el.setPointerCapture(id); set(e); });
+  el.addEventListener("pointerdown", e => { e.preventDefault(); if(id!==null)return; id = e.pointerId; el.setPointerCapture(id); set(e); });
   el.addEventListener("pointermove", e => { if (e.pointerId === id) set(e); });
-  const end = e => { if (e.pointerId === id) { id = null; joy.x = joy.z = 0; kn.style.transform = ""; } };
+  const end = e => { if (e.pointerId === id) { id = null; joy.x = joy.z = 0; kn.style.transform = "translate(-50%,-50%)"; } };
   el.addEventListener("pointerup", end); el.addEventListener("pointercancel", end);
 })();
 function fireAuto() { // vise le drone visible le plus proche, sinon tire devant soi
@@ -1557,7 +1560,7 @@ function doDash() {
   if (a.alive && a.dashCd <= 0) { a.dashCd = DASH_CD; a.dashT = 0.18; burst(a.g.position, 0x3dff9a, 6, 0.8); }
 }
 const key = k => dispatchEvent(new KeyboardEvent("keydown", { key: k }));
-for (const [id, fn, hold] of [["tphase", () => requestLevel4Phase(localIndex())], ["tfire", fireAuto, true], ["tdash", doDash], ["tview", () => key("v")], ["tpause", () => key("p")]]) {
+for (const [id, fn, hold] of [["tphase", () => requestLevel4Phase(localIndex())], ["tfire", fireAuto, true], ["tdash", doDash], ["tview", () => key("v")], ["tpause", () => net ? flash("Pause indisponible en ligne",1100) : key("p")]]) {
   const b = $(id); let iv;
   b.addEventListener("pointerdown", e => { e.preventDefault(); fn(); if (hold) iv = setInterval(fn, 130); });
   for (const ev of ["pointerup", "pointercancel", "pointerleave"]) b.addEventListener(ev, () => clearInterval(iv));
