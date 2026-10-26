@@ -92,7 +92,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
       assert.equal(await mobile.evaluate(()=>matchMedia('(orientation:landscape)').matches),true);
       assert.equal(await mobile.locator('#home .hm-level-grid .hm-sec').count(),5);
       assert.equal(await mobile.locator('#home .hm-fullscreen-button').count(),1);
-      assert.equal(await mobile.locator('#touch').isVisible(),false);
+      assert.equal(await mobile.locator('#joy').isVisible(),false);
       const layout=await mobile.evaluate(()=>{
         const main=document.querySelector('#home .hm-main').getBoundingClientRect();
         const hero=document.querySelector('#home .hm-main section').getBoundingClientRect();
@@ -107,7 +107,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
       await mobile.locator('#home .hm-sec').nth(4).click();
       await mobile.locator('#home .hm-play').click();
       assert.equal(await mobile.locator('#home').isVisible(),false);
-      assert.equal(await mobile.locator('#touch').isVisible(),true);
+      assert.equal(await mobile.locator('#joy').isVisible(),true);
       const controls=await mobile.evaluate(()=>{
         const box=id=>{const r=document.getElementById(id).getBoundingClientRect();return {x:r.left,y:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height};};
         return {joy:box('joy'),fire:box('tfire'),dash:box('tdash'),map:box('mm'),
@@ -122,7 +122,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
       assert.ok(controls.map.bottom<controls.fire.y,JSON.stringify(controls));
       await mobile.evaluate(()=>window.gameEval('endSurvival()'));
       assert.equal(await mobile.locator('#home').isVisible(),true);
-      assert.equal(await mobile.locator('#touch').isVisible(),false);
+      assert.equal(await mobile.locator('#joy').isVisible(),false);
     }finally{await mobile.close();}
   });
   await t.test('tableau des scores : affichage, filtre, historique local', async () => {
