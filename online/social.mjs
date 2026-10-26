@@ -31,6 +31,11 @@ export class SocialHub extends DurableObject {
     // Best single run per player and level. Renames follow the stable user id.
     this.sql.exec('CREATE TABLE IF NOT EXISTS leaderboard_scores(user_id TEXT NOT NULL, level INTEGER NOT NULL, score INTEGER NOT NULL, won INTEGER NOT NULL, mode TEXT NOT NULL, created INTEGER NOT NULL, PRIMARY KEY(user_id,level))');
     this.sql.exec('CREATE INDEX IF NOT EXISTS leaderboard_best ON leaderboard_scores(level,score DESC,created ASC)');
+    // Les récompenses sont liées à l'identifiant permanent du compte, pas au navigateur.
+    this.sql.exec('CREATE TABLE IF NOT EXISTS user_rewards(user_id TEXT NOT NULL, skin TEXT NOT NULL, granted INTEGER NOT NULL, PRIMARY KEY(user_id,skin))');
+    // Récompense ponctuelle validée par le créateur : Spectre pour le compte anna2.
+    // INSERT OR IGNORE évite tout doublon au redémarrage du Durable Object.
+    this.sql.exec("INSERT OR IGNORE INTO user_rewards(user_id,skin,granted) SELECT id,'rspectre',? FROM users WHERE pseudo='anna2' COLLATE NOCASE",Date.now());
   }
   one(query, ...args) { return this.sql.exec(query, ...args).toArray()[0] || null; }
   rows(query, ...args) { return this.sql.exec(query, ...args).toArray(); }
@@ -112,7 +117,8 @@ export class SocialHub extends DurableObject {
       const outgoing=this.rows('SELECT u.pseudo FROM requests r JOIN users u ON u.id=r.receiver WHERE r.sender=? ORDER BY r.created DESC LIMIT 30',user.id).map(r=>r.pseudo);
       const invites=this.rows('SELECT u.pseudo,i.room FROM invites i JOIN users u ON u.id=i.sender WHERE i.recipient=? ORDER BY i.created DESC LIMIT 30',user.id);
       const blocked=this.rows('SELECT u.pseudo FROM blocks b JOIN users u ON u.id=b.target WHERE b.owner=? ORDER BY u.pseudo COLLATE NOCASE',user.id).map(r=>r.pseudo);
-      return response({pseudo:user.pseudo,friends,incoming,outgoing,invites,blocked},200,origin);
+      const unlockedRobots=this.rows('SELECT skin FROM user_rewards WHERE user_id=? ORDER BY granted',user.id).map(r=>r.skin);
+      return response({pseudo:user.pseudo,friends,incoming,outgoing,invites,blocked,unlockedRobots},200,origin);
     }
     if(method!=='POST') return error('Requête inconnue.',404,origin);
     if (path==='/social/rename') {
