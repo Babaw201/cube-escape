@@ -5,8 +5,49 @@ const { runtime } = require('./runtime.cjs');
 test('Limbyrinth — logique réelle et géométrie Three.js', async t => {
   const game = runtime();
   const run = async code => game.run(code);
-  await t.test('la campagne propose le quatrième niveau', async () => {
-    assert.equal(await run('LV.length'), 4);
+  await t.test('quatre niveaux de campagne et une arène de survie infinie', async () => {
+    assert.equal(await run('LV.length'), 5);
+    assert.equal(await run("LV[4].name"), 'Arène infinie');
+  });
+  await t.test('niveau 5 : arène ouverte, départ central et aucun cristal', async () => {
+    const data = await run(`(() => {
+      nP=1; net=null; start(4,123);
+      return {wave, player:[fromW(players[0].g.position.x),fromW(players[0].g.position.z)],
+        crystals:crystals.length, foes:foes.length, dyn:dyn.length, 
+        border:grid[0].every(c=>c===1), open:grid[7][7]===0};
+    })()`);
+    assert.deepEqual(data,{wave:0,player:[7,7],crystals:0,foes:0,dyn:0,border:true,open:true});
+  });
+  await t.test('niveau 5 : vagues déclenchées, sans chrono terminal', async () => {
+    const data = await run(`(() => {
+      start(4,123); update(.05); 
+      const first={wave,number:foes.length};
+      missionElapsed=12.1; update(.05);
+      const second={wave,number:foes.length};
+      timeLeft=0; update(.05);
+      return {first,second,state,timeLeft};
+    })()`);
+    assert.equal(data.first.wave,1);
+    assert.ok(data.first.number>0);
+    assert.equal(data.second.wave,2);
+    assert.ok(data.second.number>=data.first.number);
+    assert.equal(data.state,'play');
+    assert.equal(data.timeLeft,0);
+  });
+  await t.test('niveau 5 : Titan et résistance croissante même avec limite de drones', async () => {
+    const data=await run(`(() => {
+      start(4,123); wave=4; missionElapsed=48.1;
+      updateSurvival(.05);
+      return {wave,titan:foes.some(f=>f.kind===3),
+        hp1:swarmStats(0,1).hp,hp100:swarmStats(0,100).hp,
+        titan5:swarmStats(3,5).hp,titan100:swarmStats(3,100).hp,
+        limit:MAXF};
+    })()`);
+    assert.equal(data.wave,5);
+    assert.equal(data.titan,true);
+    assert.ok(data.hp100>data.hp1);
+    assert.ok(data.titan100>data.titan5);
+    assert.equal(data.limit,30);
   });
   await t.test('carte : dimensions et marqueurs uniques', async () => {
     assert.deepEqual(await run(`({rows:LEVEL4_MAP.length,lengths:LEVEL4_MAP.map(r=>r.length),markers:[...'SO123ABCE'].map(c=>LEVEL4_MAP.join('').split(c).length-1)})`),{rows:15,lengths:Array(15).fill(15),markers:Array(9).fill(1)});
