@@ -72,6 +72,40 @@
 @media(prefers-reduced-motion:reduce){.hm-cube,.hm-grid,.hm-dot{animation:none}.hm-play,.hm-btn,.hm-sec{transition:none}}`;
   document.head.appendChild(css);
 
+  // Accueil v2 : lecture verticale claire, résultat précédent et options secondaires repliées.
+  css.textContent += `
+.hm-ui{width:min(1260px,100%);margin:0 auto}
+.hm-main{align-items:start;gap:clamp(16px,3vw,34px);padding-top:12px;grid-template-columns:minmax(300px,.92fr) minmax(310px,1fr)}
+.hm-panel{gap:10px}
+.hm-box{padding:14px}
+.hm-box h2{letter-spacing:.09em;font-size:13px;margin-bottom:10px;color:#aad9f0}
+.hm-cubewrap{width:48px;height:48px;transform:scale(.65);transform-origin:left top;margin:2px 0 -2px 5px}
+.hm-eye{margin-top:4px}
+.hm-h1{font-size:clamp(37px,6vw,78px);letter-spacing:.03em}
+.hm-tag{margin:13px 0 18px;font-size:14px}
+.hm-play{max-width:100%;min-width:0;width:100%;margin:0;padding:16px 20px;font-size:22px;box-sizing:border-box}
+.hm-row{margin-top:12px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+.hm-row .hm-btn{width:100%;justify-content:center;margin:0;text-align:center}
+.hm-mode-section{border-color:#4d8498}
+.hm-mode-section .hm-seg button{font-size:12px}
+.hm-survival-card{padding:12px 14px;margin:13px 0 0;max-width:none}
+.hm-survival-card h2{font-size:15px}
+.hm-survival-card p{font-size:12px;margin:4px 0}
+.hm-last-run{margin:12px 0 0;padding:12px 14px;border:1px solid #388e8a;border-radius:13px;background:rgba(12,65,65,.45);font-size:13px;line-height:1.5}
+.hm-last-run strong{display:block;font-size:14px;color:#91ffdf}
+.hm-auth-hint{font-size:12px;margin:8px 0 0;color:#e4c3a1;line-height:1.45}
+.hm-auth-hint.ok{color:#9de7c6}
+.hm-updates-details{padding:0}
+.hm-updates-details summary{cursor:pointer;padding:13px 15px;color:#c2e8f4;font-size:13px;font-weight:700;list-style:auto}
+.hm-updates-details .hm-update-content{padding:0 14px 14px}
+.hm-update-box{margin:0!important}
+.hm-sec{margin:0 0 6px;padding:10px 12px}
+.hm-sec b{font-size:14px}
+.hm-sec small{font-size:11px}
+.hm-foot{padding-top:9px;line-height:1.5}
+@media(max-width:860px){.hm-main{grid-template-columns:1fr;gap:15px}.hm-cubewrap{display:none}.hm-tag{margin-bottom:14px}.hm-top{justify-content:space-between}}
+@media(max-width:420px){.hm-ui{padding-left:12px;padding-right:12px}.hm-main{padding:9px 0}.hm-row{gap:7px}.hm-btn{padding:12px 9px;font-size:12px}.hm-h1{font-size:38px}.hm-tagb{font-size:10px;padding:3px 7px}}
+`;
   const home = document.createElement("div"); home.id = "home";
   const bg = document.createElement("div"); bg.className = "hm-bg";
   bg.appendChild(Object.assign(document.createElement("div"), { className: "hm-grid" }));
@@ -98,6 +132,9 @@
     const levels = old().map(b => { const m = b.textContent.match(/Niveau (\d+)\s*:\s*(.+)$/); return m ? { i: +m[1] - 1, name: m[2].trim(), locked: /\u{1F512}/u.test(b.textContent), off: b.disabled } : null; }).filter(Boolean);
     const open = levels.filter(l => !l.locked), next = open.length ? open[open.length - 1] : levels[0];
     const guest = online && levels.length > 0 && levels.every(l => l.off) && !old().find(b => /Boutique/.test(b.textContent));
+    const hasPseudo=!!window.LimbyrinthFriends?.hasProfile?.();
+    let hasToken=false;
+    try{hasToken=!!localStorage.getItem('limbyrinthSocialTokenV1');}catch{}
     const info = ($("d") && $("d").textContent) || "";
     const bonus = info.match(/Bonus du jour : \+\d+ pièces[^.]*\./);
 
@@ -111,18 +148,30 @@
     const cube = el("div", "hm-cubewrap", null, [el("div", "hm-cube", null, [el("i"), el("i"), el("i"), el("i"), el("i"), el("i")])]);
     const hero = el("section", null, null, [cube, el("p", "hm-eye", "CUBE ESCAPE · PROTOCOLE D’ÉVASION"), el("h1", "hm-h1", "LIMBYRINTH"),
       el("p", "hm-tag", guest ? "Tu es connecté à ton ami. L’hôte choisit le secteur : la partie démarrera toute seule." : "Cinq secteurs : explore, infiltre-toi, puis résiste dans une arène infinie où chaque vague compte.")]);
-    if (!guest && next) {
-      const p = btn("hm-play", "\u25B6 JOUER", () => press(new RegExp("Niveau " + (next.i + 1) + "\\b")));
-      p.appendChild(el("small", null, (open.length > 1 ? "Secteur " + (next.i + 1) + " · " : "Secteur 1 · ") + next.name)); p.dataset.play = "1"; hero.appendChild(p);
+    if(!guest && next) {
+      const p=btn("hm-play",hasPseudo?"▶ REPRENDRE":"▶ COMMENCER À JOUER",
+        ()=>press(new RegExp("Niveau "+(next.i+1)+"\\b")));
+      p.appendChild(el('small',null,'Secteur '+(next.i+1)+' · '+next.name));
+      p.dataset.play='1';hero.appendChild(p);
+      hero.appendChild(el('p','hm-auth-hint'+(hasPseudo?' ok':''),
+        hasPseudo?'✓ Pseudo confirmé · scores sauvegardés':
+        hasToken?'👤 Ton profil sera vérifié avant de jouer.':
+        '🔒 Première partie ? Choisis un pseudo pour débloquer le jeu.'));
     }
-    const row = el("div", "hm-row");
-    if (online) row.appendChild(btn("hm-btn viol", "Quitter le salon", () => press(/Quitter le salon/)));
-    else row.appendChild(btn("hm-btn viol", "\u{1F310} Jouer en ligne", () => press(/Jouer en ligne/)));
-    if (!guest) row.appendChild(btn("hm-btn gold", "\u{1F6D2} Boutique", () => press(/Boutique/)));
-    row.appendChild(btn("hm-btn hm-scores-button", "🏆 Scores & Top 10", () => window.LimbyrinthScores && window.LimbyrinthScores.open()));
-    row.appendChild(btn("hm-btn hm-friends-button", "👥 Amis & pseudo", () => window.LimbyrinthFriends && window.LimbyrinthFriends.open()));
-    row.appendChild(btn("hm-btn hm-feedback-button", "💡 Donner mon avis", () => window.LimbyrinthFeedback && window.LimbyrinthFeedback.open("idea")));
+    const row=el("div","hm-row");
+    row.appendChild(btn('hm-btn hm-friends-button','👤 Mon pseudo',()=>window.LimbyrinthFriends?.open()));
+    row.appendChild(btn('hm-btn hm-scores-button','🏆 Scores et Top 10',()=>window.LimbyrinthScores?.open()));
+    if(!guest)row.appendChild(btn('hm-btn gold','🛒 Boutique',()=>press(/Boutique/)));
+    if(online)row.appendChild(btn('hm-btn viol','Quitter le salon',()=>press(/Quitter le salon/)));
+    else row.appendChild(btn('hm-btn viol','🌐 Jouer en ligne',()=>press(/Jouer en ligne/)));
     hero.appendChild(row);
+    const last=sv.lastRun;
+    if(last && typeof last.title==='string' && Number.isFinite(Number(last.score))) {
+      hero.appendChild(el('section','hm-last-run',null,[
+        el('strong',null,'DERNIÈRE PARTIE · '+last.title),
+        el('span',null,'Niveau '+last.level+' · '+last.score+' points'+(last.details?' · '+last.details:''))
+      ]));
+    }
     const survival = levels.find(l=>l.i===4);
     const showcase=el('section','hm-survival-card',null,[
       el('h2',null,'♾️ NIVEAU 5 · SURVIE INFINIE'),
@@ -130,31 +179,21 @@
       el('p',null,'🏆 Vague 50 : Spectre · Vague 100 : Souverain'),
       el('p',null,'Record personnel : vague '+(sv.survivalMaxWave||0)+' · '+Math.floor((sv.bestSurvive||0)/60)+' min '+String(Math.floor((sv.bestSurvive||0)%60)).padStart(2,'0')+' s')
     ]);
-    if(survival) {
-      const launch=btn('hm-btn gold',survival.locked?'🔒 Termine le niveau 4':'▶ ENTRER DANS L’ARÈNE',()=>press(/Niveau 5/));
-      launch.disabled=survival.locked||survival.off;
-      showcase.appendChild(launch);
-    }
     hero.appendChild(showcase);
-    const infoBox = el("section", "hm-box hm-update-box");
-    infoBox.appendChild(el("h2", null, "📣 INFOS · PROCHAINES MISES À JOUR"));
-    infoBox.appendChild(el("p", "hm-update-line", null, [
-      el("b", null, "Lundi 26 octobre · matin"),
-      el("span", null, "Niveau 5 disponible · survie infinie et relais tactiques")
-    ]));
-    infoBox.appendChild(el("p", "hm-update-line", null, [
-      el("b", null, "Lundi 26 octobre · après-midi"),
-      el("span", null, "Participe aux sondages et signale les bugs du nouveau mode")
-    ]));
-    infoBox.appendChild(el("p", "hm-update-small", "Récompenses de survie : nouveau skin à la vague 50, et skin légendaire à la vague 100."));
-    infoBox.appendChild(btn("hm-btn hm-feedback-card", "📊 Sondage · idées · bugs", () => window.LimbyrinthFeedback && window.LimbyrinthFeedback.open("poll")));
-    hero.appendChild(infoBox);
-
+    const updateBox=el('details','hm-box hm-update-box hm-updates-details');
+    updateBox.appendChild(el('summary',null,'💡 Actualités, nouveautés et idées'));
+    const updates=el('div','hm-update-content');
+    updates.append(
+      el('p','hm-update-line','Niveau 5 : survie infinie, relais tactiques et nouveaux skins aux vagues 50 et 100.'),
+      btn('hm-btn hm-feedback-button','💬 Signaler un bug ou proposer une idée',()=>window.LimbyrinthFeedback?.open('idea')),
+      btn('hm-btn hm-feedback-card','📊 Répondre au sondage',()=>window.LimbyrinthFeedback?.open('poll'))
+    );
+    updateBox.appendChild(updates);
     if (online) hero.appendChild(el("div", "hm-note on", guest ? "Salon en ligne · tu es l’invité" : "Salon en ligne · ton ami est connecté, tu es l’hôte"));
     else if (/Connexion perdue|quitté le salon/.test(info)) hero.appendChild(el("div", "hm-note err", /perdue/.test(info) ? "Connexion perdue. Crée ou rejoins un nouveau salon." : "Le salon a été quitté."));
     else if (bonus) hero.appendChild(el("div", "hm-note", "\u{1F381} " + bonus[0]));
 
-    const secs = el("div", "hm-box", null, [el("h2", null, "SECTEURS")]);
+    const secs = el('div','hm-box',null,[el('h2',null,'② CHOISIS TON NIVEAU')]);
     levels.forEach(l => {
       const meta = SECTEURS[l.i] || { c: "#65e7ff", s: "" }, isNext = !guest && next && next.i === l.i && open.length > 1;
       const b = btn(l.i===4?"hm-sec survival-special":"hm-sec", null, () => press(new RegExp("Niveau " + (l.i + 1) + "\\b")), l.off);
@@ -163,23 +202,27 @@
         el("span", "hm-tagb" + (l.locked ? " lock" : isNext ? " next" : ""), l.locked ? "VERROUILLÉ" : isNext ? "REPRENDRE" : "DISPONIBLE"));
       secs.appendChild(b);
     });
-    const panel = el("section", "hm-panel", null, [secs]);
+    const panel = el('section','hm-panel');
     if (!online) {
       const seg = el("div", "hm-seg"); const b1 = btn(duo ? "" : "on", "1 joueur", () => { if (duo) press(/joueurs/); });
       const b2 = btn(duo ? "on" : "", "2 joueurs · même clavier", () => { if (!duo) press(/1 joueur/); }); seg.append(b1, b2);
-      panel.appendChild(el("div", "hm-box", null, [el("h2", null, "MODE DE JEU"), seg]));
+      panel.appendChild(el('div','hm-box hm-mode-section',null,[el('h2',null,'① CHOISIS TON MODE'),seg]));
     }
+    panel.appendChild(secs);
+    panel.appendChild(updateBox);
     const k = el("div", "hm-keys");
     (tactile ? [["Joystick", "se déplacer"], ["TIR", "vise tout seul les drones proches"], ["DASH", "foncer (5 s de recharge)"], ["VUE", "vue subjective"]]
       : [["Z Q S D", "se déplacer (ou les flèches)"], ["Clic", "tirer"], ["Maj", "dash (5 s de recharge)"], ["V", "vue subjective"], ["P", "pause · M : son"], ["E", "console de phase (niveau 4)"]])
       .forEach(([a, c]) => k.append(el("kbd", null, a), el("span", null, c)));
-    panel.appendChild(el("div", "hm-box", null, [el("h2", null, "COMMANDES"), k]));
+    const help=el('details','hm-box hm-updates-details');
+    help.append(el('summary',null,'⌨️ Afficher les commandes'),el('div','hm-update-content',null,[k]));
+    panel.appendChild(help);
 
-    ui.replaceChildren(top, el("main", "hm-main", null, [hero, panel]), el("div", "hm-foot", "RÉCOLTE LES CRISTAUX · ÉVITE LES TRAQUEURS · REJOINS LE PORTAIL"));
+    ui.replaceChildren(top, el("main", "hm-main", null, [hero, panel]), el("div", "hm-foot", "JOUER → MODE → NIVEAU · TES RECORDS RESTENT DISPONIBLES DANS SCORES"));
     const play = ui.querySelector("[data-play]"); if (play) play.focus({ preventScroll: true });
   }
 
-  let queued = false; const refresh = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; render(); }); };
+  let queued = false; const refresh = () => { if (queued) return; queued = true; queueMicrotask(() => { queued = false; render(); }); };
   const mo = new MutationObserver(refresh);
   mo.observe(lv, { childList: true, subtree: true, characterData: true });
   mo.observe(title, { childList: true, characterData: true, subtree: true });

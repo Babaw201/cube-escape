@@ -33,7 +33,35 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     assert.equal(await page.locator('#home').isVisible(), true);
     assert.equal(await page.locator('#home .hm-sec').count(), 5);
     assert.equal(await page.locator('#home .hm-play').count(), 1);
+    assert.equal(await page.locator('#home .hm-auth-hint').count(),1);
     assert.equal(await page.locator('#home .hm-seg button').count(), 2);
+    assert.equal(await page.locator('#home .hm-updates-details').count()>=1,true);
+  });
+  await t.test('pseudo obligatoire : un nouveau joueur ne peut pas démarrer sans inscription', async () => {
+    await page.route('https://limbyrinth-online.baptiste-werner.workers.dev/social/register', route =>
+      route.fulfill({status:200,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'https://game.test'},
+        body:JSON.stringify({pseudo:'JoueurRobot32',token:'valid-mock-token'})}));
+    await page.route('https://limbyrinth-online.baptiste-werner.workers.dev/social/me', route =>
+      route.fulfill({status:200,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'https://game.test'},
+        body:JSON.stringify({pseudo:'JoueurRobot32',friends:[],incoming:[],outgoing:[],invites:[],blocked:[]})}));
+    await page.route('https://limbyrinth-online.baptiste-werner.workers.dev/social/score', route =>
+      route.fulfill({status:200,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'https://game.test'},
+        body:JSON.stringify({ok:true,improved:true})}));
+    assert.match(await page.locator('#home .hm-auth-hint').innerText(),/pseudo/i);
+    await run('start(4,123)');
+    assert.equal(await run('state'),'menu');
+    assert.equal(await page.locator('#friends-screen').isVisible(),true);
+    await page.locator('#friends-screen input[aria-label="Ton pseudo"]').fill('JoueurRobot32');
+    await page.locator('#friends-screen button[type="submit"]').first().click();
+    await page.waitForFunction(()=>window.gameEval('state')==='play',null,{polling:50});
+    assert.equal(await page.locator('#friends-screen').isVisible(),false);
+    assert.equal(await page.locator('#home').isVisible(),false);
+    await run('wave=3; missionElapsed=25; kills=2; endSurvival()');
+    assert.equal(await run('state'),'menu');
+    assert.equal(await page.locator('#home').isVisible(),true);
+    assert.match(await page.locator('#home .hm-last-run').innerText(),/Vague 3/);
+    assert.equal(await page.locator('#home .hm-auth-hint').innerText().then(x=>x.includes('Pseudo confirmé')),true);
+    await page.evaluate(()=>localStorage.removeItem('limbyrinthScoresV1'));
   });
   await t.test('tableau des scores : affichage, filtre, historique local', async () => {
     await page.locator('#home .hm-scores-button').click();
@@ -85,7 +113,8 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
   });
   await t.test('infos et formulaire de retours accessibles depuis le menu', async () => {
     assert.equal(await page.locator('#home .hm-update-box').count(),1);
-    assert.match(await page.locator('#home .hm-update-box').innerText(), /26 octobre/);
+    if(await page.locator('#home .hm-update-box:not([open]) summary').count()) await page.locator('#home .hm-update-box summary').click();
+    assert.match(await page.locator('#home .hm-update-box').innerText(), /Niveau 5/);
     await page.locator('#home .hm-feedback-button').click();
     assert.equal(await page.locator('#feedback-screen').isVisible(),true);
     assert.match(await page.locator('#feedback-screen').innerText(),/Amélioration/);
@@ -104,6 +133,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
         return nativeFetch(url,options);
       };
     });
+    if(await page.locator('#home .hm-update-box:not([open]) summary').count()) await page.locator('#home .hm-update-box summary').click();
     await page.locator('#home .hm-feedback-card').click();
     assert.equal(await page.locator('#feedback-screen').isVisible(),true);
     await page.locator('#fb-topic').selectOption('murs');
@@ -191,7 +221,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
       for(const k in keys)keys[k]=false;
       return {state,collected,hp:players[0].hp,timeLeft,steps,position:[fromW(players[0].g.position.x),fromW(players[0].g.position.z)]};
     })()`);
-    assert.equal(result.state,'win',JSON.stringify(result));assert.equal(result.collected,3);assert.ok(result.timeLeft>0);
+    assert.equal(result.state,'menu',JSON.stringify(result));assert.equal(result.collected,3);assert.ok(result.timeLeft>0);
   });
   await t.test('coop réseau : le modèle de chaque joueur est préservé', async () => {
     assert.equal(await run(`(() => { net='host';nP=2;save.robot='rorb';onMsg({t:'cosmetic',robot:'rtrack'});start(3);const ok=players[0].rig.shape==='orb'&&players[1].rig.shape==='tracks';net=null;nP=1;return ok; })()`),true);

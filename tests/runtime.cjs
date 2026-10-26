@@ -23,6 +23,8 @@ function runtime(initialSave = {}, overrides = {}) {
   const context=vm.createContext({THREE,document,console:{...console,warn:(...args)=>warnings.push(args.join(" ")),error:(...args)=>warnings.push(args.join(" "))},innerWidth:1440,innerHeight:900,devicePixelRatio:1,performance,Math,setTimeout:()=>0,clearTimeout(){},setInterval:()=>0,clearInterval(){},requestAnimationFrame(){},matchMedia:()=>({matches:false}),localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,String(v))},addEventListener(k,f){(listeners[k] ||= []).push(f);},dispatchEvent(e){for(const f of listeners[e.type]||[])f({...e,target:e.target||document.body,preventDefault(){}});},KeyboardEvent:class{constructor(type,opts){this.type=type;Object.assign(this,opts);}},AudioContext:class{constructor(){throw Error('audio disabled in tests');}}});
   Object.assign(context,{URL,URLSearchParams,AbortController,location:{href:'https://babaw201.github.io/cube-escape/',hash:''},navigator:{},...overrides});
   context.window=context;
+  // Les tests unitaires simulent un profil déjà validé ; l'inscription réelle est couverte par Chromium.
+  context.LimbyrinthFriends={hasProfile:()=>true,requireProfile:callback=>{callback();return true;}};
   const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
   const source=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].at(-1)[1].replace('loop();\n})();','window.gameEval = code => eval(code); loop();\n})();');
   vm.runInContext(source,context,{filename:'index.html'});

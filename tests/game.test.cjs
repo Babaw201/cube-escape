@@ -5,6 +5,16 @@ const { runtime } = require('./runtime.cjs');
 test('Limbyrinth — logique réelle et géométrie Three.js', async t => {
   const game = runtime();
   const run = async code => game.run(code);
+  await t.test('fin de partie : retour automatique à l’accueil avec bilan conservé', async () => {
+    const data=await run(`(() => {
+      start(0,123);collected=2;timeLeft=0;kills=3;missionElapsed=90;
+      end(false,'Le temps est écoulé.');
+      return {state,screen:$('t').textContent,level:save.lastRun.level,score:save.lastRun.score,
+        result:save.lastRun.title,overlay:$('overlay').style.display};
+    })()`);
+    assert.deepEqual(data,{state:'menu',screen:'LIMBYRINTH',level:1,score:200,
+      result:'Défaite',overlay:'flex'});
+  });
   await t.test('quatre niveaux de campagne et une arène de survie infinie', async () => {
     assert.equal(await run('LV.length'), 5);
     assert.equal(await run("LV[4].name"), 'Arène infinie');
@@ -113,7 +123,7 @@ test('Limbyrinth — logique réelle et géométrie Three.js', async t => {
       endSurvival();
       return {recorded,score:score(false),state};
     })()`);
-    assert.equal(d.state,'lose');
+    assert.equal(d.state,'menu');
     assert.equal(d.recorded.level,5);
     assert.equal(d.recorded.wave,6);
     assert.equal(d.recorded.kills,8);
@@ -202,7 +212,7 @@ test('Limbyrinth — logique réelle et géométrie Three.js', async t => {
       for(const k in keys)keys[k]=false;
       return {state,collected,hp:players[0].hp,timeLeft,steps,position:[fromW(players[0].g.position.x),fromW(players[0].g.position.z)]};
     })()`);
-    assert.equal(result.state,'win',JSON.stringify(result));assert.equal(result.collected,3);assert.ok(result.timeLeft>0);
+    assert.equal(result.state,'menu',JSON.stringify(result));assert.equal(result.collected,3);assert.ok(result.timeLeft>0);
   });
   await t.test('coop réseau : le modèle de chaque joueur est préservé', async () => {
     assert.equal(await run(`(() => { net='host';nP=2;save.robot='rorb';onMsg({t:'cosmetic',robot:'rtrack'});start(3);const ok=players[0].rig.shape==='orb'&&players[1].rig.shape==='tracks';net=null;nP=1;return ok; })()`),true);

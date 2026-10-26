@@ -6,6 +6,14 @@ Jeu 3D de labyrinthe en HTML et Three.js r128, avec quatre niveaux de campagne e
 
 Choisir **« Niveau 1 : Labyrinthe »** pour commencer. Sur téléphone, ouvrir le lien dans Chrome ou Safari.
 
+## Accueil, profil et fin de partie
+
+- **Pseudo obligatoire** avant une partie, y compris en solo : le premier clic sur « Commencer à jouer » ouvre la création du profil, puis lance le niveau demandé après validation. Un pseudo déjà enregistré est vérifié avant de jouer ; aucun pseudo invité anonyme n'est prévu.
+- La connexion à Internet est nécessaire pour créer ou vérifier un pseudo lors du premier lancement. Les résultats locaux restent sur l'appareil et le Top 10 utilise ce profil.
+- L'accueil regroupe une seule action principale, le mode de jeu, la liste des niveaux et les accès **Mon pseudo / Scores / Boutique / Jeu en ligne**. Les commandes et nouveautés sont accessibles dans des sections repliables.
+- **À la fin de chaque partie**, victoire ou défaite, le jeu revient directement à l'accueil. Le dernier résultat (niveau, score et, en survie, vague et durée) y apparaît. La progression et les records sont enregistrés avant ce retour. Une partie en ligne termine également le salon.
+- En niveau 5, les annonces et l'objectif tactique sont déplacés sur les bords et raccourcis pour dégager le centre de la vue. Les vagues 1 et 2 ont moins de drones et les renforts réguliers commencent à la vague 3.
+
 ## Niveau 5 — Survie infinie : **Protocole CORE**
 
 Après le niveau 4, le joueur débloque une arène **sans fin** (nouvelle vague toutes les 12 secondes). En plus des affrontements contre les drones, la survie demande de **capturer les stations actives** : rester dans le cercle lumineux pendant 2,4 secondes, sans s'en éloigner. La capture fonctionne sur clavier, mobile et en coopération ; le niveau ne se limite donc pas à courir et tirer.

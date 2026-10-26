@@ -12,7 +12,8 @@ canvas{display:block}
 #cr b{color:#b46bff}
 #time.low{color:#ff4d6d}
 #swap.warn{color:#ffa02e;border-color:#ffa02e}
-#msg{position:fixed;top:72px;left:50%;transform:translateX(-50%);padding:8px 18px;border-radius:8px;background:rgba(8,16,48,.8);border:1px solid #3dff9a;font-weight:700;opacity:0;transition:opacity .3s;pointer-events:none;text-align:center}
+#msg{position:fixed;top:calc(76px + env(safe-area-inset-top,0px));right:12px;left:auto;transform:none;z-index:4;width:max-content;max-width:min(360px,55vw);padding:7px 12px;border-radius:10px;background:rgba(8,16,48,.90);border:1px solid #3dff9a;font:700 12px/1.35 system-ui,sans-serif;opacity:0;transition:opacity .3s;pointer-events:none;text-align:left;box-shadow:0 5px 16px rgba(0,0,0,.26)}
+@media(max-width:700px){#msg{top:calc(104px + env(safe-area-inset-top,0px));right:8px;max-width:52vw;font-size:11px;padding:6px 9px}}
 #overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(3,4,14,.84);text-align:center;padding:20px}
 #overlay h1{font-size:clamp(36px,8vw,72px);margin:0 0 10px;color:#4f86ff;text-shadow:0 0 24px #1e50ff}
 #overlay p{max-width:520px;line-height:1.5;margin:6px 0;font-size:17px}
@@ -188,8 +189,11 @@ const SURVIVAL_DEVICES = [
 const survivalBanner = document.createElement('aside');
 survivalBanner.id = 'survival-banner';
 survivalBanner.setAttribute('role','status');
-survivalBanner.style.cssText = 'position:fixed;z-index:3;top:165px;left:50%;transform:translateX(-50%);display:none;max-width:min(90vw,480px);padding:10px 16px;border:1px solid #fba45c;border-radius:12px;background:#0b1c2ee8;color:#f7e7d2;text-align:center;font:700 13px/1.5 system-ui;pointer-events:none;box-shadow:0 5px 25px #0009';
+survivalBanner.style.cssText = 'position:fixed;z-index:3;bottom:calc(14px + env(safe-area-inset-bottom,0px));right:12px;display:none;width:min(310px,44vw);padding:9px 12px;border:1px solid #fba45c;border-radius:10px;background:rgba(9,21,34,.88);color:#ffe3c2;text-align:left;font:700 12px/1.4 system-ui;pointer-events:none;box-shadow:0 3px 13px #0005';
 document.body.appendChild(survivalBanner);
+const compactSurvivalCSS=document.createElement('style');
+compactSurvivalCSS.textContent='@media(max-width:700px){#survival-banner{bottom:calc(114px + env(safe-area-inset-bottom,0px))!important;right:8px!important;width:min(230px,55vw)!important;padding:7px 9px!important;font-size:11px!important;}}';
+document.body.appendChild(compactSurvivalCSS);
 const PHASE_COLORS = [0x61eaff, 0xff78de, 0xffc86b];
 const LEVEL4 = { duration: 240, phaseSeconds: 28, phaseWarningSeconds: 4, manualWarningSeconds: 1.5, consoleCooldownSeconds: 8, finalSeconds: 35, consoleRadius: 2.4, safetyRadius: T / 2 + .9, patrolSpeed: 2.5, chaseSpeed: 4.8, sight: 9, investigateSeconds: 4, stunSeconds: 4 };
 const LEVEL4_MAP = [
@@ -622,6 +626,18 @@ function hud() {
 
 function score(win) { if (cur === 4) return Math.floor(missionElapsed) * 10 + kills * 15; return collected * 100 + (win ? Math.ceil(timeLeft) * 10 : 0); }
 
+function backToHome(result) {
+  save.lastRun = {level:cur+1,score:Math.floor(result.score||0),title:result.title,details:result.details||'',wave:cur===4?wave:0,date:new Date().toISOString()};
+  store();
+  if(net)leaveOnline('Partie terminée. Retrouve ton dernier résultat sur cet accueil.');
+  else {state='menu';paused=false;for(const k in keys)keys[k]=false;}
+  $('t').textContent='LIMBYRINTH';$('t').style.color='';
+  $('d').textContent='Choisis un niveau pour une nouvelle partie.';
+  $('best').textContent='';$('credits').style.display='none';$('btn').style.display='none';
+  $('overlay').style.display='flex';survivalBanner.style.display='none';$('msg').style.opacity=0;
+  renderLv();hud();
+}
+
 function end(win, why) {
   if (cur === 4) return endSurvival();
   state = win ? "win" : "lose";
@@ -660,10 +676,16 @@ function end(win, why) {
   $("btn").textContent = nxt ? "Niveau suivant" : fin ? "Rejouer la campagne" : "Recommencer"; $("btn").style.display = ""; renderLv();
   if (net === "guest") { $("btn").style.display = "none"; $("d").textContent += " En attente de l’hôte pour rejouer..."; }
   $("overlay").style.display = "flex";
-  $("btn").focus();
+  backToHome({title:win?(fin?'Campagne terminée':'Victoire'):'Défaite',score:s,details:cur===3?'Clés '+collected+'/3': 'Cristaux '+collected+'/3'});
 }
 
 function start(lv = cur, sd = 0) {
+  const friends=window.LimbyrinthFriends;
+  if(!friends || !friends.hasProfile()){
+    if(friends)friends.requireProfile(()=>start(lv,sd));
+    else flash('Impossible de vérifier le pseudo : recharge la page.',3000);
+    return;
+  }
   if (firstPerson && nP > 1 && !net) setCameraMode(false);
   if (lv === 0) { run.t = run.k = run.s = 0; }
   $("credits").style.display = "none";
@@ -677,8 +699,9 @@ function start(lv = cur, sd = 0) {
   build();
   state = "play"; timeLeft = LV[cur].duration; swapT = SWAP; collected = 0; kills = 0; missionElapsed = 0; overload = false; applyBoosts();
   $("overlay").style.display = "none";
-  if(cur === 3) flash("CORE : Vous n’avez pas quitté le système. Vous en avez atteint le cœur. Phase CYAN — Archives Est.", 6500);
-  else flash("Niveau " + (cur + 1) + " : " + LV[cur].name + " - " + LV[cur].brief, 3800);
+  if(cur === 4) flash('SURVIE : commence doucement, active les relais lumineux dès la vague 2.',2400);
+  else if(cur === 3) flash("CORE : Vous n’avez pas quitté le système. Vous en avez atteint le cœur. Phase CYAN — Archives Est.",3500);
+  else flash("Niveau " + (cur + 1) + " : " + LV[cur].name + " - " + LV[cur].brief, 2800);
   hud();
 }
 
@@ -854,13 +877,13 @@ function updateSurvivalStations(dt){
   });
   survivalBanner.style.display='block';
   if(wave<2) {
-    survivalBanner.textContent='⚔️ ARÈNE INFINIE · VAGUE '+wave+' · Déverrouille les relais dès la vague 2';
+    survivalBanner.textContent='VAGUE '+wave+' · Prépare-toi : relais dès la vague 2';
   } else if(!active) {
-    survivalBanner.textContent='✓ RELAIS ACTIVÉ · '+survivalObjective.completed+' objectifs réussis · prochain relais à la vague '+(wave+1);
+    survivalBanner.textContent='✓ Relais réussi · '+survivalObjective.completed+' activés · prochain : vague '+(wave+1);
   } else {
     const device=SURVIVAL_DEVICES[survivalObjective.index];
     const pct=Math.round(survivalObjective.charge/2.4*100);
-    survivalBanner.textContent='◆ '+device.name+' · '+device.effect+' · Reste dans le cercle : '+pct+'%';
+    survivalBanner.textContent='◆ '+device.name+' · Capture '+pct+'% · Reste dans le cercle';
   }
 }
 function makeSwarmFoe(id, x, z, kind, level = wave) {
@@ -948,7 +971,7 @@ function updateSurvival(dt) {
       foes.forEach(f => { f.hp += 1 + Math.floor(wave / 5); f.spd += 0.18; });
     }
     const isBoss = wave % 5 === 0;
-    spawnSwarm(Math.min(5 + wave, 14), isBoss);
+    spawnSwarm(wave === 1 ? 2 : wave === 2 ? 3 : wave === 3 ? 4 : Math.min(5 + wave, 14), isBoss);
     flash(isBoss ? '⚠️ VAGUE ' + wave + ' : TITAN DE CORE !' : 'VAGUE ' + wave + ' — drones renforcés !', 2000);
     grantSurvivalRewards(); // après l'annonce de la vague : la récompense reste visible
     snd(isBoss ? 130 : 300, 0.3, 'sawtooth', 0.05, 110);
@@ -963,7 +986,7 @@ function updateSurvival(dt) {
   updateSurvivalObjective(dt);
   trickle += dt;
   const interval = Math.max(0.85, 3.1 - wave * 0.075);
-  if (trickle >= interval) { trickle = 0; spawnSwarm(1); }
+  if (wave >= 3 && trickle >= interval) { trickle = 0; spawnSwarm(1); }
 }
 function endSurvival() {
   // Aucun portail, aucun décompte : seule l'élimination de tous les joueurs finit la partie.
@@ -995,7 +1018,8 @@ function endSurvival() {
   if (net === 'guest') {
     $('btn').style.display = 'none'; $('d').textContent += ' En attente de l’hôte pour rejouer...';
   }
-  $('overlay').style.display = 'flex'; $('btn').focus(); hud();
+  $('overlay').style.display = 'flex';
+  backToHome({title:'Survie terminée',score:s,details:'Vague '+wave+' · '+fmtT(sec)+' · '+kills+' drones détruits'});
 }
 
 function foeAI(f, dt) {
@@ -1240,6 +1264,12 @@ function leaveOnline(message='Tu as quitté le salon.'){
 }
 function openNet(){
   if(net)return;
+  const friends=window.LimbyrinthFriends;
+  if(!friends || !friends.hasProfile()){
+    if(friends)friends.requireProfile(()=>openNet());
+    else flash('Crée un pseudo pour jouer en ligne.',2500);
+    return;
+  }
   onlineReturnPlayers=nP;resetRoomTransport();
   roomUI('idle','Crée un salon, puis partage son code ou son lien avec un ami. Deux joueurs par salon.');
 }
