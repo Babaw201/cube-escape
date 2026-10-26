@@ -109,6 +109,7 @@
 
   // UI v3: style de la maquette, mais chaque élément est un vrai contrôle HTML.
   css.textContent += `
+.hm-ui{box-sizing:border-box}
 #home{background:radial-gradient(ellipse at 24% 8%,#1e3955 0,transparent 45%),linear-gradient(118deg,rgba(5,14,29,.92),rgba(2,10,22,.97) 55%,#030b17);scrollbar-color:#386179 #081320;scrollbar-width:thin}
 .hm-bg{position:fixed;inset:0;z-index:0;opacity:.75}
 .hm-bg::before{content:"";position:absolute;inset:-5% 0 0;background:radial-gradient(circle at 29% 16%,transparent 0 4%,#349aff33 4.4%,transparent 5.5%,transparent 7%,#267fe922 7.3%,transparent 8.2%),linear-gradient(140deg,transparent 25%,#193b53aa 25.2% 27%,transparent 27.3% 52%,#091d31bb 52.2% 54%,transparent 54.5%),repeating-linear-gradient(90deg,transparent 0 65px,#2e4d6427 66px 69px,transparent 70px 138px)}
