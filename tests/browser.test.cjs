@@ -4,6 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { chromium } = require('playwright');
 const root = path.resolve(__dirname, '..');
+const {gameResponse}=require('./serve-game.cjs');
 
 test('Limbyrinth — navigateur Three.js réel', async t => {
   const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || (fs.existsSync('/usr/bin/chromium') ? '/usr/bin/chromium' : chromium.executablePath()), headless: true, args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
@@ -13,13 +14,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
   page.on('pageerror', e => errors.push(e.message));
   page.on('console', msg => {if(msg.type() === 'error') errors.push(msg.text());});
   await page.addInitScript(() => { window.requestAnimationFrame = () => 0; });
-  await page.route('https://game.test/**', route => {
-    const pathname = new URL(route.request().url()).pathname;
-    const file = pathname === '/assets/home-scene.svg' ? 'assets/home-scene.svg' : pathname === '/vendor/three.min.js' ? 'vendor/three.min.js' : pathname === '/menu.js' ? 'menu.js' : pathname === '/scores.js' ? 'scores.js' : pathname === '/friends.js' ? 'friends.js' : pathname === '/feedback.js' ? 'feedback.js' : 'index.html';
-    let data = fs.readFileSync(path.join(root, file), 'utf8');
-    if (file === 'index.html') data = data.replace('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js', '/vendor/three.min.js').replace('loop();\n})();', 'window.gameEval = code => eval(code); loop();\n})();');
-    return route.fulfill({contentType: file.endsWith('.js') ? 'text/javascript' : file.endsWith('.svg') ? 'image/svg+xml' : 'text/html', body:data});
-  });
+  await page.route('https://game.test/**', route => route.fulfill(gameResponse(new URL(route.request().url()).pathname)));
   await page.route('https://limbyrinth-online.baptiste-werner.workers.dev/social/leaderboard*', route=>{
     const level=new URL(route.request().url()).searchParams.get('level');
     const sample={pseudo:'Aventurier32',score:920,level:level==='4'?4:1,won:true,mode:'Solo',created:Date.now()};
@@ -97,15 +92,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     const mobile=await browser.newPage({viewport:{width:844,height:390},isMobile:true,hasTouch:true,deviceScaleFactor:2});
     try{
       await mobile.addInitScript(()=>{window.requestAnimationFrame=()=>0;});
-      await mobile.route('https://game.test/**',route=>{
-        const pathname=new URL(route.request().url()).pathname;
-        const file=pathname==='/assets/home-scene.svg'?'assets/home-scene.svg':pathname==='/vendor/three.min.js'?'vendor/three.min.js':
-          pathname==='/menu.js'?'menu.js':pathname==='/scores.js'?'scores.js':
-          pathname==='/friends.js'?'friends.js':pathname==='/feedback.js'?'feedback.js':'index.html';
-        let data=fs.readFileSync(path.join(root,file),'utf8');
-        if(file==='index.html')data=data.replace('loop();\n})();','window.gameEval = code => eval(code); loop();\n})();');
-        return route.fulfill({contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.svg')?'image/svg+xml':'text/html',body:data});
-      });
+      await mobile.route('https://game.test/**', route => route.fulfill(gameResponse(new URL(route.request().url()).pathname)));
       await mobile.goto('https://game.test/');
       await mobile.waitForFunction(()=>!!document.querySelector('#home .hm-level-grid'),null,{polling:50});
       assert.equal(await mobile.evaluate(()=>matchMedia('(pointer:coarse)').matches),true);
@@ -166,14 +153,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     const mobile=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true,deviceScaleFactor:2});
     try{
       await mobile.addInitScript(()=>{window.requestAnimationFrame=()=>0;});
-      await mobile.route('https://game.test/**',route=>{
-        const pathname=new URL(route.request().url()).pathname;
-        const file=pathname==='/assets/home-scene.svg'?'assets/home-scene.svg':pathname==='/vendor/three.min.js'?'vendor/three.min.js':
-          pathname==='/menu.js'?'menu.js':pathname==='/scores.js'?'scores.js':
-          pathname==='/friends.js'?'friends.js':pathname==='/feedback.js'?'feedback.js':'index.html';
-        const data=fs.readFileSync(path.join(root,file),'utf8');
-        return route.fulfill({contentType:file.endsWith('.js')?'text/javascript':file.endsWith('.svg')?'image/svg+xml':'text/html',body:data});
-      });
+      await mobile.route('https://game.test/**', route => route.fulfill(gameResponse(new URL(route.request().url()).pathname)));
       await mobile.goto('https://game.test/');
       const fit=await mobile.evaluate(()=>{
         const home=document.getElementById('home');

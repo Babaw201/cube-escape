@@ -1,0 +1,346 @@
+{
+  "format": "glTF 2.0",
+  "threeRevision": "128",
+  "models": {
+    "spectre": {
+      "bytes": 246424,
+      "sha256": "c77dae20d72261bcf79748bc8392a3103c18e390a427b3f316a2fb4197dced58",
+      "generator": "Khronos glTF Blender I/O v5.2.39",
+      "scenes": 1,
+      "root": "SPECTRE__VAGUE_50_ROOT",
+      "nodes": 50,
+      "meshes": 49,
+      "vertices": 5621,
+      "triangles": 8588,
+      "bounds": {
+        "min": [
+          -3.2725597333994014,
+          0.30000001192092896,
+          -0.8193370994437981
+        ],
+        "max": [
+          -1.4274400758657353,
+          2.190531463765071,
+          0.8193370994437981
+        ],
+        "size": [
+          1.8451196575336661,
+          1.8905314518441418,
+          1.6386741988875961
+        ]
+      },
+      "images": 0,
+      "textures": 0,
+      "cameras": 0,
+      "animations": 0,
+      "materials": [
+        {
+          "doubleSided": true,
+          "name": "02 Titanium | brushed.002",
+          "pbrMetallicRoughness": {
+            "baseColorFactor": [
+              0.3700000047683716,
+              0.46000000834465027,
+              0.5199999809265137,
+              1
+            ],
+            "metallicFactor": 0.8299999833106995,
+            "roughnessFactor": 0.25999999046325684
+          }
+        },
+        {
+          "doubleSided": true,
+          "emissiveFactor": [
+            0.17525772863296443,
+            0.7835051216979335,
+            1
+          ],
+          "extensions": {
+            "KHR_materials_emissive_strength": {
+              "emissiveStrength": 4.073999935150141
+            }
+          },
+          "name": "06 Spectre | ice plasma.002",
+          "pbrMetallicRoughness": {
+            "baseColorFactor": [
+              0.17000000178813934,
+              0.7599999904632568,
+              0.9700000286102295,
+              1
+            ],
+            "metallicFactor": 0.11999999731779099,
+            "roughnessFactor": 0.20000000298023224
+          }
+        },
+        {
+          "doubleSided": true,
+          "emissiveFactor": [
+            0.47999998927116394,
+            0.25999999046325684,
+            1
+          ],
+          "extensions": {
+            "KHR_materials_emissive_strength": {
+              "emissiveStrength": 3.799999952316284
+            }
+          },
+          "name": "05 Spectre | radiant violet.002",
+          "pbrMetallicRoughness": {
+            "baseColorFactor": [
+              0.10999999940395355,
+              0.07000000029802322,
+              0.2800000011920929,
+              1
+            ],
+            "metallicFactor": 0.1599999964237213,
+            "roughnessFactor": 0.25
+          }
+        },
+        {
+          "doubleSided": true,
+          "name": "04 Spectre | pearl purple.002",
+          "pbrMetallicRoughness": {
+            "baseColorFactor": [
+              0.23000000417232513,
+              0.1599999964237213,
+              0.4699999988079071,
+              1
+            ],
+            "metallicFactor": 0.7300000190734863,
+            "roughnessFactor": 0.27000001072883606
+          }
+        },
+        {
+          "doubleSided": true,
+          "name": "00 Obsidian | base.003",
+          "pbrMetallicRoughness": {
+            "baseColorFactor": [
+              0.032999999821186066,
+              0.0430000014603138,
+              0.06499999761581421,
+              1
+            ],
+            "metallicFactor": 0.9100000262260437,
+            "roughnessFactor": 0.3400000035762787
+          }
+        },
+        {
+          "doubleSided": true,
+          "name": "03 Polymer | deep recess.002",
+          "pbrMetallicRoughness": {
+            "baseColorFactor": [
+              0.012000000104308128,
+              0.017999999225139618,
+              0.026000000536441803,
+              1
+            ],
+            "metallicFactor": 0.20000000298023224,
+            "roughnessFactor": 0.7200000286102295
+          }
+        },
+        {
+          "doubleSided": true,
+          "name": "01 Graphite | plated armor.002",
+          "pbrMetallicRoughness": {
+            "baseColorFactor": [
+              0.10999999940395355,
+              0.15000000596046448,
+              0.20000000298023224,
+              1
+            ],
+            "metallicFactor": 0.8799999952316284,
+            "roughnessFactor": 0.3799999952316284
+          }
+        }
+      ],
+      "extensions": [
+        "KHR_materials_emissive_strength"
+      ],
+      "validation": {
+        "errors": 0,
+        "warnings": 0,
+        "infos": 49,
+        "codes": [
+          "UNUSED_OBJECT"
+        ]
+      }
+    },
+    "souverain": {
+      "bytes": 342484,
+      "sha256": "875423407dd8cc98862a9f489387cb65b43e1cbb2992131b571cf974a187605c",
+      "generator": "Khronos glTF Blender I/O v5.2.39",
+      "scenes": 1,
+      "root": "SOUVERAIN__VAGUE_100_ROOT",
+      "nodes": 100,
+      "meshes": 99,
+      "vertices": 7188,
+      "triangles": 9596,
+      "bounds": {
+        "min": [
+          0.7544048205018044,
+          -0.005000002682209015,
+          -1.1539763563978658
+        ],
+        "max": [
+          3.9455949887633324,
+          2.609999880194664,
+          1.1539763188079277
+        ],
+        "size": [
+          3.191190168261528,
+          2.614999882876873,
+          2.3079526752057937
+        ]
+      },
+      "images": 0,
+      "textures": 0,
+      "cameras": 0,
+      "animations": 0,
+      "materials": [
+        {
+          "doubleSided": true,
+          "name": "00 Obsidian | base.003",
+          "pbrMetallicRoughness": {
+            "baseColorFactor": [
+              0.032999999821186066,
+              0.0430000014603138,
+              0.06499999761581421,
+              1
+            ],
+            "metallicFactor": 0.9100000262260437,
+            "roughnessFactor": 0.3400000035762787
+          }
+        },
+        {
+          "doubleSided": true,
+          "emissiveFactor": [
+            1,
+            0.3700000047683716,
+            0.054999999701976776
+          ],
+          "extensions": {
+            "KHR_materials_emissive_strength": {
+              "emissiveStrength": 4.800000190734863
+            }
+          },
+          "name": "09 Souverain | gold plasma.002",
+          "pbrMetallicRoughness": {
+            "baseColorFactor": [
+              0.949999988079071,
+              0.47999998927116394,
+              0.04500000178813934,
+              1
+            ],
+            "metallicFactor": 0.1599999964237213,
+            "roughnessFactor": 0.23000000417232513
+          }
+        },
+        {
+          "doubleSided": true,
+          "name": "07 Souverain | polished gold.002",
+          "pbrMetallicRoughness": {
+            "baseColorFactor": [
+              0.8399999737739563,
+              0.5400000214576721,
+              0.18000000715255737,
+              1
+            ],
+            "metallicFactor": 0.8700000047683716,
+            "roughnessFactor": 0.2199999988079071
+          }
+        },
+        {
+          "doubleSided": true,
+          "name": "08 Souverain | rose brass.002",
+          "pbrMetallicRoughness": {
+            "baseColorFactor": [
+              0.550000011920929,
+              0.27000001072883606,
+              0.12999999523162842,
+              1
+            ],
+            "metallicFactor": 0.8100000023841858,
+            "roughnessFactor": 0.2800000011920929
+          }
+        },
+        {
+          "doubleSided": true,
+          "name": "02 Titanium | brushed.002",
+          "pbrMetallicRoughness": {
+            "baseColorFactor": [
+              0.3700000047683716,
+              0.46000000834465027,
+              0.5199999809265137,
+              1
+            ],
+            "metallicFactor": 0.8299999833106995,
+            "roughnessFactor": 0.25999999046325684
+          }
+        },
+        {
+          "doubleSided": true,
+          "name": "01 Graphite | plated armor.002",
+          "pbrMetallicRoughness": {
+            "baseColorFactor": [
+              0.10999999940395355,
+              0.15000000596046448,
+              0.20000000298023224,
+              1
+            ],
+            "metallicFactor": 0.8799999952316284,
+            "roughnessFactor": 0.3799999952316284
+          }
+        },
+        {
+          "doubleSided": true,
+          "name": "03 Polymer | deep recess.002",
+          "pbrMetallicRoughness": {
+            "baseColorFactor": [
+              0.012000000104308128,
+              0.017999999225139618,
+              0.026000000536441803,
+              1
+            ],
+            "metallicFactor": 0.20000000298023224,
+            "roughnessFactor": 0.7200000286102295
+          }
+        },
+        {
+          "doubleSided": true,
+          "emissiveFactor": [
+            1,
+            0.02800000086426735,
+            0.06499999761581421
+          ],
+          "extensions": {
+            "KHR_materials_emissive_strength": {
+              "emissiveStrength": 4.5
+            }
+          },
+          "name": "10 Souverain | sensor red.002",
+          "pbrMetallicRoughness": {
+            "baseColorFactor": [
+              0.6200000047683716,
+              0.06499999761581421,
+              0.07500000298023224,
+              1
+            ],
+            "metallicFactor": 0.23999999463558197,
+            "roughnessFactor": 0.25999999046325684
+          }
+        }
+      ],
+      "extensions": [
+        "KHR_materials_emissive_strength"
+      ],
+      "validation": {
+        "errors": 0,
+        "warnings": 0,
+        "infos": 99,
+        "codes": [
+          "UNUSED_OBJECT"
+        ]
+      }
+    }
+  }
+}

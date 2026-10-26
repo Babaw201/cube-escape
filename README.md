@@ -6,6 +6,10 @@ Jeu 3D de labyrinthe en HTML et Three.js r128, avec quatre niveaux de campagne e
 
 Choisir **« Niveau 1 : Labyrinthe »** pour commencer. Sur téléphone, ouvrir le lien dans Chrome ou Safari.
 
+## Modèles Blender de Spectre et Souverain
+
+Les deux robots utilisent désormais leurs vrais fichiers GLB dans `index.html`, avec chargement à la demande, repli procédural et regroupement des pièces pour mobile. Les tirs, ultimes et déblocages restent identiques. [Lire l’audit et les tests](docs/blender-robots.md). Le fichier autonome historique `Limbyrinth.html` ne contient pas cette mise à jour.
+
 ## Décor, lisibilité et six kits de robots
 
 - Le menu utilise maintenant une **illustration de labyrinthe néon en SVG** (`assets/home-scene.svg`), légère et visible derrière des panneaux transparents. Le bouton **« Voir le fond »** masque temporairement les panneaux pour inspecter le décor, puis permet de revenir au menu.
