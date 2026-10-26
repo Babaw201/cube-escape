@@ -1152,7 +1152,7 @@ function spawnRobotShot(a,dx,dz,col,opts={}) {
 function fire(a,dx,dz) {
   if(state!=="play"||paused||!a||!a.alive||a.fireCd>0)return;
   const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;
-  const id=a.rig.skinId,kit=kitOf(a),col=kit.color;
+  const id=a.rig.skinId,kit=kitOf(a),col=save.ray==='cy'?kit.color:rayCol;
   if(id==='rorb'){
     a.fireCd=.44;
     for(const side of [-.28,.28])spawnRobotShot(a,dx,dz,col,{side,speed:22});
