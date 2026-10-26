@@ -222,7 +222,7 @@
     const play = ui.querySelector("[data-play]"); if (play) play.focus({ preventScroll: true });
   }
 
-  let queued = false; const refresh = () => { if (queued) return; queued = true; requestAnimationFrame(() => { queued = false; render(); }); };
+  let queued = false; const refresh = () => { if (queued) return; queued = true; queueMicrotask(() => { queued = false; render(); }); };
   const mo = new MutationObserver(refresh);
   mo.observe(lv, { childList: true, subtree: true, characterData: true });
   mo.observe(title, { childList: true, characterData: true, subtree: true });
