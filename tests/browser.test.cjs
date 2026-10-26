@@ -51,6 +51,20 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     assert.equal(await page.locator('#scores-screen').isVisible(),false);
     await page.evaluate(() => localStorage.removeItem('limbyrinthScoresV1'));
   });
+  await t.test('mode survie valorisé dans le menu principal', async()=>{
+    assert.equal(await page.locator('#home .hm-survival-card').count(),1);
+    assert.match(await page.locator('#home .hm-survival-card').innerText(),/Vague 50/);
+    assert.equal(await page.locator('#home .hm-sec.survival-special').count(),1);
+  });
+  await t.test('tableau des scores reconnaît les runs survie et la vague', async()=>{
+    await page.evaluate(()=>window.LimbyrinthScores.record({level:5,score:1260,won:false,mode:'Solo',seconds:90,remaining:999999,crystals:0,kills:24,wave:8}));
+    await page.locator('#home .hm-scores-button').click();
+    assert.match(await page.locator('#scores-screen .scores-level').last().innerText(),/vague max 8/);
+    await page.locator('#scores-screen .scores-local-controls select').first().selectOption('5');
+    assert.match(await page.locator('#scores-screen .scores-table tbody').innerText(),/Vague 8/);
+    await page.locator('#scores-screen .scores-btn').first().click();
+    await page.evaluate(()=>localStorage.removeItem('limbyrinthScoresV1'));
+  });
   await t.test('top 10 mondial en ligne avec pseudo et filtre de niveau', async()=>{
     await page.locator('#home .hm-scores-button').click();
     await page.waitForFunction(()=>document.querySelectorAll('#scores-screen .scores-online-table tbody tr').length===1,null,{polling:50});
@@ -120,9 +134,9 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
   });
   await t.test('les modèles ont des silhouettes et animations distinctes', async () => {
     const data = await run(`ROBOT_SKINS.map(s => { const rig = creerRobot(0, 0, false, s.id); animerRobot(rig, 1, true, true); const size = new THREE.Box3().setFromObject(rig.group).getSize(new THREE.Vector3()); return { id: s.id, size: size.toArray().map(v => +v.toFixed(2)), shape: rig.shape }; })`);
-    assert.equal(data.length, 4);
+    assert.equal(data.length, 6);
     assert.equal(new Set(data.map(v => v.shape)).size, 4);
-    assert.equal(new Set(data.map(v => v.size.join(','))).size, 4);
+    assert.ok(new Set(data.map(v => v.size.join(','))).size >= 4);
   });
   await t.test('carte et BFS : seule la bonne aile est accessible, sortie après stabilisation', async () => {
     const data = await run(`(() => { start(3); return [0,1,2].map(phase => { level4.phase = phase; level4.latched = [false,false,false]; players.forEach(a => a.g.position.set(toW(1),0,toW(1))); syncLevel4Gates(); const reachable = (x,z) => !!bfs([1,1],[x,z]); const result = { gates: dyn.map(d=>d.closed), console: reachable(7,7), relays: [[11,3],[3,11],[11,11]].map(p=>reachable(...p)) }; level4.latched = [true,true,true]; syncLevel4Gates(); result.exit = reachable(13,13); return result; }); })()`);

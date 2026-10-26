@@ -56,10 +56,10 @@ export class SocialHub extends DurableObject {
     }
     if(path==='/social/leaderboard' && method==='GET'){
       const scope=new URL(request.url).searchParams.get('level')||'all';
-      if(scope!=='all'&&!/^[1-4]$/.test(scope))return error('Niveau inconnu.',400,origin);
+      if(scope!=='all'&&!/^[1-5]$/.test(scope))return error('Niveau inconnu.',400,origin);
       let top,totalPlayers;
       if(scope==='all'){
-        top=this.rows('SELECT pseudo,score,level,mode,won,created FROM (SELECT u.pseudo AS pseudo,s.score AS score,s.level AS level,s.mode AS mode,s.won AS won,s.created AS created, ROW_NUMBER() OVER (PARTITION BY s.user_id ORDER BY s.score DESC,s.created ASC) AS rn FROM leaderboard_scores s JOIN users u ON u.id=s.user_id) WHERE rn=1 ORDER BY score DESC,created ASC,pseudo COLLATE NOCASE LIMIT 10');
+        top=this.rows('SELECT pseudo,score,level,mode,won,created FROM (SELECT u.pseudo AS pseudo,s.score AS score,s.level AS level,s.mode AS mode,s.won AS won,s.created AS created, ROW_NUMBER() OVER (PARTITION BY s.user_id ORDER BY s.score DESC,s.created ASC) AS rn FROM leaderboard_scores s JOIN users u ON u.id=s.user_id WHERE s.level<=4) WHERE rn=1 ORDER BY score DESC,created ASC,pseudo COLLATE NOCASE LIMIT 10');
         totalPlayers=this.count('SELECT count(DISTINCT user_id) AS n FROM leaderboard_scores');
       }else{
         const level=Number(scope);
@@ -84,17 +84,21 @@ export class SocialHub extends DurableObject {
     if (!user) return error('Profil invalide. Vérifie ta connexion.',401,origin);
     if(path==='/social/score' && method==='POST'){
       const level=Number(body.level),score=Number(body.score),crystals=Number(body.crystals),
-        remaining=Number(body.remaining),seconds=Number(body.seconds);
+        remaining=Number(body.remaining),seconds=Number(body.seconds),kills=Number(body.kills);
       const won=body.won,mode=body.mode;
       const durations=[90,90,120,240];
-      if(!Number.isInteger(level)||level<1||level>4||
-        !Number.isInteger(score)||score<0||
-        !Number.isInteger(crystals)||crystals<0||crystals>3||
-        !Number.isFinite(remaining)||remaining<0||remaining>durations[level-1]||
-        !Number.isFinite(seconds)||seconds<0||seconds>3600||
-        typeof won!=='boolean'||!['Solo','Coop locale','En ligne'].includes(mode)||
-        (won&&crystals!==3)||
-        score!==(crystals*100+(won?Math.ceil(remaining)*10:0)))
+      const common=Number.isInteger(level)&&level>=1&&level<=5&&Number.isInteger(score)&&score>=0&&
+        Number.isFinite(seconds)&&seconds>=0&&seconds<=86400&&typeof won==='boolean'&&
+        ['Solo','Coop locale','En ligne'].includes(mode);
+      const validSurvival=level===5&&!won&&crystals===0&&remaining===999999&&
+        Number.isInteger(kills)&&kills>=0&&kills<=Math.ceil(seconds/0.85)+40&&
+        score===Math.floor(seconds)*10+kills*15;
+      const validCampaign=level!==5&&
+        Number.isFinite(remaining)&&remaining>=0&&remaining<=durations[level-1]&&
+        Number.isInteger(crystals)&&crystals>=0&&crystals<=3&&
+        (!won||crystals===3)&&
+        score===(crystals*100+(won?Math.ceil(remaining)*10:0));
+      if(!common||!(validSurvival||validCampaign))
         return error('Score incohérent ou non pris en charge.',400,origin);
       const old=this.one('SELECT score FROM leaderboard_scores WHERE user_id=? AND level=?',user.id,level);
       if(old && Number(old.score)>=score)return response({ok:true,improved:false},200,origin);

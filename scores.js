@@ -16,7 +16,7 @@
     if(!getToken())return;
     const payload={
       level:data.level,score:data.score,won:data.won,mode:data.mode,
-      seconds:data.seconds,remaining:data.remaining,crystals:data.crystals
+      seconds:data.seconds,remaining:data.remaining,crystals:data.crystals,kills:data.kills
     };
     try{
       const pending=getPending(),prev=pending[String(data.level)];
@@ -30,7 +30,7 @@
     sending=true;
     try{
       const pending=getPending();
-      for(const [key,entry] of Object.entries(pending)){
+      for(const [key,entry] of Object.entries(pending).sort((a,b)=>Number(a[0])-Number(b[0]))){
         let res;
         const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
         try{
@@ -41,12 +41,13 @@
         }catch{uploadMessage="Synchronisation impossible. Réessaie depuis Scores avec une connexion Internet.";break;}
         finally{clearTimeout(timer);}
         if(res.status===401){uploadMessage="Profil non connecté. Ouvre Amis & pseudo.";break;}
-        if(!res.ok&&res.status!==400){uploadMessage="Classement indisponible. La partie est conservée sur cet appareil.";break;}
+        if(res.status===400){uploadMessage="Le serveur du classement survie doit être mis à jour. Ta partie reste en attente pour synchronisation.";break;}
+        if(!res.ok){uploadMessage="Classement indisponible. La partie est conservée sur cet appareil.";break;}
         const current=getPending();
         if(current[key]&&JSON.stringify(current[key])===JSON.stringify(entry)){
           delete current[key];try{localStorage.setItem(PENDING_KEY,JSON.stringify(current));}catch{}
         }
-        uploadMessage=res.status===400?"Résultat non accepté par le classement (score à vérifier).":"";
+        uploadMessage="";
       }
     }finally{sending=false;}
   }
@@ -58,7 +59,7 @@
     try {
       const data = JSON.parse(localStorage.getItem(KEY) || "[]");
       if (!Array.isArray(data)) return [];
-      return data.filter(r => r && r.level >= 1 && r.level <= 4 && Number.isFinite(r.score))
+      return data.filter(r => r && r.level >= 1 && r.level <= 5 && Number.isFinite(r.score))
         .map(r => ({
           level: Math.floor(r.level), score: Math.max(0, Math.floor(r.score)),
           won: !!r.won, mode: ["Solo", "Coop locale", "En ligne"].includes(r.mode) ? r.mode : "Solo",
@@ -66,13 +67,14 @@
           remaining: Math.max(0, Math.floor(Number(r.remaining) || 0)),
           crystals: Math.max(0, Math.floor(Number(r.crystals) || 0)),
           kills: Math.max(0, Math.floor(Number(r.kills) || 0)),
+          wave: Math.max(0, Math.floor(Number(r.wave) || 0)),
           date: typeof r.date === "string" && Number.isFinite(Date.parse(r.date)) ? r.date : ""
         }));
     } catch (error) { return []; }
   }
 
   function record(data) {
-    if (!data || !Number.isFinite(data.score) || data.level < 1 || data.level > 4) return false;
+    if (!data || !Number.isFinite(data.score) || data.level < 1 || data.level > 5) return false;
     const entry = {
       level: Math.floor(data.level), score: Math.max(0, Math.floor(data.score)),
       won: !!data.won,
@@ -81,6 +83,7 @@
       remaining: Math.max(0, Math.floor(Number(data.remaining) || 0)),
       crystals: Math.max(0, Math.floor(Number(data.crystals) || 0)),
       kills: Math.max(0, Math.floor(Number(data.kills) || 0)),
+      wave: Math.max(0, Math.floor(Number(data.wave) || 0)),
       date: new Date().toISOString()
     };
     try {
@@ -115,7 +118,7 @@
     try { return new Date(iso).toLocaleString("fr-FR", {dateStyle: "short", timeStyle: "short"}); }
     catch (error) { return "Date inconnue"; }
   };
-  const levelNames = ["Labyrinthe", "Zone instable", "Le Noyau", "Labyrinthe instable"];
+  const levelNames = ["Labyrinthe", "Zone instable", "Le Noyau", "Labyrinthe instable", "Arène infinie"];
 
   const style = el("style");
   style.textContent = [
@@ -200,8 +203,8 @@
 
   function csvExport() {
     const rows = read();
-    const header = ["Date","Niveau","Score","Résultat","Mode","Durée (s)","Temps restant (s)","Cristaux","Drones"];
-    const cells = rows.map(r => [r.date,r.level,r.score,r.won ? "Victoire":"Défaite",r.mode,r.seconds,r.remaining,r.crystals,r.kills]);
+    const header = ["Date","Niveau","Score","Résultat","Mode","Durée (s)","Temps restant (s)","Cristaux","Drones","Vague"];
+    const cells = rows.map(r => [r.date,r.level,r.score,r.won ? "Victoire":"Défaite",r.mode,r.seconds,r.remaining,r.crystals,r.kills,r.wave]);
     const safe = cell => '"' + String(cell).replace(/^[=+\-@\t\r]/, "'$&").replace(/"/g,'""') + '"';
     const csv = "\ufeff" + [header,...cells].map(row => row.map(safe).join(";")).join("\r\n");
     const url = URL.createObjectURL(new Blob([csv],{type:"text/csv;charset=utf-8"}));
@@ -229,10 +232,10 @@
     wrap.appendChild(stats);
 
     const global=el("section","scores-card scores-online");
-    global.append(el("h2","","🏆 TOP 10 MONDIAL"),el("p","scores-small","Meilleur score d’une seule partie par joueur. Classement partagé sur Internet · joueurs avec pseudo."));
+    global.append(el("h2","","🏆 TOP 10 MONDIAL"),el("p","scores-small","Campagne et survie ont des classements séparés. Sélectionne le niveau 5 pour le Top 10 survie, avec un pseudo actif."));
     const globals=el("div","scores-controls"),output=el("div","scores-scroll");
     globals.append(
-      select("Classement ",[["all","Tous les niveaux"],...levelNames.map((n,i)=>[String(i+1),"Niveau "+(i+1)])],onlineLevel,v=>{onlineLevel=v;void loadLeaderboard(output,v);}),
+      select("Classement ",[["all","Campagne (1–4)"],...levelNames.map((n,i)=>[String(i+1),"Niveau "+(i+1)+(i===4?" · Survie":"")])],onlineLevel,v=>{onlineLevel=v;void loadLeaderboard(output,v);}),
       button("↻ Actualiser",()=>{void flushOnline().then(()=>loadLeaderboard(output,onlineLevel));},"scores-btn")
     );
     global.append(globals,output);
@@ -248,7 +251,7 @@
     levelNames.forEach((name,i) => {
       const matches=all.filter(r=>r.level===i+1);
       const c=el("div", "scores-card scores-level");
-      c.append(el("h3","",String(i+1)+". "+name),el("strong","", matches.length ? num(Math.max(...matches.map(r=>r.score))) : "—"),el("p","",matches.length+" partie(s) · "+matches.filter(r=>r.won).length+" victoire(s)"));
+      c.append(el("h3","",String(i+1)+". "+name),el("strong","", matches.length ? num(Math.max(...matches.map(r=>r.score))) : "—"),el("p","",i===4 ? matches.length+" partie(s) · vague max "+Math.max(0,...matches.map(r=>r.wave))+" · "+Math.max(0,...matches.map(r=>r.seconds))+" s max" : matches.length+" partie(s) · "+matches.filter(r=>r.won).length+" victoire(s)"));
       levels.appendChild(c);
     });
     wrap.appendChild(levels);
@@ -265,12 +268,12 @@
     if (!filtered.length) wrap.appendChild(el("p","scores-empty","Aucun score pour cette sélection. Termine une partie pour enregistrer ton premier résultat."));
     else {
       const scroll=el("div","scores-scroll"), table=el("table","scores-table"), head=el("thead"), row=el("tr");
-      ["Date","Niveau","Score","Résultat","Mode","Durée","Cristaux","Drones"].forEach(label=>row.appendChild(el("th","",label)));
+      ['Date','Niveau','Score','Résultat','Mode','Durée','Objectif','Drones'].forEach(label=>row.appendChild(el("th","",label)));
       head.appendChild(row); table.appendChild(head);
       const body=el("tbody");
       filtered.forEach(r=>{
         const tr=el("tr");
-        [dateText(r.date),String(r.level),num(r.score),r.won?"Victoire":"Défaite",r.mode,r.seconds+" s",r.crystals+"/3",String(r.kills)].forEach((value,i)=>{
+        [dateText(r.date),String(r.level),num(r.score),r.level===5?'Survie terminée':(r.won?'Victoire':'Défaite'),r.mode,r.seconds+" s",r.level===5?'Vague '+r.wave:r.crystals+"/3",String(r.kills)].forEach((value,i)=>{
           const cell=el("td",i===3?(r.won?"scores-win":"scores-loss"):"",value);
           tr.appendChild(cell);
         });

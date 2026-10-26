@@ -119,6 +119,20 @@ test('top 10 en ligne : pseudos, meilleurs scores et classement par niveau', asy
    assert.equal(overall.top[0].pseudo,'Player12');
    assert.equal(overall.top.filter(r=>r.pseudo==='Player12').length,1);
  });
+ await t.test('classement survie distinct : vague 5, vérification du score et campagne intacte',async()=>{
+   const player=users[2],token=player.token;
+   const body={level:5,score:1260,seconds:90.6,kills:24,remaining:999999,crystals:0,won:false,mode:'Solo'};
+   // 90 s x 10 + 24 drones x 15 = 1260.
+   const invalid=await app.call('score',{method:'POST',token,body:{...body,score:1261}});
+   assert.equal(invalid.status,400);
+   const accepted=await app.call('score',{method:'POST',token,body});
+   assert.equal(accepted.status,200);
+   const board=await (await app.call('leaderboard?level=5')).json();
+   assert.equal(board.top[0].level,5);
+   assert.equal(board.top[0].score,1260);
+   const campaign=await (await app.call('leaderboard?level=all')).json();
+   assert.ok(campaign.top.every(r=>r.level<=4));
+ });
  await t.test('changer de pseudo actualise l’affichage sans perdre son score',async()=>{
    assert.equal((await app.call('rename',{method:'POST',token:users[11].token,body:{pseudo:'Champion32'}})).status,200);
    const ranked=await (await app.call('leaderboard?level=4')).json();
