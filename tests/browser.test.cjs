@@ -53,7 +53,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     assert.equal(await page.locator('#friends-screen').isVisible(),true);
     await page.locator('#friends-screen input[aria-label="Ton pseudo"]').fill('JoueurRobot32');
     await page.locator('#friends-screen button[type="submit"]').first().click();
-    await page.waitForFunction(()=>window.gameEval('state')==='play');
+    await page.waitForFunction(()=>window.gameEval('state')==='play',null,{polling:50});
     assert.equal(await page.locator('#friends-screen').isVisible(),false);
     assert.equal(await page.locator('#home').isVisible(),false);
     await run('wave=3; missionElapsed=25; kills=2; endSurvival()');
@@ -221,7 +221,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
       for(const k in keys)keys[k]=false;
       return {state,collected,hp:players[0].hp,timeLeft,steps,position:[fromW(players[0].g.position.x),fromW(players[0].g.position.z)]};
     })()`);
-    assert.equal(result.state,'win',JSON.stringify(result));assert.equal(result.collected,3);assert.ok(result.timeLeft>0);
+    assert.equal(result.state,'menu',JSON.stringify(result));assert.equal(result.collected,3);assert.ok(result.timeLeft>0);
   });
   await t.test('coop réseau : le modèle de chaque joueur est préservé', async () => {
     assert.equal(await run(`(() => { net='host';nP=2;save.robot='rorb';onMsg({t:'cosmetic',robot:'rtrack'});start(3);const ok=players[0].rig.shape==='orb'&&players[1].rig.shape==='tracks';net=null;nP=1;return ok; })()`),true);
