@@ -89,6 +89,30 @@
     card.append(form,el('p','fr-hint','Le pseudo seul ne suffit pas : il faut la clé enregistrée depuis le compte. Ne partage jamais cette clé. Si elle a été perdue, la récupération automatique de cet ancien compte n’est pas possible.'));
     return card;
   }
+  function giftRedeemForm(){
+    const card=box('🎁 Recevoir un skin cadeau');
+    const form=el('form','fr-form'),field=el('input');
+    field.placeholder='SPECTRE-XXXXXX-XXXXXX-XXXXXX';
+    field.maxLength=34;field.autocomplete='off';field.spellcheck=false;
+    field.setAttribute('aria-label','Code cadeau');
+    const submit=button('Obtenir mon cadeau',null,'fr-btn fr-primary');
+    submit.type='submit';form.append(field,submit);
+    form.addEventListener('submit',async e=>{
+      e.preventDefault();
+      if(busy)return;
+      busy=true;alertMessage('Vérification du code cadeau…');
+      try{
+        const granted=await api('redeem','POST',{code:field.value.trim()});
+        if(granted.skin!=='rspectre')throw Error('Récompense inconnue.');
+        notice='🏆 Spectre est à toi ! Ouvre Boutique → Robots → Équiper.';
+        isError=false;
+        await refresh(false);
+      }catch(err){alertMessage(err.message||'Impossible de valider le cadeau.',true);}
+      finally{busy=false;}
+    });
+    card.append(form,el('p','fr-hint','Un code cadeau est utilisable une seule fois. Tu peux l’utiliser sur un nouveau pseudo si tu as perdu l’accès à ton ancien compte.'));
+    return card;
+  }
   function backupAccess(){
     const card=box('🔐 Garder l’accès à ton pseudo');
     const field=el('input');field.type='password';field.readOnly=true;field.autocomplete='off';
@@ -219,6 +243,7 @@
     add.append(target,submit);add.addEventListener('submit',e=>{e.preventDefault();if(target.value.trim())act('request',{pseudo:target.value.trim()},'Demande envoyée à '+target.value.trim()+'.');});
     me.append(el('h2','','Ajouter un ami'),add,el('p','fr-hint','Recherche par pseudo exact, sans annuaire public. Ton ami doit accepter.'));
     wrap.appendChild(me);
+    if(!Array.isArray(profile.unlockedRobots)||!profile.unlockedRobots.includes('rspectre'))wrap.appendChild(giftRedeemForm());
     const grid=el('div','fr-grid');
     grid.append(playersSection('👥 Mes amis ('+profile.friends.length+')',profile.friends,'friend'),
       playersSection('📨 Demandes reçues ('+profile.incoming.length+')',profile.incoming,'incoming'),
