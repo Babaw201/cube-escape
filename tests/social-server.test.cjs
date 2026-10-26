@@ -130,6 +130,11 @@ test('top 10 en ligne : pseudos, meilleurs scores et classement par niveau', asy
    const board=await (await app.call('leaderboard?level=5')).json();
    assert.equal(board.top[0].level,5);
    assert.equal(board.top[0].score,1260);
+   const highKill={...body,seconds:600,kills:900,score:6000+900*15};
+   const strong=await app.call('score',{method:'POST',token,body:highKill});
+   assert.equal(strong.status,200);
+   const strongBoard=await (await app.call('leaderboard?level=5')).json();
+   assert.equal(strongBoard.top[0].score,19500);
    const campaign=await (await app.call('leaderboard?level=all')).json();
    assert.ok(campaign.top.every(r=>r.level<=4));
  });

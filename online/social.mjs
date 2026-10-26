@@ -91,7 +91,7 @@ export class SocialHub extends DurableObject {
         Number.isFinite(seconds)&&seconds>=0&&seconds<=86400&&typeof won==='boolean'&&
         ['Solo','Coop locale','En ligne'].includes(mode);
       const validSurvival=level===5&&!won&&crystals===0&&remaining===999999&&
-        Number.isInteger(kills)&&kills>=0&&kills<=Math.ceil(seconds/0.85)+40&&
+        Number.isInteger(kills)&&kills>=0&&kills<=Math.ceil(seconds*5)+60&&
         score===Math.floor(seconds)*10+kills*15;
       const validCampaign=level!==5&&
         Number.isFinite(remaining)&&remaining>=0&&remaining<=durations[level-1]&&

@@ -119,6 +119,19 @@ test('Limbyrinth — logique réelle et géométrie Three.js', async t => {
     assert.equal(d.recorded.kills,8);
     assert.equal(d.recorded.score,d.score);
   });
+  await t.test('coop en ligne : un invité reçoit aussi son skin à la vague 50', async () => {
+    const result=await run(`(() => {
+      net=null;start(4,123);
+      save.survivalMaxWave=0;
+      save.own=save.own.filter(id=>id!=='rspectre');
+      let packet;dc={readyState:'open',send:d=>packet=JSON.parse(d)};
+      wave=50;snap();wave=0;
+      net='guest';applySnap(packet);
+      const unlocked=save.own.includes('rspectre')&&save.survivalMaxWave===50;
+      dc=null;net=null;return unlocked;
+    })()`);
+    assert.equal(result,true);
+  });
   await t.test('carte : dimensions et marqueurs uniques', async () => {
     assert.deepEqual(await run(`({rows:LEVEL4_MAP.length,lengths:LEVEL4_MAP.map(r=>r.length),markers:[...'SO123ABCE'].map(c=>LEVEL4_MAP.join('').split(c).length-1)})`),{rows:15,lengths:Array(15).fill(15),markers:Array(9).fill(1)});
   });
