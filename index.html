@@ -813,6 +813,13 @@ function swarmAI(f, dt) {
   f.g.rotation.y = Math.atan2(mx, mz);
 }
 function spawnSwarm(count, bossWave = false) {
+  // Un Titan doit apparaître à chaque 5e vague, même si les 30 places sont prises.
+  // On libère alors une place sans créditer de destruction au joueur.
+  if (bossWave && foes.length >= MAXF) {
+    const oldIndex = Math.max(0, foes.findIndex(f => f.kind !== 3));
+    const replaced = foes.splice(oldIndex, 1)[0];
+    if (replaced) { world.remove(replaced.g); disposeTree(replaced.g); }
+  }
   if (foes.length >= MAXF) return;
   const cells = [];
   for (let z = 1; z < N - 1; z++) for (let x = 1; x < N - 1; x++) {
