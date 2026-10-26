@@ -207,6 +207,9 @@ canvas{touch-action:none}#overlay{overflow:auto;touch-action:pan-y}#net textarea
 
 <script src="scores.js"></script>
 <script src="vendor/three.min.js"></script>
+<script src="vendor/GLTFLoader.js"></script>
+<script src="vendor/BufferGeometryUtils.js"></script>
+<script src="robot-models.js"></script>
 <script>
 if (typeof THREE === "undefined") {
   document.getElementById("d").textContent = "Impossible de charger Three.js : vérifie ta connexion internet puis recharge la page.";
@@ -625,10 +628,11 @@ function trackerAI(f, dt) {
 }
 
 function disposeTree(tree) {
+  window.LimbyrinthRobotModels?.release(tree);
   const shared=new Set([cubeGeometry,droneGeometry,rotorGeometry,shGeo,shMat,shotGeo,shotMat,fxGeo,droneGeo,eyeGeo,ringGeo,...Object.values(fxMats)]);
   const resources=new Set();
   tree.traverse(o=>{if(o.geometry&&!shared.has(o.geometry))resources.add(o.geometry);for(const m of (Array.isArray(o.material)?o.material:[o.material]))if(m&&!shared.has(m)){resources.add(m);for(const v of Object.values(m))if(v?.isTexture&&v!==_gt&&v!==_ft)resources.add(v);}});
-  resources.forEach(r=>r.dispose());
+  resources.forEach(r=>{if(!window.LimbyrinthRobotModels?.isShared(r))r.dispose();});
 }
 
 function hit(px, pz, r = R) {
@@ -1748,7 +1752,11 @@ function cube(parent, material, x, y, z, width, height, depth) {
 
 function creerRobot(x, z, joueur2 = false, skinId = save.robot) {
   const skin = ROBOT_SKINS.find(s=>s.id===skinId) || ROBOT_SKINS[0];
-  if (skin.shape !== 'classic') return creerRobotVariant(x,z,joueur2,skin);
+  if (skin.shape !== 'classic') {
+    const rig=creerRobotVariant(x,z,joueur2,skin);
+    window.LimbyrinthRobotModels?.attach(rig,disposeTree);
+    return rig;
+  }
   const group = new THREE.Group();
   group.position.set(x, 0, z);
 
@@ -1928,6 +1936,7 @@ function creerDrone(x, z) {
 }
 
 function animerRobot(robot, temps, avance, dash) {
+  if(window.LimbyrinthRobotModels?.update(robot,temps,avance,dash))return;
   robot.thrusters.forEach(m => (m.scale.y = dash ? 1.4 : .25));
   if (robot.shape === 'orb') { robot.body.position.y=.58+Math.sin(temps*2.6)*.07; robot.rings.forEach((r,i)=>{r.rotation.z=temps*(i?-1:1)*.7;r.rotation.x=Math.PI/2+Math.sin(temps*.8+i)*.22;}); }
   if (robot.shape === 'spider') robot.legs.forEach((leg,i)=>{leg.rotation.y=(avance?Math.sin(temps*12+i*Math.PI*.8)*.24:0);leg.rotation.z=(i<3?1:-1)*(.15+(avance?Math.max(0,Math.sin(temps*12+i*Math.PI*.8))*.3:0));});

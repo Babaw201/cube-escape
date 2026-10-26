@@ -26,7 +26,7 @@ function runtime(initialSave = {}, overrides = {}) {
   // Les tests unitaires simulent un profil déjà validé ; l'inscription réelle est couverte par Chromium.
   context.LimbyrinthFriends={hasProfile:()=>true,requireProfile:callback=>{callback();return true;}};
   const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
-  const source=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].at(-1)[1].replace('loop();\n})();','window.gameEval = code => eval(code); loop();\n})();');
+  const source=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].at(-1)[1].replace(/loop\(\);\r?\n\}\)\(\);/,'window.gameEval = code => eval(code); loop();\n})();');
   vm.runInContext(source,context,{filename:'index.html'});
   return {run:code=>{const data=context.gameEval(code);return data===undefined?undefined:JSON.parse(JSON.stringify(data));},runAsync:async code=>{const data=await context.gameEval(code);return data===undefined?undefined:JSON.parse(JSON.stringify(data));},context,storage,radar,warnings};
 }
