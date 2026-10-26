@@ -155,7 +155,7 @@ canvas{touch-action:none}#overlay{overflow:auto;touch-action:pan-y}#net textarea
 <body>
 <div id="hud">
   <div class="box" id="cr"><span id="objective-label">Cristaux </span><b><span id="n">0</span><span id="n3">/3</span></b></div>
-  <div class="box" id="cn">🪙 <b id="coin">0</b></div>
+  <div class="box" id="cn">🪙 <b id="coin">0</b></div><div class="box" id="ult-info">ULTI <b id="ult-state">PRÊT</b></div>
   <div class="box" id="swap"><span id="swap-label">Murs mobiles dans </span><span id="sw">20</span> s</div>
   <div class="box" id="time"><span id="tm">90</span> s</div>
   <button id="online-leave" type="button" hidden>Quitter le salon</button>
@@ -167,7 +167,7 @@ canvas{touch-action:none}#overlay{overflow:auto;touch-action:pan-y}#net textarea
 <div id="hurt"></div>
 <div id="crosshair">+</div>
 <div id="shop"><h2>ATELIER ROBOT</h2><div id="sh-head"></div><div id="sh-tabs"></div><div id="robot-preview" hidden><b id="preview-name"></b><div id="preview-canvas"></div><p id="preview-desc"></p></div><div id="sh-list"></div><button id="sh-close">Fermer la boutique</button></div>
-<div id="touch"><div id="joy"><i id="knob"></i></div><div id="tbtns"><button id="tphase" hidden>PHASE</button><button id="tview">VUE</button><button id="tpause">PAUSE</button><button id="tdash">DASH</button><button id="tfire">TIR</button></div></div>
+<div id="touch"><div id="joy"><i id="knob"></i></div><div id="tbtns"><button id="tulti" aria-label="Déclencher la capacité ultime">ULTI</button><button id="tphase" hidden>PHASE</button><button id="tview">VUE</button><button id="tpause">PAUSE</button><button id="tdash">DASH</button><button id="tfire">TIR</button></div></div>
 <div id="vig"></div>
 <canvas id="mm" width="112" height="112"></canvas>
 <div id="net" role="dialog" aria-labelledby="online-title">
@@ -276,7 +276,7 @@ let cur = 0, nP = 1, players = [], laserOn = true, laserT = 3, maxLv = 1;
 const LEASH = 18;
 let remoteRobotId = 'rclassic';
 let net = null, dc, seed = 1, evq = [], snapT = 0, inT = 0;
-const rin = { dx: 0, dz: 0, yaw: null }, pend = { f: null, d: false, phase: false };
+const rin = { dx: 0, dz: 0, yaw: null }, pend = { f: null, d: false, phase: false, u: false };
 const send = o => { try { if (dc && dc.readyState === "open") dc.send(JSON.stringify(o)); } catch (e) {} };
 Array.prototype.shuf = function () { for (let i = this.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [this[i], this[j]] = [this[j], this[i]]; } return this; };
 let lasers = [], foes = [], shots = [], fx = [];
@@ -438,7 +438,7 @@ function build0() {
   const rig = creerRobot(toW(cur === 4 ? 7 : 1) + (nP > 1 ? (pi ? 0.9 : -0.9) : 0), toW(cur === 4 ? 7 : 1), !!pi, net && pi !== localIndex() ? remoteRobotId : save.robot), robot = rig.robot, player = rig.group;
   const vg = mkGlow(pi ? 0xffa040 : 0x00e5ff, 2.4, 0.5); vg.position.set(0, 0.5, 0.5); robot.add(vg);
   const sh = new THREE.Mesh(shGeo, shMat); sh.rotation.x = -Math.PI / 2; sh.position.y = 0.04; player.add(sh); world.add(player);
-  players.push({ g: player, robot, rig, hp: 3, inv: 0, dashT: 0, dashCd: 0, fireCd: 0, alive: true });
+  players.push({ g: player, robot, rig, hp: 3, inv: 0, dashT: 0, dashCd: 0, fireCd: 0, ultCd: 0, alive: true });
   }
 
   // Portail
@@ -654,6 +654,15 @@ function hud() {
   $("sw").textContent = Math.ceil(swapT);
   $("swap").classList.toggle("warn", swapT <= 3);
   updatePhaseHUD();
+  const a0=players[typeof localIndex==="function"?localIndex():0];
+  if(a0) {
+    const left=Math.ceil(Math.max(0,a0.ultCd||0));
+    const stateText=left?left+" s":"PRÊT";
+    $("ult-state").textContent=stateText;
+    $("ult-info").firstChild.textContent="ULTI "+kitOf(a0).ulti+" · ";
+    $("tulti").textContent=left?"ULTI "+left+" s":"⚡ ULTI";
+    $("tulti").disabled=left>0 || !a0.alive;
+  }
   players.forEach((a, k) => {
     const c = bars[k];
     [...c.querySelectorAll("i")].forEach((e, i) => e.classList.toggle("off", i >= a.hp));
@@ -1064,6 +1073,7 @@ function endSurvival() {
 function foeAI(f, dt) {
   if (cur === 4) return swarmAI(f, dt);
   if (cur === 3) return trackerAI(f, dt);
+  if(f.stun>0){f.stun=Math.max(0,f.stun-dt);return;}
   const q = f.g.position, p = nearest(q), d = Math.hypot(p.x - q.x, p.z - q.z);
   if (d < 6 && los(q, p)) { f.mode = "chase"; f.lost = 0; }
   else if (f.mode === "chase") { f.lost += dt; if (f.lost > 2 || d > 11) f.mode = "patrol"; }
@@ -1130,7 +1140,7 @@ function fire(a, dx, dz) {
 function combat(dt) {
   laserT -= dt; if (laserT <= 0) { laserOn = !laserOn; laserT = 3; }
   for (const a of players) {
-    a.inv -= dt; a.dashT -= dt; a.dashCd -= dt; a.fireCd -= dt;
+    a.inv -= dt; a.dashT -= dt; a.dashCd -= dt; a.fireCd -= dt; a.ultCd=Math.max(0,(a.ultCd||0)-dt);
     if (a.alive) a.robot.visible = a.inv <= 0 || Math.sin(t * 40) > 0;
     const p = a.g.position;
     if (laserOn) for (const l of lasers) if (Math.abs(p.x - l.x) < l.hx + R && Math.abs(p.z - l.z) < l.hz + R) hurt(a);
@@ -1185,10 +1195,10 @@ function renderLv() {
 // ---------- Coopération : simulation hôte et salons à code court ----------
 function snap() {
   send({ t: "s", tl: timeLeft, sw: swapT, c: collected, k: kills, mt: missionElapsed, wv: cur === 4 ? wave : 0, sv: cur===4?[survivalObjective.index,survivalObjective.charge,survivalObjective.cleared,survivalObjective.completed]:null, ov: overload ? 1 : 0, lo: laserOn ? 1 : 0, ls: laserT, l4: cur === 3 ? {...level4} : null,
-    p: players.map(a => [a.g.position.x, a.g.position.z, a.robot.rotation.y, a.hp, a.alive ? 1 : 0, a.dashCd, a.inv > 0 ? 1 : 0, a.robot.position.y, a.rig.skinId]),
+    p: players.map(a => [a.g.position.x, a.g.position.z, a.robot.rotation.y, a.hp, a.alive ? 1 : 0, a.dashCd, a.inv > 0 ? 1 : 0, a.robot.position.y, a.rig.skinId, a.ultCd||0]),
     f: foes.map(f => [f.id, f.g.position.x, f.g.position.z, f.g.rotation.y, f.flash > 0 ? 1 : 0, f.hp, f.mode === "chase" || f.mode === "CHASE" ? 1 : 0, f.stun || 0, f.mode, f.recover || 0, f.kind || 0]),
     d: dyn.map(d => (d.closed ? 1 : 0)).join(""), cg: crystals.map(c => (c.got ? 1 : 0)).join(""),
-    sh: shots.map(s => [s.m.position.x, s.m.position.z, s.m.rotation.y]), ev: evq });
+    sh: shots.map(s => [s.m.position.x, s.m.position.z, s.m.rotation.y,s.col||0x66f0ff]), ev: evq });
   evq = [];
 }
 
@@ -1197,7 +1207,7 @@ function applySnap(m) {
   timeLeft = m.tl; swapT = m.sw; collected = m.c; kills = m.k || 0; laserOn = !!m.lo; laserT = m.ls; missionElapsed = m.mt || 0; wave = cur === 4 ? (m.wv || 0) : 0; overload = !!m.ov;
   if(cur===4 && net==='guest' && wave>=50 && wave>previousWave)grantSurvivalRewards();
   if (cur === 3 && m.l4) level4 = {...m.l4, latched: [...m.l4.latched]};
-  m.p.forEach((q, k) => { const a = players[k]; if (!a) return; if(q[8] && q[8] !== a.rig.skinId) replacePlayerRig(a,q[8],k); a.tx = q[0]; a.tz = q[1]; a.robot.rotation.y = firstPerson && net === "guest" && k === 1 ? viewYaw : q[2]; a.hp = q[3]; a.alive = !!q[4]; a.dashCd = q[5]; a.inv = q[6]; a.robot.position.y = q[7]; });
+  m.p.forEach((q, k) => { const a = players[k]; if (!a) return; if(q[8] && q[8] !== a.rig.skinId) replacePlayerRig(a,q[8],k); a.tx = q[0]; a.tz = q[1]; a.robot.rotation.y = firstPerson && net === "guest" && k === 1 ? viewYaw : q[2]; a.hp = q[3]; a.alive = !!q[4]; a.dashCd = q[5]; a.inv = q[6]; a.robot.position.y = q[7]; a.ultCd=q[9]||0; });
   foes = foes.filter(f => { const q = m.f.find(z => z[0] === f.id); if (!q) { world.remove(f.g); if (cur === 4) disposeTree(f.g); return false; } f.tx = q[1]; f.tz = q[2]; f.g.rotation.y = q[3]; f.flash = q[4]; f.hp = q[5]; f.mode = q[8] || (q[6] ? "chase" : "patrol"); f.stun = q[7] || 0; f.recover = q[9] || 0; return true; });
   if (cur === 4) {
     if(Array.isArray(m.sv)) { survivalObjective.index=m.sv[0];survivalObjective.charge=m.sv[1];survivalObjective.cleared=!!m.sv[2];survivalObjective.completed=m.sv[3]||0; }
@@ -1211,8 +1221,8 @@ function applySnap(m) {
   dyn.forEach((d, i) => { d.closed = m.d[i] === "1"; grid[d.j][d.i] = d.closed ? 1 : 0; if(d.closed) d.mesh.visible = true; d.deferred = cur === 3 && !d.closed && !shouldGateBeOpen(d.gate,level4); });
   crystals.forEach((c, i) => { c.got = m.cg[i] === "1"; c.mesh.visible = cur === 2 || !c.got; });
   while (shots.length > m.sh.length) world.remove(shots.pop().m);
-  while (shots.length < m.sh.length) { const mm = new THREE.Mesh(shotGeo, shotMat); mm.add(mkGlow(0x66f0ff, 1.6, 0.8)); world.add(mm); shots.push({ m: mm }); }
-  m.sh.forEach((q, i) => { shots[i].m.position.set(q[0], 0.75, q[1]); shots[i].m.rotation.y = q[2]; });
+  while (shots.length < m.sh.length) { const mm = new THREE.Mesh(shotGeo, shotMat.clone()); mm.add(mkGlow(0x66f0ff, 1.6, 0.8)); world.add(mm); shots.push({ m: mm }); }
+  m.sh.forEach((q, i) => { shots[i].m.position.set(q[0], 0.75, q[1]); shots[i].m.rotation.y = q[2]; shots[i].m.material.color.setHex(q[3]||0x66f0ff); });
   m.ev.forEach(e => (e.b ? burst(new THREE.Vector3(e.b[0], e.b[1], e.b[2]), e.b[3], e.b[4], e.b[5]) : flash(e.m[0], e.m[1])));
 }
 
@@ -1247,6 +1257,7 @@ function onMsg(m) {
     if (a && state === "play") {
       if (Number.isFinite(m.yaw)) a.robot.rotation.y = m.yaw;
       if (m.phase) requestLevel4Phase(1);
+      if (m.u) useUltimate(a);
       if (Array.isArray(m.f) && m.f.length === 2 && m.f.every(Number.isFinite)) fire(a, m.f[0], m.f[1]);
       if (m.d && a.alive && a.dashCd <= 0) { a.dashCd = DASH_CD; a.dashT = 0.18; burst(a.g.position, 0x3dff9a, 6, 0.8); }
     }
@@ -1296,7 +1307,7 @@ function resetRoomTransport(){
 function leaveOnline(message='Tu as quitté le salon.'){
   if(firstPerson&&players.length)setCameraMode(false);
   resetRoomTransport();net=null;nP=onlineReturnPlayers;state='menu';document.body.classList.remove('playing-game');
-  pend.f=null;pend.d=pend.phase=false;rin.dx=rin.dz=0;remoteRobotId='rclassic';
+  pend.f=null;pend.d=pend.phase=pend.u=false;rin.dx=rin.dz=0;remoteRobotId='rclassic';
   for(const k in keys)keys[k]=false;
   $('net').style.display='none';$('overlay').style.display='flex';$('online-leave').hidden=true;
   $('t').textContent='LIMBYRINTH';$('d').textContent=message;$('btn').style.display='none';bars[1].style.display='none';renderLv();hud();
@@ -1417,6 +1428,15 @@ const ROBOT_SKINS = [
   {id:'rspectre',name:'Spectre',shape:'orb',desc:'Édition onde fantôme · débloqué vague 50',price:0,rar:2,body:0x191932,accent:0x9b7dff,requiresWave:50},
   {id:'rsovereign',name:'Souverain',shape:'spider',desc:'Couronne plasma · récompense ultime vague 100',price:0,rar:3,body:0x16151c,accent:0xffd36e,requiresWave:100}
 ];
+const ROBOT_ABILITIES = {
+ rclassic:{basic:'Impulsion linéaire',ulti:'Onde de choc',cd:20,color:0x63dfff},
+ rorb:{basic:'Double gyrolaser',ulti:'Nova orbitale',cd:19,color:0xc08aff},
+ rspider:{basic:'Aiguillon perforant',ulti:'Toile paralysante',cd:23,color:0x63ffc8},
+ rtrack:{basic:'Salve à trois canons',ulti:'Barrage de Bastion',cd:25,color:0xffbd73},
+ rspectre:{basic:'Trait spectral traversant',ulti:'Phase fantôme',cd:26,color:0x9b7dff},
+ rsovereign:{basic:'Lances plasma',ulti:'Couronne du Souverain',cd:32,color:0xffd36e}
+};
+const kitOf = a => ROBOT_ABILITIES[a?.rig?.skinId] || ROBOT_ABILITIES.rclassic;
 const SKINS = [
   { id: "def", name: "Standard", price: 0, rar: 0, o: {} },
   { id: "mag", name: "Néon magenta", price: 120, rar: 1, o: { accent: 0xff3df0, wall: 0x3a1f48, em: 0x2a0a3a, cap: 0x9a5ab0 } },
@@ -1560,7 +1580,7 @@ function doDash() {
   if (a.alive && a.dashCd <= 0) { a.dashCd = DASH_CD; a.dashT = 0.18; burst(a.g.position, 0x3dff9a, 6, 0.8); }
 }
 const key = k => dispatchEvent(new KeyboardEvent("keydown", { key: k }));
-for (const [id, fn, hold] of [["tphase", () => requestLevel4Phase(localIndex())], ["tfire", fireAuto, true], ["tdash", doDash], ["tview", () => key("v")], ["tpause", () => net ? flash("Pause indisponible en ligne",1100) : key("p")]]) {
+for (const [id, fn, hold] of [["tphase", () => requestLevel4Phase(localIndex())], ["tulti", () => net==="guest" ? (pend.u=true) : useUltimate(players[localIndex()])], ["tfire", fireAuto, true], ["tdash", doDash], ["tview", () => key("v")], ["tpause", () => net ? flash("Pause indisponible en ligne",1100) : key("p")]]) {
   const b = $(id); let iv;
   b.addEventListener("pointerdown", e => { e.preventDefault(); fn(); if (hold) iv = setInterval(fn, 130); });
   for (const ev of ["pointerup", "pointercancel", "pointerleave"]) b.addEventListener(ev, () => clearInterval(iv));
@@ -2002,7 +2022,7 @@ function animate(dt) {
   } else {
   const al = players.filter(a => a.alive), ps = (al.length ? al : players).map(a => a.g.position);
   const cx = ps.reduce((m, q) => m + q.x, 0) / ps.length, cz = ps.reduce((m, q) => m + q.z, 0) / ps.length;
-  const sep = ps.length > 1 ? Math.hypot(ps[0].x - ps[1].x, ps[0].z - ps[1].z) : 0, ch = 17 + Math.max(0, sep - 8) * 0.9;
+  const sep = ps.length > 1 ? Math.hypot(ps[0].x - ps[1].x, ps[0].z - ps[1].z) : 0, ch = (innerWidth>innerHeight?13.5:15) + Math.max(0, sep - 8) * 0.75;
   camera.position.lerp(new THREE.Vector3(cx, ch, cz + ch * 0.53), 1 - Math.exp(-6 * dt));
   camera.lookAt(cx, 0, cz);
   }
@@ -2018,8 +2038,8 @@ function loop() {
         let dx = (keys.d || keys.arrowright ? 1 : 0) - (keys.q || keys.a || keys.arrowleft ? 1 : 0), dz = (keys.s || keys.arrowdown ? 1 : 0) - (keys.z || keys.w || keys.arrowup ? 1 : 0);
         if (joy.x || joy.z) { dx = joy.x; dz = joy.z; }
         if (firstPerson) { const b = dz; dx = -b * Math.sin(viewYaw); dz = -b * Math.cos(viewYaw); }
-        send({ t: "i", dx, dz, yaw: firstPerson ? viewYaw : null, f: pend.f, d: pend.d, phase: pend.phase });
-        pend.f = null; pend.d = false; pend.phase = false;
+        send({ t: "i", dx, dz, yaw: firstPerson ? viewYaw : null, f: pend.f, d: pend.d, phase: pend.phase, u: pend.u });
+        pend.f = null; pend.d = false; pend.phase = false; pend.u = false;
       }
     } else { update(dt); if (net === "host") { snapT += dt; if (snapT > 0.05) { snapT = 0; snap(); } } }
   }
@@ -2039,6 +2059,11 @@ addEventListener("keydown", e => {
     const index = e.key.toLowerCase() === 'o' && nP > 1 && !net ? 1 : localIndex();
     requestLevel4Phase(index);
   }
+  if(!e.repeat && state==="play" && e.key.toLowerCase()==="u"){
+    if(net==="guest")pend.u=true;
+    else useUltimate(players[localIndex()]);
+  }
+  if(!e.repeat && state==="play" && e.key.toLowerCase()==="i" && nP>1 && !net)useUltimate(players[1]);
   if (e.key.toLowerCase() === "m") muted = !muted;
   if (e.key.toLowerCase() === "v" && !e.repeat && state === "play") setCameraMode(!firstPerson);
   if ((e.key.toLowerCase() === "p" || e.key === "Escape") && state === "play" && !net) { paused = !paused; flash(paused ? "PAUSE (P pour reprendre)" : "C\u2019est reparti !", paused ? 99999 : 800); }
