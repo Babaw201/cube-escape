@@ -30,7 +30,7 @@
     sending=true;
     try{
       const pending=getPending();
-      for(const [key,entry] of Object.entries(pending)){
+      for(const [key,entry] of Object.entries(pending).sort((a,b)=>Number(a[0])-Number(b[0]))){
         let res;
         const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
         try{
@@ -41,12 +41,13 @@
         }catch{uploadMessage="Synchronisation impossible. Réessaie depuis Scores avec une connexion Internet.";break;}
         finally{clearTimeout(timer);}
         if(res.status===401){uploadMessage="Profil non connecté. Ouvre Amis & pseudo.";break;}
-        if(!res.ok&&res.status!==400){uploadMessage="Classement indisponible. La partie est conservée sur cet appareil.";break;}
+        if(res.status===400){uploadMessage="Le serveur du classement survie doit être mis à jour. Ta partie reste en attente pour synchronisation.";break;}
+        if(!res.ok){uploadMessage="Classement indisponible. La partie est conservée sur cet appareil.";break;}
         const current=getPending();
         if(current[key]&&JSON.stringify(current[key])===JSON.stringify(entry)){
           delete current[key];try{localStorage.setItem(PENDING_KEY,JSON.stringify(current));}catch{}
         }
-        uploadMessage=res.status===400?"Résultat non accepté par le classement (score à vérifier).":"";
+        uploadMessage="";
       }
     }finally{sending=false;}
   }
