@@ -37,6 +37,16 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     assert.equal(await page.locator('#home .hm-seg button').count(), 3);
     assert.equal(await page.locator('#home .hm-thumb').count(),5);
     assert.equal(await page.locator('#home .hm-updates-details').count()>=1,true);
+    const desktopFit=await page.evaluate(()=>{
+      const root=document.querySelector('#home'),main=root.querySelector('.hm-main'),play=root.querySelector('.hm-play');
+      const panel=root.querySelector('.hm-panel'),rect=el=>el.getBoundingClientRect();
+      return {scroller:getComputedStyle(root).overflowY,containerScroll:root.scrollHeight-root.clientHeight,
+        playBottom:rect(play).bottom,panelBottom:rect(panel).bottom,windowHeight:innerHeight};
+    });
+    assert.equal(desktopFit.scroller,'hidden');
+    assert.ok(desktopFit.containerScroll<=1,JSON.stringify(desktopFit));
+    assert.ok(desktopFit.playBottom<desktopFit.windowHeight,JSON.stringify(desktopFit));
+    assert.ok(desktopFit.panelBottom<=desktopFit.windowHeight+1,JSON.stringify(desktopFit));
   });
   await t.test('pseudo obligatoire : un nouveau joueur ne peut pas démarrer sans inscription', async () => {
     await page.route('https://limbyrinth-online.baptiste-werner.workers.dev/social/register', route =>
@@ -92,6 +102,20 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
       assert.equal(await mobile.evaluate(()=>matchMedia('(orientation:landscape)').matches),true);
       assert.equal(await mobile.locator('#home .hm-level-grid .hm-sec').count(),5);
       assert.equal(await mobile.locator('#home .hm-fullscreen-button').count(),1);
+      const fit=await mobile.evaluate(()=>{
+        const home=document.getElementById('home'), rect=q=>document.querySelector(q).getBoundingClientRect();
+        return {scrollHeight:home.scrollHeight,clientHeight:home.clientHeight,
+          overflow:getComputedStyle(home).overflowY,
+          play:rect('#home .hm-play').bottom,
+          levels:rect('#home .hm-level-grid').bottom,
+          navigation:rect('#home .hm-row').bottom,
+          actions:rect('#home .hm-actions-extra').bottom,
+          viewport:innerHeight};
+      });
+      assert.equal(fit.overflow,'hidden');
+      assert.ok(fit.scrollHeight<=fit.clientHeight+1,JSON.stringify(fit));
+      assert.ok(fit.play<=fit.viewport+1 && fit.levels<=fit.viewport+1 &&
+        fit.navigation<=fit.viewport+1 && fit.actions<=fit.viewport+1,JSON.stringify(fit));
       assert.equal(await mobile.locator('#joy').isVisible(),false);
       const layout=await mobile.evaluate(()=>{
         const main=document.querySelector('#home .hm-main').getBoundingClientRect();
@@ -123,6 +147,32 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
       await mobile.evaluate(()=>window.gameEval('endSurvival()'));
       assert.equal(await mobile.locator('#home').isVisible(),true);
       assert.equal(await mobile.locator('#joy').isVisible(),false);
+    }finally{await mobile.close();}
+  });
+  await t.test('accueil sans défilement sur téléphone portrait', async()=>{
+    const mobile=await browser.newPage({viewport:{width:390,height:844},hasTouch:true,isMobile:true,deviceScaleFactor:2});
+    try{
+      await mobile.addInitScript(()=>{window.requestAnimationFrame=()=>0;});
+      await mobile.route('https://game.test/**',route=>{
+        const pathname=new URL(route.request().url()).pathname;
+        const file=pathname==='/vendor/three.min.js'?'vendor/three.min.js':
+          pathname==='/menu.js'?'menu.js':pathname==='/scores.js'?'scores.js':
+          pathname==='/friends.js'?'friends.js':pathname==='/feedback.js'?'feedback.js':'index.html';
+        const data=fs.readFileSync(path.join(root,file),'utf8');
+        return route.fulfill({contentType:file.endsWith('.js')?'text/javascript':'text/html',body:data});
+      });
+      await mobile.goto('https://game.test/');
+      const fit=await mobile.evaluate(()=>{
+        const home=document.getElementById('home');
+        const rect=q=>document.querySelector(q).getBoundingClientRect();
+        return {height:home.clientHeight,scrollHeight:home.scrollHeight,
+          play:rect('#home .hm-play').bottom,
+          levels:rect('#home .hm-level-grid').bottom,
+          scores:rect('#home .hm-scores-button').bottom,
+          menu:rect('#home .hm-actions-extra').bottom,windowHeight:innerHeight};
+      });
+      assert.ok(fit.scrollHeight<=fit.height+1,JSON.stringify(fit));
+      assert.ok(Math.max(fit.play,fit.levels,fit.scores,fit.menu)<=fit.windowHeight+1,JSON.stringify(fit));
     }finally{await mobile.close();}
   });
   await t.test('tableau des scores : affichage, filtre, historique local', async () => {
