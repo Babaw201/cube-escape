@@ -33,6 +33,7 @@
   const box=(title)=>{const b=el('div','fr-card');b.appendChild(el('h2','',title));return b;};
   const token=()=>{try{return localStorage.getItem(AUTH)||'';}catch{return '';}};
   let profile=null,busy=false,lastFocus=null,notice='',isError=false;
+  let pendingPlay=null, checkingProfile=null;
   async function api(path,method='GET',body=null,hasAuth=true) {
     const headers={'Accept':'application/json'};
     if(body!==null)headers['Content-Type']='application/json';
@@ -58,7 +59,37 @@
     catch(err){profile=null;notice=err.message||'Service des amis indisponible.';isError=true;render();}
   }
   function close(){ui.hidden=true;if(lastFocus&&lastFocus.isConnected)lastFocus.focus({preventScroll:true});}
-  function open(){if(ui.hidden)lastFocus=document.activeElement;ui.hidden=false;render();refresh(false);}
+  function open(){if(ui.hidden)lastFocus=document.activeElement;ui.hidden=false;render();if(token()&&!profile)void refresh(false);}
+  function hasProfile(){return !!(token() && profile && typeof profile.pseudo==='string' && profile.pseudo.trim());}
+  // Un compte avec un pseudo actif est obligatoire pour commencer une partie.
+  // L'ancienne connexion est revérifiée côté serveur au premier lancement.
+  function continuePending(){
+    if(!hasProfile() || !pendingPlay) return;
+    const action=pendingPlay;pendingPlay=null;close();action();
+  }
+  function requireProfile(action){
+    if(hasProfile()){action();return true;}
+    pendingPlay=action;
+    if(!token()){
+      notice='Crée un pseudo pour commencer à jouer. Cela prend quelques secondes.';
+      isError=false;open();return false;
+    }
+    if(checkingProfile)return false;
+    checkingProfile=(async()=>{
+      try{
+        profile=await api('me');
+        if(hasProfile()){continuePending();return;}
+        notice='Ton profil est introuvable. Crée un nouveau pseudo.';isError=true;
+      }catch(error){
+        profile=null;notice='Profil à vérifier : '+(error.message||'connexion impossible')+'.';
+        isError=true;
+      }finally{
+        checkingProfile=null;
+        if(!hasProfile())open();
+      }
+    })();
+    return false;
+  }
   function playersSection(title,items,kind) {
     const b=box(title);
     if(!items.length)b.appendChild(el('p','fr-empty','Aucun joueur pour le moment.'));
@@ -106,13 +137,13 @@
         e.preventDefault();if(busy)return;busy=true;
         try{
           const created=await api('register','POST',{pseudo:field.value.trim()},false);
-          localStorage.setItem(AUTH,created.token);notice='Bienvenue '+created.pseudo+' !';isError=false;await refresh(false);
+          localStorage.setItem(AUTH,created.token);notice='Bienvenue '+created.pseudo+' !';isError=false;await refresh(false);continuePending();
         }catch(err){alertMessage(err.message||'Impossible de créer ton profil.',true);}
         finally{busy=false;}
       });
       reg.append(form,el('p','fr-hint','N’utilise pas ton vrai nom. Profil mémorisé sur cet appareil : effacer les données du navigateur peut te faire perdre son accès. Pas de messagerie ni d’annuaire public.'));
       if(token())reg.append(button('Déconnecter ce profil sur cet appareil',()=>{
-        if(confirm('Déconnecter le profil ? Sans sauvegarde, il pourrait être perdu.')){localStorage.removeItem(AUTH);notice='Profil déconnecté.';isError=false;render();}
+        if(confirm('Déconnecter le profil ? Sans sauvegarde, il pourrait être perdu.')){localStorage.removeItem(AUTH);profile=null;notice='Profil déconnecté.';isError=false;render();}
       },'fr-btn fr-danger'));
       wrap.appendChild(reg);ui.replaceChildren(wrap);return;
     }
@@ -152,5 +183,5 @@
     catch(err){alertMessage('Salon créé, mais invitation non envoyée : '+err.message,true);return false;}
   }
   ui.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();e.preventDefault();close();}});
-  window.LimbyrinthFriends={open,close,refresh,sendInvite};
+  window.LimbyrinthFriends={open,close,refresh,sendInvite,hasProfile,requireProfile};
 })();
