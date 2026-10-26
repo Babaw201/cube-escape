@@ -1127,14 +1127,92 @@ function aim(a) {
   return [o.x + d.x * k - p.x, o.z + d.z * k - p.z];
 }
 
-function fire(a, dx, dz) {
-  if (state !== "play" || paused || !a.alive || a.fireCd > 0) return;
-  a.fireCd = 0.35;
-  const p = a.g.position, l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
-  const m = new THREE.Mesh(shotGeo, shotMat); m.add(mkGlow(0x66f0ff, 1.6, 0.8));
-  m.position.set(p.x + dx * 0.9, 0.75, p.z + dz * 0.9); m.rotation.y = Math.atan2(dx, dz); world.add(m);
-  shots.push({ m, vx: dx * 22, vz: dz * 22, life: 1.3 });
-  a.robot.rotation.y = Math.atan2(dx, dz); burst(m.position, 0x66f0ff, 3, 0.5);
+// Projectiles issus du profil du robot, au lieu d'un tir commun à tous.
+function spawnRobotShot(a,dx,dz,col,opts={}) {
+  const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;
+  const m=new THREE.Mesh(shotGeo,shotMat.clone());
+  m.material.color.setHex(col);m.add(mkGlow(col,opts.size>1?2.1:1.5,.7));
+  m.scale.setScalar(opts.size||1);
+  const p=a.g.position, side=opts.side||0;
+  m.position.set(p.x+dx*.9-dz*side,.75,p.z+dz*.9+dx*side);
+  m.rotation.y=Math.atan2(dx,dz);world.add(m);
+  shots.push({m,vx:dx*(opts.speed||22),vz:dz*(opts.speed||22),
+    life:opts.life||1.3,col,pierce:opts.pierce||0,
+    wallPass:!!opts.wallPass,hitIds:[]});
+  return m;
+}
+function fire(a,dx,dz) {
+  if(state!=="play"||paused||!a||!a.alive||a.fireCd>0)return;
+  const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;
+  const id=a.rig.skinId,kit=kitOf(a),col=kit.color;
+  if(id==='rorb'){
+    a.fireCd=.44;
+    for(const side of [-.28,.28])spawnRobotShot(a,dx,dz,col,{side,speed:22});
+  }else if(id==='rspider'){
+    a.fireCd=.28;
+    spawnRobotShot(a,dx,dz,col,{speed:30,pierce:1,size:.64,life:.9});
+  }else if(id==='rtrack'){
+    a.fireCd=.68;
+    for(const angle of [-.17,0,.17]){
+      spawnRobotShot(a,dx*Math.cos(angle)-dz*Math.sin(angle),dz*Math.cos(angle)+dx*Math.sin(angle),col,{speed:17,size:1.15});
+    }
+  }else if(id==='rspectre'){
+    a.fireCd=.52;
+    spawnRobotShot(a,dx,dz,col,{speed:23,pierce:2,wallPass:true,life:1.55,size:.85});
+  }else if(id==='rsovereign'){
+    a.fireCd=.54;
+    for(const side of [-.23,.23])spawnRobotShot(a,dx,dz,col,{speed:21,pierce:1,side,size:1.25});
+  }else{
+    a.fireCd=.35;
+    spawnRobotShot(a,dx,dz,col,{speed:23});
+  }
+  a.robot.rotation.y=Math.atan2(dx,dz);
+  burst(a.g.position,col,3,.45);
+}
+function areaRobotAttack(a,radius,col,hits=1,stun=0){
+  const p=a.g.position;burst(p,col,18,2.4);
+  for(const f of [...foes]){
+    if(!foes.includes(f)||Math.hypot(f.g.position.x-p.x,f.g.position.z-p.z)>radius)continue;
+    for(let k=0;k<hits&&foes.includes(f);k++)hitFoe(f,f.g.position);
+    if(stun&&foes.includes(f))f.stun=Math.max(f.stun||0,stun);
+  }
+}
+function useUltimate(a){
+  if(net==='guest'){pend.u=true;return false;}
+  if(state!=='play'||paused||!a||!a.alive||(a.ultCd||0)>0)return false;
+  const kit=kitOf(a),id=a.rig.skinId,p=a.g.position;
+  a.ultCd=kit.cd;
+  const yaw=a.robot.rotation.y;
+  if(id==='rclassic'){
+    areaRobotAttack(a,5.5,kit.color,2,2);
+    a.shield=Math.max(a.shield||0,1);
+  }else if(id==='rorb'){
+    for(let i=0;i<12;i++){
+      const v=i*Math.PI/6;
+      spawnRobotShot(a,Math.sin(v),Math.cos(v),kit.color,{speed:24,life:.95,pierce:1});
+    }
+  }else if(id==='rspider'){
+    areaRobotAttack(a,7.3,kit.color,1,5);
+    a.dashCd=0;
+  }else if(id==='rtrack'){
+    for(let i=0;i<12;i++){
+      const v=yaw+(i-5.5)*.16;
+      spawnRobotShot(a,Math.sin(v),Math.cos(v),kit.color,{speed:23,size:1.5,pierce:1,life:1.7});
+    }
+    a.inv=Math.max(a.inv,1);
+  }else if(id==='rspectre'){
+    a.inv=Math.max(a.inv,5);
+    for(let i=0;i<8;i++){
+      const v=i*Math.PI/4;
+      spawnRobotShot(a,Math.sin(v),Math.cos(v),kit.color,{speed:24,wallPass:true,pierce:2,life:1.5});
+    }
+  }else if(id==='rsovereign'){
+    areaRobotAttack(a,9.2,kit.color,3,3.5);
+    a.shield=Math.max(a.shield||0,2);
+  }
+  flash('⚡ '+kit.ulti+' !',1300);
+  snd(580,.22,'triangle',.06,840);
+  return true;
 }
 
 function combat(dt) {
@@ -1147,12 +1225,20 @@ function combat(dt) {
     for (const f of foes) if (!(f.stun > 0) && Math.hypot(f.g.position.x - p.x, f.g.position.z - p.z) < 1.1) hurt(a);
     checkPulse(a);
   }
-  for (let i = shots.length - 1; i >= 0; i--) {
-    const s = shots[i], q = s.m.position; s.life -= dt; q.x += s.vx * dt; q.z += s.vz * dt;
-    if (curRay.trail && Math.random() < 0.4) burst(q, 0x66f0ff, 1, 0.15);
-    const row = grid[fromW(q.z)]; let dead = s.life <= 0 || !row || row[fromW(q.x)] !== 0;
-    if (!dead) for (const f of foes) if (!(f.stun > 0) && Math.hypot(f.g.position.x - q.x, f.g.position.z - q.z) < 0.9) { dead = true; hitFoe(f, q); break; }
-    if (dead) { burst(q, 0x66f0ff, 4, 0.8); world.remove(s.m); disposeTree(s.m); shots.splice(i, 1); }
+  for(let i=shots.length-1;i>=0;i--){
+    const sh=shots[i],pos=sh.m.position;sh.life-=dt;
+    pos.x+=sh.vx*dt;pos.z+=sh.vz*dt;
+    if(curRay.trail&&Math.random()<.3)burst(pos,sh.col||0x66f0ff,1,.1);
+    const row=grid[fromW(pos.z)];
+    let dead=sh.life<=0||!row||(!sh.wallPass&&row[fromW(pos.x)]!==0);
+    if(!dead)for(const f of [...foes]){
+      if(f.stun>0||sh.hitIds.includes(f.id))continue;
+      if(Math.hypot(f.g.position.x-pos.x,f.g.position.z-pos.z)<.9){
+        sh.hitIds.push(f.id);hitFoe(f,pos);
+        if((sh.pierce||0)>0)sh.pierce--;else{dead=true;break;}
+      }
+    }
+    if(dead){burst(pos,sh.col||0x66f0ff,4,.65);world.remove(sh.m);disposeTree(sh.m);shots.splice(i,1);}
   }
   for (const f of foes) foeAI(f, dt);
   for (let i = fx.length - 1; i >= 0; i--) {
