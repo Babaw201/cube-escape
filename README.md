@@ -6,6 +6,27 @@ Jeu 3D de labyrinthe en HTML et Three.js r128, avec quatre niveaux de campagne e
 
 Choisir **« Niveau 1 : Labyrinthe »** pour commencer. Sur téléphone, ouvrir le lien dans Chrome ou Safari.
 
+## Décor, lisibilité et six kits de robots
+
+- Le menu utilise maintenant une **illustration de labyrinthe néon en SVG** (`assets/home-scene.svg`), légère et visible derrière des panneaux transparents. Le bouton **« Voir le fond »** masque temporairement les panneaux pour inspecter le décor, puis permet de revenir au menu.
+- Les **informations, commandes et retours des joueurs** sont réunis dans une seule rubrique **« Infos · Commandes · Donner mon avis »**. Les boutons d'avis et de sondage restent utilisables, sans alourdir l'accueil paysage.
+- La caméra extérieure du labyrinthe est **rapprochée** (environ 13,5 unités de hauteur en paysage contre 17 auparavant), tout en conservant une adaptation à la séparation des joueurs en coopération.
+- Chaque robot dispose d'un tir principal différent, de son propre ultime, d'un temps de recharge visible et d'un effet identifiable dans le jeu :
+
+| Robot | Attaque de base | Ulti | Recharge |
+|---|---|---|---|
+| Atlas | Impulsion linéaire | Onde de choc + protection | 20 s |
+| Orbit | Double gyrolaser | Nova orbitale à 12 projectiles | 19 s |
+| Hexa | Aiguillon perforant | Toile paralysante | 23 s |
+| Bastion | Triple salve | Barrage de 12 canons | 25 s |
+| Spectre (vague 50) | Trait spectral traversant les murs | Phase fantôme protectrice + rafale spectrale | 26 s |
+| Souverain (vague 100) | Deux lances plasma perforantes | Couronne plasma : large zone + bouclier | 32 s |
+
+- **U** : ultime du joueur 1 (et joueur en ligne). **I** : ultime du joueur 2 en coopération locale. Sur mobile, bouton **ULTI** à côté de TIR, DASH, VUE et PAUSE.
+- En coopération en ligne, l'ultime du joueur invité est exécuté **côté hôte** avec contrôle du temps de recharge. Le résultat est synchronisé dans les snapshots du jeu.
+- Les descriptions des tirs et des ultis apparaissent aussi dans la boutique des robots.
+- Il s'agit d'une version jouable de ces compétences, pas encore d'un équilibrage compétitif exhaustif ni d'un système antitriche fort.
+
 ## Accueil compact sans défilement
 
 - L'accueil est un écran fixe conçu pour être **entièrement utilisable sans faire défiler**, en particulier sur téléphone en paysage. Il conserve l'affichage de la sélection de niveau, du mode, du pseudo, de l'action « Jouer », des scores et des options principales.

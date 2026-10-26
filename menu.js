@@ -195,6 +195,33 @@
 @media(max-width:599px) and (orientation:landscape){.hm-h1{font-size:25px}.hm-main{grid-template-columns:1fr 1fr;gap:6px}.hm-preview{display:none}.hm-sec{min-height:74px}.hm-thumb{max-height:30px}.hm-hero{gap:3px}.hm-tag{display:none}.hm-panel{gap:3px}.hm-panel-block{padding:4px}.hm-row .hm-btn{min-height:28px;font-size:9px}.hm-mode-options button{min-height:36px}.hm-shell{padding:3px 6px;gap:4px}}
 @media (prefers-reduced-motion:reduce){#home button{transition:none}.hm-scene::after{box-shadow:none}}
 `;
+
+  css.textContent += `
+/* L'illustration du labyrinthe est réellement visible derrière une UI translucide. */
+.hm-scene{background:
+  linear-gradient(100deg,rgba(2,7,15,.29) 0%,rgba(2,7,15,.05) 47%,rgba(2,7,15,.26) 100%),
+  url('./assets/home-scene.svg') center 53%/cover no-repeat!important}
+.hm-scene::before,.hm-scene::after{display:none!important}
+.hm-panel-block{background:rgba(5,15,28,.69);backdrop-filter:blur(3px)}
+.hm-preview{background:rgba(6,17,30,.49);backdrop-filter:blur(2px)}
+.hm-hero{background:transparent}
+.hm-last-run{background:rgba(5,17,29,.68)}
+.hm-art-preview{margin:0;padding:4px 9px;min-height:27px;background:rgba(6,22,34,.72);border:1px solid #457995;border-radius:8px;color:#c0efff;font:750 10px system-ui;cursor:pointer}
+#home.hm-art-only .hm-main,#home.hm-art-only .hm-meta,#home.hm-art-only .hm-overline{visibility:hidden;pointer-events:none}
+#home.hm-art-only .hm-scene{background:
+  url('./assets/home-scene.svg') center center/cover no-repeat!important}
+#home.hm-art-only .hm-art-preview{border-color:#fff;background:#10354b;color:#fff;box-shadow:0 0 16px #49aafc77}
+.hm-scene{transition:opacity .2s}
+.hm-kit{color:#c6b5ff;font-weight:700}
+.hm-info-combined{display:flex;align-items:center;gap:6px}
+.hm-info-combined>summary{border:1px solid #356580;border-radius:7px;background:rgba(5,19,33,.72);padding:7px 10px;color:#b7e7f7}
+.hm-info-combined .hm-update-content{min-width:min(330px,78vw);z-index:20}
+@media(max-height:430px) and (orientation:landscape){
+ .hm-panel-block{background:rgba(5,15,27,.74)}
+ .hm-art-preview{min-height:23px;font-size:9px;padding:3px 7px}
+ .hm-info-combined>summary{padding:4px 8px;font-size:9px}
+}
+`;
   document.head.appendChild(css);
   const home=document.createElement('div');home.id='home';
   const scene=document.createElement('div');scene.className='hm-scene';
@@ -205,7 +232,7 @@
   const localSave=()=>{try{return JSON.parse(localStorage.getItem('cubeEscapeSave')||'{}')||{}}catch{return {}}};
   const oldButtons=()=>[...lv.querySelectorAll('button')];
   const press=reg=>{const b=oldButtons().find(x=>reg.test(x.textContent));if(b&&!b.disabled)b.click()};
-  let selectedLevel=null,scheduled=false;
+  let selectedLevel=null,scheduled=false,showArt=false;
   async function landscapeFullscreen(){
     try{if(!document.fullscreenElement&&document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen()}catch{}
     try{if(screen.orientation?.lock)await screen.orientation.lock('landscape')}catch{}
@@ -213,6 +240,7 @@
   function render(){
     const active=ov.style.display!=='none'&&title.textContent.trim()==='LIMBYRINTH';
     ov.classList.toggle('home-on',active);home.style.display=active?'block':'none';
+    home.classList.toggle('hm-art-only',showArt);
     if(!active)return;
     const sv=localSave(),coins=+sv.coins||0,earned=+sv.earned||0;
     let rank=RANKS[0][0];for(const [name,threshold] of RANKS)if(earned>=threshold)rank=name;
@@ -231,6 +259,11 @@
 
     const header=el('header','hm-top',null,[
       el('span','hm-overline','CORE // TERMINAL D’ACCÈS'),
+      btn('hm-art-preview',showArt?'◀ Retour au menu':'◉ Voir le fond',()=>{
+        showArt=!showArt;home.classList.toggle('hm-art-only',showArt);
+        const control=home.querySelector('.hm-art-preview');
+        if(control)control.textContent=showArt?'◀ Retour au menu':'◉ Voir le fond';
+      }),
       el('div','hm-meta',null,[
         el('span','hm-chip','◈ '+rank),
         el('span','hm-chip',null,[el('span',null,'PIÈCES '),el('b',null,String(coins))])
@@ -266,10 +299,11 @@
         ])
       ]));
     }
+    const kit=window.LimbyrinthRobotKits?.[sv.robot||'rclassic'];
     hero.appendChild(el('div','hm-survival-card',null,[
       el('b',null,'♾ SURVIE · '),
-      el('span',null,'Vague 50 : Spectre   /   Vague 100 : Souverain'),
-      el('span',null,' · Record '+(sv.survivalMaxWave||0))
+      el('span',null,'Vague 50 : Spectre · Vague 100 : Souverain · Record '+(sv.survivalMaxWave||0)),
+      ...(kit?[el('div','hm-kit','⚡ '+kit.basic+'  /  ULTI : '+kit.ulti)]:[])
     ]));
     const panel=el('section','hm-panel');
     const modeBlock=el('div','hm-panel-block hm-mode-section',null,[el('div','hm-panel-title','01  ·  CHOISIS TON MODE')]);
@@ -316,18 +350,18 @@
     ]);
     panel.appendChild(actionRow);
     const extra=el('div','hm-actions-extra');
-    const details=el('details','hm-updates-details hm-update-box');
-    details.append(el('summary',null,'Actualités · Avis'),
+    const details=el('details','hm-updates-details hm-update-box hm-info-combined');
+    const keys=tactile?'Joystick : bouger · Tir : viser · DASH · ULTI · Vue':'ZQSD : bouger · Clic : tirer · Maj : dash · U : ulti · I : ulti du joueur 2';
+    details.append(el('summary',null,'ⓘ Infos · Commandes · Donner mon avis'),
       el('div','hm-update-content',null,[
         el('div','hm-update-line','Niveau 5 · Survie infinie : relais tactiques, skins aux vagues 50 et 100.'),
-        btn('hm-btn hm-feedback-button','💬  Signaler un bug',()=>window.LimbyrinthFeedback?.open('idea')),
-        btn('hm-btn hm-feedback-card','▣  Sondage',()=>window.LimbyrinthFeedback?.open('poll'))
+        el('div','hm-update-line','Chaque robot possède un tir unique et une capacité ultime.'),
+        el('div','hm-update-line',keys),
+        btn('hm-btn hm-feedback-button','💬 Donner mon avis / signaler un bug',()=>window.LimbyrinthFeedback?.open('idea')),
+        btn('hm-btn hm-feedback-card','▣ Répondre au sondage',()=>window.LimbyrinthFeedback?.open('poll'))
       ]));
-    const help=el('details','hm-updates-details');
-    const keys=tactile?'Joystick : déplacer · Tir automatique · Dash · Vue':'ZQSD : bouger · Clic : tirer · Maj : dash · V : vue';
-    help.append(el('summary',null,'Commandes'),el('div','hm-update-content',null,[el('div','hm-update-line',keys)]));
-    extra.append(details,help);
-    if(tactile)extra.append(btn('hm-fullscreen-button','⛶  PAYSAGE',landscapeFullscreen));
+    extra.append(details);
+    if(tactile)extra.append(btn('hm-fullscreen-button','⛶ PAYSAGE',landscapeFullscreen));
     panel.appendChild(extra);
     shell.replaceChildren(header,el('main','hm-main',null,[hero,panel]));
   }

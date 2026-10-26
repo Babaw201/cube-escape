@@ -150,12 +150,21 @@ canvas{touch-action:none}#overlay{overflow:auto;touch-action:pan-y}#net textarea
 #bars{transform:scale(.73)}
 #mm{width:60px!important;height:60px!important}
 }
+
+/* Capacité spéciale en haut du pavé mobile, lisible sans encombrer la vue. */
+#tulti{grid-column:1/3!important;width:100%;min-height:36px;height:40px!important;border-radius:11px!important;background:linear-gradient(150deg,#dab9ff,#8764ed)!important;color:#130924!important;font-size:13px!important;font-weight:900;letter-spacing:.06em;border:1px solid #e4c6ff!important;box-shadow:0 0 14px #8764ed33}
+#tulti:disabled{opacity:.5!important;filter:saturate(.55)}
+#ult-info{color:#e2c7ff;border-color:#7754b8}
+@media(pointer:coarse) and (orientation:landscape) and (max-height:600px){
+  #tbtns #tulti{height:31px!important;min-height:31px!important;border-radius:9px!important;font-size:11px!important}
+  #hud #ult-info{max-width:196px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+}
 </style>
 </head>
 <body>
 <div id="hud">
   <div class="box" id="cr"><span id="objective-label">Cristaux </span><b><span id="n">0</span><span id="n3">/3</span></b></div>
-  <div class="box" id="cn">🪙 <b id="coin">0</b></div>
+  <div class="box" id="cn">🪙 <b id="coin">0</b></div><div class="box" id="ult-info">ULTI <b id="ult-state">PRÊT</b></div>
   <div class="box" id="swap"><span id="swap-label">Murs mobiles dans </span><span id="sw">20</span> s</div>
   <div class="box" id="time"><span id="tm">90</span> s</div>
   <button id="online-leave" type="button" hidden>Quitter le salon</button>
@@ -167,7 +176,7 @@ canvas{touch-action:none}#overlay{overflow:auto;touch-action:pan-y}#net textarea
 <div id="hurt"></div>
 <div id="crosshair">+</div>
 <div id="shop"><h2>ATELIER ROBOT</h2><div id="sh-head"></div><div id="sh-tabs"></div><div id="robot-preview" hidden><b id="preview-name"></b><div id="preview-canvas"></div><p id="preview-desc"></p></div><div id="sh-list"></div><button id="sh-close">Fermer la boutique</button></div>
-<div id="touch"><div id="joy"><i id="knob"></i></div><div id="tbtns"><button id="tphase" hidden>PHASE</button><button id="tview">VUE</button><button id="tpause">PAUSE</button><button id="tdash">DASH</button><button id="tfire">TIR</button></div></div>
+<div id="touch"><div id="joy"><i id="knob"></i></div><div id="tbtns"><button id="tulti" aria-label="Déclencher la capacité ultime">ULTI</button><button id="tphase" hidden>PHASE</button><button id="tview">VUE</button><button id="tpause">PAUSE</button><button id="tdash">DASH</button><button id="tfire">TIR</button></div></div>
 <div id="vig"></div>
 <canvas id="mm" width="112" height="112"></canvas>
 <div id="net" role="dialog" aria-labelledby="online-title">
@@ -276,7 +285,7 @@ let cur = 0, nP = 1, players = [], laserOn = true, laserT = 3, maxLv = 1;
 const LEASH = 18;
 let remoteRobotId = 'rclassic';
 let net = null, dc, seed = 1, evq = [], snapT = 0, inT = 0;
-const rin = { dx: 0, dz: 0, yaw: null }, pend = { f: null, d: false, phase: false };
+const rin = { dx: 0, dz: 0, yaw: null }, pend = { f: null, d: false, phase: false, u: false };
 const send = o => { try { if (dc && dc.readyState === "open") dc.send(JSON.stringify(o)); } catch (e) {} };
 Array.prototype.shuf = function () { for (let i = this.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [this[i], this[j]] = [this[j], this[i]]; } return this; };
 let lasers = [], foes = [], shots = [], fx = [];
@@ -438,7 +447,7 @@ function build0() {
   const rig = creerRobot(toW(cur === 4 ? 7 : 1) + (nP > 1 ? (pi ? 0.9 : -0.9) : 0), toW(cur === 4 ? 7 : 1), !!pi, net && pi !== localIndex() ? remoteRobotId : save.robot), robot = rig.robot, player = rig.group;
   const vg = mkGlow(pi ? 0xffa040 : 0x00e5ff, 2.4, 0.5); vg.position.set(0, 0.5, 0.5); robot.add(vg);
   const sh = new THREE.Mesh(shGeo, shMat); sh.rotation.x = -Math.PI / 2; sh.position.y = 0.04; player.add(sh); world.add(player);
-  players.push({ g: player, robot, rig, hp: 3, inv: 0, dashT: 0, dashCd: 0, fireCd: 0, alive: true });
+  players.push({ g: player, robot, rig, hp: 3, inv: 0, dashT: 0, dashCd: 0, fireCd: 0, ultCd: 0, alive: true });
   }
 
   // Portail
@@ -654,6 +663,14 @@ function hud() {
   $("sw").textContent = Math.ceil(swapT);
   $("swap").classList.toggle("warn", swapT <= 3);
   updatePhaseHUD();
+  const a0=players[typeof localIndex==="function"?localIndex():0];
+  if(a0) {
+    const left=Math.ceil(Math.max(0,a0.ultCd||0));
+    const stateText=left?left+" s":"PRÊT";
+    $("ult-info").textContent="⚡ "+kitOf(a0).ulti+" · "+stateText;
+    $("tulti").textContent=left?"ULTI "+left+" s":"⚡ ULTI";
+    $("tulti").disabled=left>0 || !a0.alive;
+  }
   players.forEach((a, k) => {
     const c = bars[k];
     [...c.querySelectorAll("i")].forEach((e, i) => e.classList.toggle("off", i >= a.hp));
@@ -1064,6 +1081,7 @@ function endSurvival() {
 function foeAI(f, dt) {
   if (cur === 4) return swarmAI(f, dt);
   if (cur === 3) return trackerAI(f, dt);
+  if(f.stun>0){f.stun=Math.max(0,f.stun-dt);return;}
   const q = f.g.position, p = nearest(q), d = Math.hypot(p.x - q.x, p.z - q.z);
   if (d < 6 && los(q, p)) { f.mode = "chase"; f.lost = 0; }
   else if (f.mode === "chase") { f.lost += dt; if (f.lost > 2 || d > 11) f.mode = "patrol"; }
@@ -1117,32 +1135,118 @@ function aim(a) {
   return [o.x + d.x * k - p.x, o.z + d.z * k - p.z];
 }
 
-function fire(a, dx, dz) {
-  if (state !== "play" || paused || !a.alive || a.fireCd > 0) return;
-  a.fireCd = 0.35;
-  const p = a.g.position, l = Math.hypot(dx, dz) || 1; dx /= l; dz /= l;
-  const m = new THREE.Mesh(shotGeo, shotMat); m.add(mkGlow(0x66f0ff, 1.6, 0.8));
-  m.position.set(p.x + dx * 0.9, 0.75, p.z + dz * 0.9); m.rotation.y = Math.atan2(dx, dz); world.add(m);
-  shots.push({ m, vx: dx * 22, vz: dz * 22, life: 1.3 });
-  a.robot.rotation.y = Math.atan2(dx, dz); burst(m.position, 0x66f0ff, 3, 0.5);
+// Projectiles issus du profil du robot, au lieu d'un tir commun à tous.
+function spawnRobotShot(a,dx,dz,col,opts={}) {
+  const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;
+  const m=new THREE.Mesh(shotGeo,shotMat.clone());
+  m.material.color.setHex(col);m.add(mkGlow(col,opts.size>1?2.1:1.5,.7));
+  m.scale.setScalar(opts.size||1);
+  const p=a.g.position, side=opts.side||0;
+  m.position.set(p.x+dx*.9-dz*side,.75,p.z+dz*.9+dx*side);
+  m.rotation.y=Math.atan2(dx,dz);world.add(m);
+  shots.push({m,vx:dx*(opts.speed||22),vz:dz*(opts.speed||22),
+    life:opts.life||1.3,col,pierce:opts.pierce||0,
+    wallPass:!!opts.wallPass,hitIds:[]});
+  return m;
+}
+function fire(a,dx,dz) {
+  if(state!=="play"||paused||!a||!a.alive||a.fireCd>0)return;
+  const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;
+  const id=a.rig.skinId,kit=kitOf(a),col=save.ray==='cy'?kit.color:rayCol;
+  if(id==='rorb'){
+    a.fireCd=.44;
+    for(const side of [-.28,.28])spawnRobotShot(a,dx,dz,col,{side,speed:22});
+  }else if(id==='rspider'){
+    a.fireCd=.28;
+    spawnRobotShot(a,dx,dz,col,{speed:30,pierce:1,size:.64,life:.9});
+  }else if(id==='rtrack'){
+    a.fireCd=.68;
+    for(const angle of [-.17,0,.17]){
+      spawnRobotShot(a,dx*Math.cos(angle)-dz*Math.sin(angle),dz*Math.cos(angle)+dx*Math.sin(angle),col,{speed:17,size:1.15});
+    }
+  }else if(id==='rspectre'){
+    a.fireCd=.52;
+    spawnRobotShot(a,dx,dz,col,{speed:23,pierce:2,wallPass:true,life:1.55,size:.85});
+  }else if(id==='rsovereign'){
+    a.fireCd=.54;
+    for(const side of [-.23,.23])spawnRobotShot(a,dx,dz,col,{speed:21,pierce:1,side,size:1.25});
+  }else{
+    a.fireCd=.35;
+    spawnRobotShot(a,dx,dz,col,{speed:23});
+  }
+  a.robot.rotation.y=Math.atan2(dx,dz);
+  burst(a.g.position,col,3,.45);
+}
+function areaRobotAttack(a,radius,col,hits=1,stun=0){
+  const p=a.g.position;burst(p,col,18,2.4);
+  for(const f of [...foes]){
+    if(!foes.includes(f)||Math.hypot(f.g.position.x-p.x,f.g.position.z-p.z)>radius)continue;
+    for(let k=0;k<hits&&foes.includes(f);k++)hitFoe(f,f.g.position);
+    if(stun&&foes.includes(f))f.stun=Math.max(f.stun||0,stun);
+  }
+}
+function useUltimate(a){
+  if(net==='guest'){pend.u=true;return false;}
+  if(state!=='play'||paused||!a||!a.alive||(a.ultCd||0)>0)return false;
+  const kit=kitOf(a),id=a.rig.skinId,p=a.g.position;
+  a.ultCd=kit.cd;
+  const yaw=a.robot.rotation.y;
+  if(id==='rclassic'){
+    areaRobotAttack(a,5.5,kit.color,2,2);
+    a.shield=Math.max(a.shield||0,1);
+  }else if(id==='rorb'){
+    for(let i=0;i<12;i++){
+      const v=i*Math.PI/6;
+      spawnRobotShot(a,Math.sin(v),Math.cos(v),kit.color,{speed:24,life:.95,pierce:1});
+    }
+  }else if(id==='rspider'){
+    areaRobotAttack(a,7.3,kit.color,1,5);
+    a.dashCd=0;
+  }else if(id==='rtrack'){
+    for(let i=0;i<12;i++){
+      const v=yaw+(i-5.5)*.16;
+      spawnRobotShot(a,Math.sin(v),Math.cos(v),kit.color,{speed:23,size:1.5,pierce:1,life:1.7});
+    }
+    a.inv=Math.max(a.inv,1);
+  }else if(id==='rspectre'){
+    a.inv=Math.max(a.inv,5);
+    for(let i=0;i<8;i++){
+      const v=i*Math.PI/4;
+      spawnRobotShot(a,Math.sin(v),Math.cos(v),kit.color,{speed:24,wallPass:true,pierce:2,life:1.5});
+    }
+  }else if(id==='rsovereign'){
+    areaRobotAttack(a,9.2,kit.color,3,3.5);
+    a.shield=Math.max(a.shield||0,2);
+  }
+  flash('⚡ '+kit.ulti+' !',1300);
+  snd(580,.22,'triangle',.06,840);
+  return true;
 }
 
 function combat(dt) {
   laserT -= dt; if (laserT <= 0) { laserOn = !laserOn; laserT = 3; }
   for (const a of players) {
-    a.inv -= dt; a.dashT -= dt; a.dashCd -= dt; a.fireCd -= dt;
+    a.inv -= dt; a.dashT -= dt; a.dashCd -= dt; a.fireCd -= dt; a.ultCd=Math.max(0,(a.ultCd||0)-dt);
     if (a.alive) a.robot.visible = a.inv <= 0 || Math.sin(t * 40) > 0;
     const p = a.g.position;
     if (laserOn) for (const l of lasers) if (Math.abs(p.x - l.x) < l.hx + R && Math.abs(p.z - l.z) < l.hz + R) hurt(a);
     for (const f of foes) if (!(f.stun > 0) && Math.hypot(f.g.position.x - p.x, f.g.position.z - p.z) < 1.1) hurt(a);
     checkPulse(a);
   }
-  for (let i = shots.length - 1; i >= 0; i--) {
-    const s = shots[i], q = s.m.position; s.life -= dt; q.x += s.vx * dt; q.z += s.vz * dt;
-    if (curRay.trail && Math.random() < 0.4) burst(q, 0x66f0ff, 1, 0.15);
-    const row = grid[fromW(q.z)]; let dead = s.life <= 0 || !row || row[fromW(q.x)] !== 0;
-    if (!dead) for (const f of foes) if (!(f.stun > 0) && Math.hypot(f.g.position.x - q.x, f.g.position.z - q.z) < 0.9) { dead = true; hitFoe(f, q); break; }
-    if (dead) { burst(q, 0x66f0ff, 4, 0.8); world.remove(s.m); disposeTree(s.m); shots.splice(i, 1); }
+  for(let i=shots.length-1;i>=0;i--){
+    const sh=shots[i],pos=sh.m.position;sh.life-=dt;
+    pos.x+=sh.vx*dt;pos.z+=sh.vz*dt;
+    if(curRay.trail&&Math.random()<.3)burst(pos,sh.col||0x66f0ff,1,.1);
+    const row=grid[fromW(pos.z)];
+    let dead=sh.life<=0||!row||(!sh.wallPass&&row[fromW(pos.x)]!==0);
+    if(!dead)for(const f of [...foes]){
+      if(f.stun>0||sh.hitIds.includes(f))continue;
+      if(Math.hypot(f.g.position.x-pos.x,f.g.position.z-pos.z)<.9){
+        sh.hitIds.push(f);hitFoe(f,pos);
+        if((sh.pierce||0)>0)sh.pierce--;else{dead=true;break;}
+      }
+    }
+    if(dead){burst(pos,sh.col||0x66f0ff,4,.65);world.remove(sh.m);disposeTree(sh.m);shots.splice(i,1);}
   }
   for (const f of foes) foeAI(f, dt);
   for (let i = fx.length - 1; i >= 0; i--) {
@@ -1185,10 +1289,10 @@ function renderLv() {
 // ---------- Coopération : simulation hôte et salons à code court ----------
 function snap() {
   send({ t: "s", tl: timeLeft, sw: swapT, c: collected, k: kills, mt: missionElapsed, wv: cur === 4 ? wave : 0, sv: cur===4?[survivalObjective.index,survivalObjective.charge,survivalObjective.cleared,survivalObjective.completed]:null, ov: overload ? 1 : 0, lo: laserOn ? 1 : 0, ls: laserT, l4: cur === 3 ? {...level4} : null,
-    p: players.map(a => [a.g.position.x, a.g.position.z, a.robot.rotation.y, a.hp, a.alive ? 1 : 0, a.dashCd, a.inv > 0 ? 1 : 0, a.robot.position.y, a.rig.skinId]),
+    p: players.map(a => [a.g.position.x, a.g.position.z, a.robot.rotation.y, a.hp, a.alive ? 1 : 0, a.dashCd, a.inv > 0 ? 1 : 0, a.robot.position.y, a.rig.skinId, a.ultCd||0]),
     f: foes.map(f => [f.id, f.g.position.x, f.g.position.z, f.g.rotation.y, f.flash > 0 ? 1 : 0, f.hp, f.mode === "chase" || f.mode === "CHASE" ? 1 : 0, f.stun || 0, f.mode, f.recover || 0, f.kind || 0]),
     d: dyn.map(d => (d.closed ? 1 : 0)).join(""), cg: crystals.map(c => (c.got ? 1 : 0)).join(""),
-    sh: shots.map(s => [s.m.position.x, s.m.position.z, s.m.rotation.y]), ev: evq });
+    sh: shots.map(s => [s.m.position.x, s.m.position.z, s.m.rotation.y,s.col||0x66f0ff]), ev: evq });
   evq = [];
 }
 
@@ -1197,7 +1301,7 @@ function applySnap(m) {
   timeLeft = m.tl; swapT = m.sw; collected = m.c; kills = m.k || 0; laserOn = !!m.lo; laserT = m.ls; missionElapsed = m.mt || 0; wave = cur === 4 ? (m.wv || 0) : 0; overload = !!m.ov;
   if(cur===4 && net==='guest' && wave>=50 && wave>previousWave)grantSurvivalRewards();
   if (cur === 3 && m.l4) level4 = {...m.l4, latched: [...m.l4.latched]};
-  m.p.forEach((q, k) => { const a = players[k]; if (!a) return; if(q[8] && q[8] !== a.rig.skinId) replacePlayerRig(a,q[8],k); a.tx = q[0]; a.tz = q[1]; a.robot.rotation.y = firstPerson && net === "guest" && k === 1 ? viewYaw : q[2]; a.hp = q[3]; a.alive = !!q[4]; a.dashCd = q[5]; a.inv = q[6]; a.robot.position.y = q[7]; });
+  m.p.forEach((q, k) => { const a = players[k]; if (!a) return; if(q[8] && q[8] !== a.rig.skinId) replacePlayerRig(a,q[8],k); a.tx = q[0]; a.tz = q[1]; a.robot.rotation.y = firstPerson && net === "guest" && k === 1 ? viewYaw : q[2]; a.hp = q[3]; a.alive = !!q[4]; a.dashCd = q[5]; a.inv = q[6]; a.robot.position.y = q[7]; a.ultCd=q[9]||0; });
   foes = foes.filter(f => { const q = m.f.find(z => z[0] === f.id); if (!q) { world.remove(f.g); if (cur === 4) disposeTree(f.g); return false; } f.tx = q[1]; f.tz = q[2]; f.g.rotation.y = q[3]; f.flash = q[4]; f.hp = q[5]; f.mode = q[8] || (q[6] ? "chase" : "patrol"); f.stun = q[7] || 0; f.recover = q[9] || 0; return true; });
   if (cur === 4) {
     if(Array.isArray(m.sv)) { survivalObjective.index=m.sv[0];survivalObjective.charge=m.sv[1];survivalObjective.cleared=!!m.sv[2];survivalObjective.completed=m.sv[3]||0; }
@@ -1211,8 +1315,8 @@ function applySnap(m) {
   dyn.forEach((d, i) => { d.closed = m.d[i] === "1"; grid[d.j][d.i] = d.closed ? 1 : 0; if(d.closed) d.mesh.visible = true; d.deferred = cur === 3 && !d.closed && !shouldGateBeOpen(d.gate,level4); });
   crystals.forEach((c, i) => { c.got = m.cg[i] === "1"; c.mesh.visible = cur === 2 || !c.got; });
   while (shots.length > m.sh.length) world.remove(shots.pop().m);
-  while (shots.length < m.sh.length) { const mm = new THREE.Mesh(shotGeo, shotMat); mm.add(mkGlow(0x66f0ff, 1.6, 0.8)); world.add(mm); shots.push({ m: mm }); }
-  m.sh.forEach((q, i) => { shots[i].m.position.set(q[0], 0.75, q[1]); shots[i].m.rotation.y = q[2]; });
+  while (shots.length < m.sh.length) { const mm = new THREE.Mesh(shotGeo, shotMat.clone()); mm.add(mkGlow(0x66f0ff, 1.6, 0.8)); world.add(mm); shots.push({ m: mm }); }
+  m.sh.forEach((q, i) => { shots[i].m.position.set(q[0], 0.75, q[1]); shots[i].m.rotation.y = q[2]; shots[i].m.material.color.setHex(q[3]||0x66f0ff); });
   m.ev.forEach(e => (e.b ? burst(new THREE.Vector3(e.b[0], e.b[1], e.b[2]), e.b[3], e.b[4], e.b[5]) : flash(e.m[0], e.m[1])));
 }
 
@@ -1247,6 +1351,7 @@ function onMsg(m) {
     if (a && state === "play") {
       if (Number.isFinite(m.yaw)) a.robot.rotation.y = m.yaw;
       if (m.phase) requestLevel4Phase(1);
+      if (m.u) useUltimate(a);
       if (Array.isArray(m.f) && m.f.length === 2 && m.f.every(Number.isFinite)) fire(a, m.f[0], m.f[1]);
       if (m.d && a.alive && a.dashCd <= 0) { a.dashCd = DASH_CD; a.dashT = 0.18; burst(a.g.position, 0x3dff9a, 6, 0.8); }
     }
@@ -1296,7 +1401,7 @@ function resetRoomTransport(){
 function leaveOnline(message='Tu as quitté le salon.'){
   if(firstPerson&&players.length)setCameraMode(false);
   resetRoomTransport();net=null;nP=onlineReturnPlayers;state='menu';document.body.classList.remove('playing-game');
-  pend.f=null;pend.d=pend.phase=false;rin.dx=rin.dz=0;remoteRobotId='rclassic';
+  pend.f=null;pend.d=pend.phase=pend.u=false;rin.dx=rin.dz=0;remoteRobotId='rclassic';
   for(const k in keys)keys[k]=false;
   $('net').style.display='none';$('overlay').style.display='flex';$('online-leave').hidden=true;
   $('t').textContent='LIMBYRINTH';$('d').textContent=message;$('btn').style.display='none';bars[1].style.display='none';renderLv();hud();
@@ -1417,6 +1522,16 @@ const ROBOT_SKINS = [
   {id:'rspectre',name:'Spectre',shape:'orb',desc:'Édition onde fantôme · débloqué vague 50',price:0,rar:2,body:0x191932,accent:0x9b7dff,requiresWave:50},
   {id:'rsovereign',name:'Souverain',shape:'spider',desc:'Couronne plasma · récompense ultime vague 100',price:0,rar:3,body:0x16151c,accent:0xffd36e,requiresWave:100}
 ];
+const ROBOT_ABILITIES = {
+ rclassic:{basic:'Impulsion linéaire',ulti:'Onde de choc',cd:20,color:0x63dfff},
+ rorb:{basic:'Double gyrolaser',ulti:'Nova orbitale',cd:19,color:0xc08aff},
+ rspider:{basic:'Aiguillon perforant',ulti:'Toile paralysante',cd:23,color:0x63ffc8},
+ rtrack:{basic:'Salve à trois canons',ulti:'Barrage de Bastion',cd:25,color:0xffbd73},
+ rspectre:{basic:'Trait spectral traversant',ulti:'Phase fantôme',cd:26,color:0x9b7dff},
+ rsovereign:{basic:'Lances plasma',ulti:'Couronne du Souverain',cd:32,color:0xffd36e}
+};
+const kitOf = a => ROBOT_ABILITIES[a?.rig?.skinId] || ROBOT_ABILITIES.rclassic;
+window.LimbyrinthRobotKits = ROBOT_ABILITIES;
 const SKINS = [
   { id: "def", name: "Standard", price: 0, rar: 0, o: {} },
   { id: "mag", name: "Néon magenta", price: 120, rar: 1, o: { accent: 0xff3df0, wall: 0x3a1f48, em: 0x2a0a3a, cap: 0x9a5ab0 } },
@@ -1516,6 +1631,7 @@ function drawShop() {
     else sw.textContent = shopTab === "boost" ? "\u26A1" : save.done.includes(it.id) ? "\u2713" : "\u2605";
     nm.textContent = it.name || it.txt;
     info.textContent = shopTab === 'boost' ? it.desc + ' · en stock : ' + (save.stock[it.id] || 0) : shopTab === 'defi' ? 'Récompense : ' + it.rew + ' pièces' : it.requiresWave ? '🏆 Récompense de la vague '+it.requiresWave : ['Commun','Rare','Épique','Légendaire'][it.rar];
+    if(shopTab==='robot') info.textContent += ' · Tir : '+ROBOT_ABILITIES[it.id].basic+' · Ulti : '+ROBOT_ABILITIES[it.id].ulti;
     c.append(sw, nm, info);
     if (shopTab === 'robot') { const b=document.createElement('button');b.className='preview-btn';b.textContent='Voir en 3D';b.onclick=()=>showRobotPreview(it.id);c.appendChild(b); }
     if (shopTab !== "defi") {
@@ -1560,7 +1676,7 @@ function doDash() {
   if (a.alive && a.dashCd <= 0) { a.dashCd = DASH_CD; a.dashT = 0.18; burst(a.g.position, 0x3dff9a, 6, 0.8); }
 }
 const key = k => dispatchEvent(new KeyboardEvent("keydown", { key: k }));
-for (const [id, fn, hold] of [["tphase", () => requestLevel4Phase(localIndex())], ["tfire", fireAuto, true], ["tdash", doDash], ["tview", () => key("v")], ["tpause", () => net ? flash("Pause indisponible en ligne",1100) : key("p")]]) {
+for (const [id, fn, hold] of [["tphase", () => requestLevel4Phase(localIndex())], ["tulti", () => net==="guest" ? (pend.u=true) : useUltimate(players[localIndex()])], ["tfire", fireAuto, true], ["tdash", doDash], ["tview", () => key("v")], ["tpause", () => net ? flash("Pause indisponible en ligne",1100) : key("p")]]) {
   const b = $(id); let iv;
   b.addEventListener("pointerdown", e => { e.preventDefault(); fn(); if (hold) iv = setInterval(fn, 130); });
   for (const ev of ["pointerup", "pointercancel", "pointerleave"]) b.addEventListener(ev, () => clearInterval(iv));
@@ -2002,7 +2118,7 @@ function animate(dt) {
   } else {
   const al = players.filter(a => a.alive), ps = (al.length ? al : players).map(a => a.g.position);
   const cx = ps.reduce((m, q) => m + q.x, 0) / ps.length, cz = ps.reduce((m, q) => m + q.z, 0) / ps.length;
-  const sep = ps.length > 1 ? Math.hypot(ps[0].x - ps[1].x, ps[0].z - ps[1].z) : 0, ch = 17 + Math.max(0, sep - 8) * 0.9;
+  const sep = ps.length > 1 ? Math.hypot(ps[0].x - ps[1].x, ps[0].z - ps[1].z) : 0, ch = (innerWidth>innerHeight?13.5:15) + Math.max(0, sep - 8) * 0.75;
   camera.position.lerp(new THREE.Vector3(cx, ch, cz + ch * 0.53), 1 - Math.exp(-6 * dt));
   camera.lookAt(cx, 0, cz);
   }
@@ -2018,8 +2134,8 @@ function loop() {
         let dx = (keys.d || keys.arrowright ? 1 : 0) - (keys.q || keys.a || keys.arrowleft ? 1 : 0), dz = (keys.s || keys.arrowdown ? 1 : 0) - (keys.z || keys.w || keys.arrowup ? 1 : 0);
         if (joy.x || joy.z) { dx = joy.x; dz = joy.z; }
         if (firstPerson) { const b = dz; dx = -b * Math.sin(viewYaw); dz = -b * Math.cos(viewYaw); }
-        send({ t: "i", dx, dz, yaw: firstPerson ? viewYaw : null, f: pend.f, d: pend.d, phase: pend.phase });
-        pend.f = null; pend.d = false; pend.phase = false;
+        send({ t: "i", dx, dz, yaw: firstPerson ? viewYaw : null, f: pend.f, d: pend.d, phase: pend.phase, u: pend.u });
+        pend.f = null; pend.d = false; pend.phase = false; pend.u = false;
       }
     } else { update(dt); if (net === "host") { snapT += dt; if (snapT > 0.05) { snapT = 0; snap(); } } }
   }
@@ -2039,6 +2155,11 @@ addEventListener("keydown", e => {
     const index = e.key.toLowerCase() === 'o' && nP > 1 && !net ? 1 : localIndex();
     requestLevel4Phase(index);
   }
+  if(!e.repeat && state==="play" && e.key.toLowerCase()==="u"){
+    if(net==="guest")pend.u=true;
+    else useUltimate(players[localIndex()]);
+  }
+  if(!e.repeat && state==="play" && e.key.toLowerCase()==="i" && nP>1 && !net)useUltimate(players[1]);
   if (e.key.toLowerCase() === "m") muted = !muted;
   if (e.key.toLowerCase() === "v" && !e.repeat && state === "play") setCameraMode(!firstPerson);
   if ((e.key.toLowerCase() === "p" || e.key === "Escape") && state === "play" && !net) { paused = !paused; flash(paused ? "PAUSE (P pour reprendre)" : "C\u2019est reparti !", paused ? 99999 : 800); }
