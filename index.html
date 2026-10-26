@@ -800,7 +800,6 @@ function buildSurvivalStations() {
   });
 }
 function grantSurvivalRewards() {
-  if (net==='guest') return;
   save.survivalMaxWave=Math.max(save.survivalMaxWave||0,wave);
   if (!Array.isArray(save.own)) save.own=['def','cy','rclassic'];
   for (const [threshold,id,name] of [[50,'rspectre','Spectre'],[100,'rsovereign','Souverain']]) {
@@ -1131,7 +1130,9 @@ function snap() {
 }
 
 function applySnap(m) {
+  const previousWave=wave;
   timeLeft = m.tl; swapT = m.sw; collected = m.c; kills = m.k || 0; laserOn = !!m.lo; laserT = m.ls; missionElapsed = m.mt || 0; wave = cur === 4 ? (m.wv || 0) : 0; overload = !!m.ov;
+  if(cur===4 && net==='guest' && wave>=50 && wave>previousWave)grantSurvivalRewards();
   if (cur === 3 && m.l4) level4 = {...m.l4, latched: [...m.l4.latched]};
   m.p.forEach((q, k) => { const a = players[k]; if (!a) return; if(q[8] && q[8] !== a.rig.skinId) replacePlayerRig(a,q[8],k); a.tx = q[0]; a.tz = q[1]; a.robot.rotation.y = firstPerson && net === "guest" && k === 1 ? viewYaw : q[2]; a.hp = q[3]; a.alive = !!q[4]; a.dashCd = q[5]; a.inv = q[6]; a.robot.position.y = q[7]; });
   foes = foes.filter(f => { const q = m.f.find(z => z[0] === f.id); if (!q) { world.remove(f.g); if (cur === 4) disposeTree(f.g); return false; } f.tx = q[1]; f.tz = q[2]; f.g.rotation.y = q[3]; f.flash = q[4]; f.hp = q[5]; f.mode = q[8] || (q[6] ? "chase" : "patrol"); f.stun = q[7] || 0; f.recover = q[9] || 0; return true; });
