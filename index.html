@@ -944,7 +944,6 @@ function updateSurvival(dt) {
     survivalObjective.cleared=false;
     // Ne pas simuler rétroactivement des centaines de vagues si l'onglet ralentit.
     wave = wantedWave;
-    grantSurvivalRewards();
     if (wave > 1 && wave % 5 === 0) {
       // Le plafond de 30 drones n'empêche PAS la difficulté de croître.
       foes.forEach(f => { f.hp += 1 + Math.floor(wave / 5); f.spd += 0.18; });
@@ -952,6 +951,7 @@ function updateSurvival(dt) {
     const isBoss = wave % 5 === 0;
     spawnSwarm(Math.min(5 + wave, 14), isBoss);
     flash(isBoss ? '⚠️ VAGUE ' + wave + ' : TITAN DE CORE !' : 'VAGUE ' + wave + ' — drones renforcés !', 2000);
+    grantSurvivalRewards(); // après l'annonce de la vague : la récompense reste visible
     snd(isBoss ? 130 : 300, 0.3, 'sawtooth', 0.05, 110);
   }
   healT += dt;
