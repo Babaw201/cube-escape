@@ -34,10 +34,10 @@
   const token=()=>{try{return localStorage.getItem(AUTH)||'';}catch{return '';}};
   let profile=null,busy=false,lastFocus=null,notice='',isError=false;
   let pendingPlay=null, checkingProfile=null;
-  async function api(path,method='GET',body=null,hasAuth=true) {
+  async function api(path,method='GET',body=null,hasAuth=true,authOverride) {
     const headers={'Accept':'application/json'};
     if(body!==null)headers['Content-Type']='application/json';
-    if(hasAuth)headers.Authorization='Bearer '+token();
+    if(hasAuth)headers.Authorization='Bearer '+(authOverride===undefined?token():authOverride);
     const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),12000);
     try{
       const res=await fetch(BASE+'/social/'+path,{method,headers,body:body===null?undefined:JSON.stringify(body),signal:controller.signal,cache:'no-store'});
@@ -60,6 +60,55 @@
   }
   function close(){ui.hidden=true;if(lastFocus&&lastFocus.isConnected)lastFocus.focus({preventScroll:true});}
   function open(){if(ui.hidden)lastFocus=document.activeElement;ui.hidden=false;render();if(token()&&!profile)void refresh(false);}
+  // Une clé d'accès est le jeton aléatoire émis lors de la création du pseudo.
+  // Elle n'est JAMAIS envoyée en dehors du service d'authentification.
+  const validAccessKey=value=>/^[0-9a-f-]{36}\.[0-9a-f-]{36}$/i.test(value);
+  async function restoreAccount(accessKey){
+    if(busy)return;
+    const code=accessKey.trim();
+    if(!validAccessKey(code)){alertMessage('Code d’accès invalide. Recopie la clé entière fournie lors de la sauvegarde.',true);return;}
+    busy=true;alertMessage('Vérification du compte…');
+    try{
+      // Le code est validé AVANT son enregistrement local : personne ne peut
+      // reprendre un pseudo simplement en le tapant.
+      const verified=await api('me','GET',null,true,code);
+      if(!verified || typeof verified.pseudo!=='string')throw Error('Profil non reconnu.');
+      localStorage.setItem(AUTH,code);
+      profile=verified;notice='Compte '+verified.pseudo+' reconnecté !';isError=false;
+      render();continuePending();
+    }catch(err){alertMessage(err.message||'Code refusé ou connexion indisponible.',true);}
+    finally{busy=false;}
+  }
+  function recoveryForm(){
+    const card=box('🔑 Retrouver mon ancien pseudo');
+    const form=el('form','fr-form'),field=el('input');
+    field.type='password';field.autocomplete='off';field.placeholder='Code d’accès sauvegardé';
+    field.setAttribute('aria-label','Code de reconnexion');
+    const submit=button('Se reconnecter',null,'fr-btn fr-primary');submit.type='submit';
+    form.append(field,submit);form.addEventListener('submit',e=>{e.preventDefault();void restoreAccount(field.value);});
+    card.append(form,el('p','fr-hint','Le pseudo seul ne suffit pas : il faut la clé enregistrée depuis le compte. Ne partage jamais cette clé. Si elle a été perdue, la récupération automatique de cet ancien compte n’est pas possible.'));
+    return card;
+  }
+  function backupAccess(){
+    const card=box('🔐 Garder l’accès à ton pseudo');
+    const field=el('input');field.type='password';field.readOnly=true;field.autocomplete='off';
+    field.value=token();field.setAttribute('aria-label','Ta clé secrète de reconnexion');
+    field.style.cssText='width:min(100%,500px);font:12px monospace;overflow:hidden';
+    const reveal=button('Afficher / masquer',()=>{field.type=field.type==='password'?'text':'password';});
+    const copy=button('Copier mon code d’accès',async()=>{
+      try {
+        if(!navigator.clipboard?.writeText)throw Error();
+        await navigator.clipboard.writeText(token());
+        alertMessage('Clé copiée. Conserve-la dans un gestionnaire de mots de passe et ne la partage pas.');
+      }catch(e){
+        field.type='text';field.focus();field.select();
+        alertMessage('Copie la clé sélectionnée avec Ctrl+C, puis conserve-la en lieu sûr.');
+      }
+    },'fr-btn fr-primary');
+    const actions=el('div','fr-actions');actions.append(copy,reveal);
+    card.append(el('p','fr-hint','Ce code permet de te reconnecter sur un autre navigateur ou après une déconnexion. Il donne accès à ton compte : ne le partage jamais.'),field,actions);
+    return card;
+  }
   function hasProfile(){return !!(token() && profile && typeof profile.pseudo==='string' && profile.pseudo.trim());}
   // Un compte avec un pseudo actif est obligatoire pour commencer une partie.
   // L'ancienne connexion est revérifiée côté serveur au premier lancement.
@@ -71,7 +120,7 @@
     if(hasProfile()){action();return true;}
     pendingPlay=action;
     if(!token()){
-      notice='Crée un pseudo pour commencer à jouer. Cela prend quelques secondes.';
+      notice='Pour jouer, reconnecte ton ancien pseudo avec son code d’accès ou crée un nouveau profil.';
       isError=false;open();return false;
     }
     if(checkingProfile)return false;
@@ -128,7 +177,19 @@
     const status=el('p','fr-status'+(isError?' fr-error':''),notice);
     status.id='fr-status';status.setAttribute('role','status');wrap.appendChild(status);
     if(!profile){
-      const reg=box('Créer ton profil'),form=el('form','fr-form'),field=el('input');
+      if(token()){
+        const waiting=box('Connexion à ton ancien profil');
+        waiting.append(el('p','fr-hint','Une clé de compte est déjà enregistrée ici. Ne crée pas un autre pseudo : réessaie la connexion. Si Internet est indisponible, tes données restent intactes.'));
+        waiting.append(button('↻ Réessayer ma connexion',()=>void refresh(false),'fr-btn fr-primary'));
+        waiting.append(button('Changer de compte (déconnexion)',()=>{
+          if(confirm('Attention : le pseudo précédent deviendra inaccessible sans son code d’accès sauvegardé. Continuer ?')){
+            localStorage.removeItem(AUTH);profile=null;notice='Compte déconnecté. Reconnecte-le avec sa clé sauvegardée.';isError=false;render();
+          }
+        },'fr-btn fr-danger'));
+        wrap.appendChild(waiting);ui.replaceChildren(wrap);return;
+      }
+      wrap.appendChild(recoveryForm());
+      const reg=box('Créer un NOUVEAU profil'),form=el('form','fr-form'),field=el('input');
       field.placeholder='Pseudo (ex. Robot32)';field.maxLength=16;field.minLength=3;field.required=true;
       field.pattern='[A-Za-z][A-Za-z0-9_]{2,15}';field.autocomplete='off';field.setAttribute('aria-label','Ton pseudo');
       const submit=button('Créer mon pseudo',null,'fr-btn fr-primary');submit.type='submit';
@@ -137,14 +198,11 @@
         e.preventDefault();if(busy)return;busy=true;
         try{
           const created=await api('register','POST',{pseudo:field.value.trim()},false);
-          localStorage.setItem(AUTH,created.token);notice='Bienvenue '+created.pseudo+' !';isError=false;await refresh(false);continuePending();
+          localStorage.setItem(AUTH,created.token);notice='Bienvenue '+created.pseudo+' ! Pense à sauvegarder ta clé de reconnexion.';isError=false;await refresh(false);continuePending();
         }catch(err){alertMessage(err.message||'Impossible de créer ton profil.',true);}
         finally{busy=false;}
       });
-      reg.append(form,el('p','fr-hint','N’utilise pas ton vrai nom. Profil mémorisé sur cet appareil : effacer les données du navigateur peut te faire perdre son accès. Pas de messagerie ni d’annuaire public.'));
-      if(token())reg.append(button('Déconnecter ce profil sur cet appareil',()=>{
-        if(confirm('Déconnecter le profil ? Sans sauvegarde, il pourrait être perdu.')){localStorage.removeItem(AUTH);profile=null;notice='Profil déconnecté.';isError=false;render();}
-      },'fr-btn fr-danger'));
+      reg.append(form,el('p','fr-hint','Si tu avais déjà un pseudo, utilise « Retrouver mon ancien pseudo » au-dessus : ce formulaire crée un compte différent. N’utilise pas ton vrai nom.'));
       wrap.appendChild(reg);ui.replaceChildren(wrap);return;
     }
     const me=box('Mon profil');
@@ -153,7 +211,7 @@
     input.placeholder='Nouveau pseudo';input.maxLength=16;input.minLength=3;input.pattern='[A-Za-z][A-Za-z0-9_]{2,15}';input.setAttribute('aria-label','Nouveau pseudo');
     const renameSubmit=button('Modifier',null);renameSubmit.type='submit';rename.append(input,renameSubmit);
     rename.addEventListener('submit',e=>{e.preventDefault();if(input.value.trim())act('rename',{pseudo:input.value.trim()},'Pseudo modifié.');});
-    me.append(own,rename,el('p','fr-hint','Ne communique pas ton vrai nom ou tes coordonnées. Ton profil reste associé à cet appareil.'));
+    me.append(own,rename,el('p','fr-hint','Ne communique pas ton vrai nom ou tes coordonnées. Sauvegarde ton code d’accès pour retrouver ce profil.'));
     const add=el('form','fr-form'),target=el('input');target.placeholder='Pseudo exact';target.maxLength=16;target.setAttribute('aria-label','Pseudo de l’ami à ajouter');
     const submit=button('Envoyer une demande',null,'fr-btn fr-primary');submit.type='submit';
     add.append(target,submit);add.addEventListener('submit',e=>{e.preventDefault();if(target.value.trim())act('request',{pseudo:target.value.trim()},'Demande envoyée à '+target.value.trim()+'.');});
@@ -165,10 +223,11 @@
       playersSection('⏳ En attente ('+profile.outgoing.length+')',profile.outgoing,'outgoing'),
       playersSection('🎮 Invitations ('+profile.invites.length+')',profile.invites,'invite'));
     wrap.appendChild(grid);
+    wrap.appendChild(backupAccess());
     const extra=box('Sécurité et compte');
     if(profile.blocked.length)extra.appendChild(playersSection('Joueurs bloqués',profile.blocked,'blocked'));
     extra.appendChild(button('Déconnecter cet appareil',()=>{
-      if(confirm('Retirer la connexion sur cet appareil ? Tu ne pourras pas récupérer ce profil sans sauvegarde.')){localStorage.removeItem(AUTH);profile=null;notice='Déconnecté.';render();}
+      if(confirm('Retirer la connexion ? Sauvegarde d’abord ton code d’accès ci-dessus, sinon tu pourrais perdre définitivement cet ancien pseudo.')){localStorage.removeItem(AUTH);profile=null;notice='Déconnecté. Tu peux te reconnecter avec ta clé sauvegardée.';render();}
     },'fr-btn fr-danger'));
     extra.appendChild(el('p','fr-hint','Pas d’annuaire public ni de messagerie privée. Les invitations expirent après 15 minutes.'));
     wrap.appendChild(extra);ui.replaceChildren(wrap);
@@ -184,4 +243,6 @@
   }
   ui.addEventListener('keydown',e=>{if(e.key==='Escape'){e.stopPropagation();e.preventDefault();close();}});
   window.LimbyrinthFriends={open,close,refresh,sendInvite,hasProfile,requireProfile};
+  // Précharge la session sauvegardée au lieu de redemander un pseudo à chaque visite.
+  if(token())void refresh(false);
 })();

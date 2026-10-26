@@ -68,7 +68,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     assert.equal(await run('state'),'menu');
     assert.equal(await page.locator('#friends-screen').isVisible(),true);
     await page.locator('#friends-screen input[aria-label="Ton pseudo"]').fill('JoueurRobot32');
-    await page.locator('#friends-screen button[type="submit"]').first().click();
+    await page.locator('#friends-screen form:has(input[aria-label="Ton pseudo"]) button[type="submit"]').click();
     await page.waitForFunction(()=>window.gameEval('state')==='play',null,{polling:50});
     assert.equal(await page.locator('#friends-screen').isVisible(),false);
     assert.equal(await page.locator('#home').isVisible(),false);
@@ -215,6 +215,64 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
     assert.match(await page.locator('#friends-screen').innerText(), /AMIS & PROFIL/);
     await page.locator('#friends-screen .fr-btn').first().click();
     assert.equal(await page.locator('#friends-screen').isVisible(),false);
+  });
+  await t.test('connexion : session sauvegardée et reprise par code sans recréer le pseudo',async()=>{
+    const access='11111111-1111-4111-8111-111111111111.22222222-2222-4222-8222-222222222222';
+    const tab=await browser.newPage({viewport:{width:1000,height:740}});
+    try{
+      await tab.addInitScript(code=>{
+        window.requestAnimationFrame=()=>0;
+        localStorage.setItem('limbyrinthSocialTokenV1',code);
+      },access);
+      await tab.route('https://game.test/**',route=>route.fulfill(gameResponse(new URL(route.request().url()).pathname)));
+      await tab.route('https://limbyrinth-online.baptiste-werner.workers.dev/social/me',route=>{
+        const auth=route.request().headers().authorization;
+        if(auth!=='Bearer '+access) return route.fulfill({status:401,contentType:'application/json',
+          headers:{'Access-Control-Allow-Origin':'https://game.test'},
+          body:JSON.stringify({error:'Code invalide'})});
+        return route.fulfill({status:200,contentType:'application/json',
+          headers:{'Access-Control-Allow-Origin':'https://game.test'},
+          body:JSON.stringify({pseudo:'anna2',friends:[],incoming:[],outgoing:[],invites:[],blocked:[]})});
+      });
+      await tab.goto('https://game.test');
+      await tab.waitForFunction(()=>window.LimbyrinthFriends?.hasProfile());
+      await tab.locator('#home .hm-friends-button').click();
+      assert.match(await tab.locator('#friends-screen').innerText(),/anna2/);
+      assert.equal(await tab.locator('#friends-screen input[aria-label="Ta clé secrète de reconnexion"]').inputValue(),access);
+      tab.once('dialog',dialog=>dialog.accept());
+      await tab.locator('#friends-screen .fr-danger').last().click();
+      assert.equal(await tab.locator('#friends-screen input[aria-label="Code de reconnexion"]').count(),1);
+      assert.equal(await tab.locator('#friends-screen input[aria-label="Ton pseudo"]').count(),1);
+      await tab.locator('#friends-screen input[aria-label="Code de reconnexion"]').fill('not-a-secret');
+      await tab.locator('#friends-screen button:has-text("Se reconnecter")').click();
+      assert.match(await tab.locator('#fr-status').innerText(),/invalide/i);
+      assert.equal(await tab.evaluate(()=>localStorage.getItem('limbyrinthSocialTokenV1')),null);
+      await tab.locator('#friends-screen input[aria-label="Code de reconnexion"]').fill(access);
+      await tab.locator('#friends-screen button:has-text("Se reconnecter")').click();
+      await tab.waitForFunction(()=>window.LimbyrinthFriends?.hasProfile());
+      assert.match(await tab.locator('#friends-screen').innerText(),/anna2/);
+      assert.equal(await tab.evaluate(()=>localStorage.getItem('limbyrinthSocialTokenV1')),access);
+    }finally{await tab.close();}
+  });
+  await t.test('connexion : erreur serveur avec clé enregistrée ne propose pas de nouveau pseudo',async()=>{
+    const tab=await browser.newPage({viewport:{width:1100,height:750}});
+    try{
+      await tab.addInitScript(()=>{
+        window.requestAnimationFrame=()=>0;
+        localStorage.setItem('limbyrinthSocialTokenV1','existing-token');
+      });
+      await tab.route('https://game.test/**',route=>route.fulfill(gameResponse(new URL(route.request().url()).pathname)));
+      await tab.route('https://limbyrinth-online.baptiste-werner.workers.dev/social/me',route=>
+        route.fulfill({status:503,contentType:'application/json',
+          headers:{'Access-Control-Allow-Origin':'https://game.test'},
+          body:JSON.stringify({error:'Serveur temporairement indisponible'})}));
+      await tab.goto('https://game.test');
+      await tab.locator('#home .hm-friends-button').click();
+      await tab.waitForFunction(()=>document.getElementById('fr-status')?.textContent.includes('Serveur temporairement'));
+      assert.equal(await tab.locator('#friends-screen input[aria-label="Ton pseudo"]').count(),0);
+      assert.equal(await tab.locator('#friends-screen button:has-text("Réessayer ma connexion")').count(),1);
+      assert.equal(await tab.evaluate(()=>localStorage.getItem('limbyrinthSocialTokenV1')),'existing-token');
+    }finally{await tab.close();}
   });
   await t.test('infos et formulaire de retours accessibles depuis le menu', async () => {
     assert.equal(await page.locator('#home .hm-update-box').count(),1);
