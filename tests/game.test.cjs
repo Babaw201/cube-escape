@@ -61,14 +61,72 @@ test('Limbyrinth — logique réelle et géométrie Three.js', async t => {
     assert.ok(data.titan100>data.titan5);
     assert.equal(data.limit,30);
   });
+  await t.test('survie : capture EMP, soin, surcharge et compteur d’objectifs', async () => {
+    const d=await run(`(() => {
+      start(4,123);wave=2;
+      survivalObjective={index:0,charge:0,cleared:false,completed:0};
+      players[0].g.position.set(toW(2),0,toW(7));
+      const f=makeSwarmFoe(888,toW(11),toW(7),0,2);
+      updateSurvivalObjective(2.4);
+      const emp={activated:survivalObjective.cleared,stun:f.stun,completed:survivalObjective.completed};
+      survivalObjective={index:1,charge:0,cleared:false,completed:1};
+      players[0].hp=1;players[0].shield=0;
+      players[0].g.position.set(toW(12),0,toW(7));
+      updateSurvivalObjective(2.4);
+      const repair={hp:players[0].hp,shield:players[0].shield};
+      survivalObjective={index:2,charge:0,cleared:false,completed:2};
+      players[0].g.position.set(toW(7),0,toW(2));
+      f.g.position.set(toW(7),1.2,toW(3));f.hp=3;
+      updateSurvivalObjective(2.4);
+      return {emp,repair,overload:survivalObjective.cleared,completed:survivalObjective.completed};
+    })()`);
+    assert.equal(d.emp.activated,true);
+    assert.equal(d.emp.stun,4);
+    assert.equal(d.emp.completed,1);
+    assert.deepEqual(d.repair,{hp:2,shield:1});
+    assert.equal(d.overload,true);
+    assert.equal(d.completed,3);
+  });
+  await t.test('survie : skins bloqués puis débloqués aux vagues 50 et 100', async () => {
+    const d=await run(`(() => {
+      start(4,123);
+      save.survivalMaxWave=0;
+      save.own=save.own.filter(id=>!['rspectre','rsovereign'].includes(id));
+      shopTab='robot';act(ROBOT_SKINS.find(s=>s.id==='rspectre'));
+      const denied=!save.own.includes('rspectre');
+      wave=50;grantSurvivalRewards();
+      const first=save.own.includes('rspectre')&&!save.own.includes('rsovereign');
+      wave=100;grantSurvivalRewards();
+      const second=save.own.includes('rsovereign')&&save.survivalMaxWave===100;
+      const a=creerRobot(0,0,false,'rspectre');
+      const b=creerRobot(0,0,false,'rsovereign');
+      return {denied,first,second,distinct:a.shape!==b.shape};
+    })()`);
+    assert.deepEqual(d,{denied:true,first:true,second:true,distinct:true});
+  });
+  await t.test('survie : fin enregistre le niveau 5 et le nombre de vagues', async () => {
+    const d=await run(`(() => {
+      start(4,123);
+      let recorded=null;
+      window.LimbyrinthScores={record:d=>{recorded=d;return true;}};
+      wave=6;missionElapsed=66.7;kills=8;
+      endSurvival();
+      return {recorded,score:score(false),state};
+    })()`);
+    assert.equal(d.state,'lose');
+    assert.equal(d.recorded.level,5);
+    assert.equal(d.recorded.wave,6);
+    assert.equal(d.recorded.kills,8);
+    assert.equal(d.recorded.score,d.score);
+  });
   await t.test('carte : dimensions et marqueurs uniques', async () => {
     assert.deepEqual(await run(`({rows:LEVEL4_MAP.length,lengths:LEVEL4_MAP.map(r=>r.length),markers:[...'SO123ABCE'].map(c=>LEVEL4_MAP.join('').split(c).length-1)})`),{rows:15,lengths:Array(15).fill(15),markers:Array(9).fill(1)});
   });
   await t.test('les modèles ont des silhouettes et animations distinctes', async () => {
     const data = await run(`ROBOT_SKINS.map(s => { const rig = creerRobot(0, 0, false, s.id); animerRobot(rig, 1, true, true); const size = new THREE.Box3().setFromObject(rig.group).getSize(new THREE.Vector3()); return { id: s.id, size: size.toArray().map(v => +v.toFixed(2)), shape: rig.shape }; })`);
-    assert.equal(data.length, 4);
+    assert.equal(data.length, 6);
     assert.equal(new Set(data.map(v => v.shape)).size, 4);
-    assert.equal(new Set(data.map(v => v.size.join(','))).size, 4);
+    assert.ok(new Set(data.map(v => v.size.join(','))).size >= 4);
   });
   await t.test('carte et BFS : seule la bonne aile est accessible, sortie après stabilisation', async () => {
     const data = await run(`(() => { start(3); return [0,1,2].map(phase => { level4.phase = phase; level4.latched = [false,false,false]; players.forEach(a => a.g.position.set(toW(1),0,toW(1))); syncLevel4Gates(); const reachable = (x,z) => !!bfs([1,1],[x,z]); const result = { gates: dyn.map(d=>d.closed), console: reachable(7,7), relays: [[11,3],[3,11],[11,11]].map(p=>reachable(...p)) }; level4.latched = [true,true,true]; syncLevel4Gates(); result.exit = reachable(13,13); return result; }); })()`);
