@@ -36,6 +36,10 @@ export class SocialHub extends DurableObject {
     // Récompense ponctuelle validée par le créateur : Spectre pour le compte anna2.
     // INSERT OR IGNORE évite tout doublon au redémarrage du Durable Object.
     this.sql.exec("INSERT OR IGNORE INTO user_rewards(user_id,skin,granted) SELECT id,'rspectre',? FROM users WHERE pseudo='anna2' COLLATE NOCASE",Date.now());
+    // Code-cadeau secret à usage unique pour la joueuse qui a perdu sa clé de compte.
+    // Seul son SHA-256 est enregistré dans le code ; le code clair est remis en privé.
+    this.sql.exec('CREATE TABLE IF NOT EXISTS gift_codes(hash TEXT PRIMARY KEY, skin TEXT NOT NULL, used_by TEXT, used_at INTEGER)');
+    this.sql.exec("INSERT OR IGNORE INTO gift_codes(hash,skin,used_by,used_at) VALUES(?,'rspectre',NULL,NULL)",'964dec245e54224556d76ba39d6ef061d0c63fcf5c984cdc6795095a9538e572');
   }
   one(query, ...args) { return this.sql.exec(query, ...args).toArray()[0] || null; }
   rows(query, ...args) { return this.sql.exec(query, ...args).toArray(); }
@@ -87,6 +91,24 @@ export class SocialHub extends DurableObject {
     if (!token) return error('Profil non connecté sur cet appareil.',401,origin);
     const user=this.one('SELECT id,pseudo FROM users WHERE secret=?',await sha(token));
     if (!user) return error('Profil invalide. Vérifie ta connexion.',401,origin);
+    if(path==='/social/redeem' && method==='POST'){
+      const code=String(body.code||'').trim().toUpperCase();
+      if(!/^SPECTRE-[0-9A-F]{6}-[0-9A-F]{6}-[0-9A-F]{6}$/.test(code))
+        return error('Code cadeau invalide.',400,origin);
+      const hash=await sha(code);
+      const gift=this.one('SELECT skin,used_by FROM gift_codes WHERE hash=?',hash);
+      if(!gift)return error('Code cadeau inconnu.',404,origin);
+      if(gift.used_by && gift.used_by!==user.id)return error('Ce code cadeau a déjà été utilisé.',409,origin);
+      if(!gift.used_by){
+        // Transaction synchrone dans un Durable Object unique, sans await entre les deux écritures.
+        // Un deuxième joueur ne peut pas racheter un code déjà utilisé.
+        this.sql.exec('UPDATE gift_codes SET used_by=?,used_at=? WHERE hash=? AND used_by IS NULL',user.id,Date.now(),hash);
+      }
+      const confirmed=this.one('SELECT skin,used_by FROM gift_codes WHERE hash=?',hash);
+      if(confirmed?.used_by!==user.id)return error('Ce code cadeau a déjà été utilisé.',409,origin);
+      this.sql.exec('INSERT OR IGNORE INTO user_rewards(user_id,skin,granted) VALUES(?,?,?)',user.id,confirmed.skin,Date.now());
+      return response({ok:true,skin:confirmed.skin,alreadyClaimed:!!gift.used_by},200,origin);
+    }
     if(path==='/social/score' && method==='POST'){
       const level=Number(body.level),score=Number(body.score),crystals=Number(body.crystals),
         remaining=Number(body.remaining),seconds=Number(body.seconds),kills=Number(body.kills);
