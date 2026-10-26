@@ -274,6 +274,30 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
       assert.equal(await tab.evaluate(()=>localStorage.getItem('limbyrinthSocialTokenV1')),'existing-token');
     }finally{await tab.close();}
   });
+  await t.test('récompense Spectre d’anna2 : synchronisation du profil et équipement sans vague locale',async()=>{
+    const tab=await browser.newPage({viewport:{width:1000,height:700}});
+    try{
+      await tab.addInitScript(()=>{
+        window.requestAnimationFrame=()=>0;
+        localStorage.setItem('limbyrinthSocialTokenV1','test-token');
+      });
+      await tab.route('https://game.test/**',route=>route.fulfill(gameResponse(new URL(route.request().url()).pathname)));
+      await tab.route('https://limbyrinth-online.baptiste-werner.workers.dev/social/me',route=>
+        route.fulfill({status:200,contentType:'application/json',
+          headers:{'Access-Control-Allow-Origin':'https://game.test'},
+          body:JSON.stringify({pseudo:'anna2',friends:[],incoming:[],outgoing:[],invites:[],blocked:[],unlockedRobots:['rspectre']})}));
+      await tab.goto('https://game.test');
+      await tab.waitForFunction(()=>window.LimbyrinthFriends?.hasProfile()
+        && window.gameEval('save.own.includes("rspectre")'));
+      assert.equal(await tab.evaluate(()=>window.gameEval('save.survivalMaxWave')),0);
+      assert.equal(await tab.evaluate(()=>window.gameEval('save.own.includes("rspectre")')),true);
+      const status=await tab.evaluate(()=>window.gameEval(`(() => {
+        shopTab='robot';act(ROBOT_SKINS.find(r=>r.id==='rspectre'));
+        return {robot:save.robot,persisted:JSON.parse(localStorage.getItem('cubeEscapeSave')).robot};
+      })()`));
+      assert.deepEqual(status,{robot:'rspectre',persisted:'rspectre'});
+    }finally{await tab.close();}
+  });
   await t.test('infos et formulaire de retours accessibles depuis le menu', async () => {
     assert.equal(await page.locator('#home .hm-update-box').count(),1);
     if(await page.locator('#home .hm-update-box:not([open]) summary').count()) await page.locator('#home .hm-update-box summary').click();
