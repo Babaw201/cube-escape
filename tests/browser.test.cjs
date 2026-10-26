@@ -113,7 +113,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
   });
   await t.test('infos et formulaire de retours accessibles depuis le menu', async () => {
     assert.equal(await page.locator('#home .hm-update-box').count(),1);
-    await page.locator('#home .hm-update-box summary').click();
+    if(await page.locator('#home .hm-update-box:not([open]) summary').count()) await page.locator('#home .hm-update-box summary').click();
     assert.match(await page.locator('#home .hm-update-box').innerText(), /Niveau 5/);
     await page.locator('#home .hm-feedback-button').click();
     assert.equal(await page.locator('#feedback-screen').isVisible(),true);
@@ -133,7 +133,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
         return nativeFetch(url,options);
       };
     });
-    await page.locator('#home .hm-update-box summary').click();
+    if(await page.locator('#home .hm-update-box:not([open]) summary').count()) await page.locator('#home .hm-update-box summary').click();
     await page.locator('#home .hm-feedback-card').click();
     assert.equal(await page.locator('#feedback-screen').isVisible(),true);
     await page.locator('#fb-topic').selectOption('murs');
