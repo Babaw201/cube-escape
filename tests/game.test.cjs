@@ -104,7 +104,7 @@ test('Limbyrinth — logique réelle et géométrie Three.js', async t => {
     assert.equal(data.state,'play');
     assert.equal(data.timeLeft,0);
   });
-  await t.test('niveau 5 : un Titan arrive aussi avec 30 drones déjà présents', async () => {
+  await t.test('niveau 5 : un Titan arrive aussi quand le plafond de 20 drones est atteint', async () => {
     const data=await run(`(() => {
       start(4,123);
       wave=4; missionElapsed=48.1;
@@ -113,7 +113,7 @@ test('Limbyrinth — logique réelle et géométrie Three.js', async t => {
       return {wave,number:foes.length,titans:foes.filter(f=>f.kind===3).length};
     })()`);
     assert.equal(data.wave,5);
-    assert.equal(data.number,30);
+    assert.equal(data.number,20);
     assert.ok(data.titans>=1);
   });
   await t.test('niveau 5 : Titan et résistance croissante même avec limite de drones', async () => {
@@ -129,7 +129,54 @@ test('Limbyrinth — logique réelle et géométrie Three.js', async t => {
     assert.equal(data.titan,true);
     assert.ok(data.hp100>data.hp1);
     assert.ok(data.titan100>data.titan5);
-    assert.equal(data.limit,30);
+    assert.equal(data.limit,20);
+  });
+  await t.test('niveau 5 plus facile : drones moins nombreux, moins solides, élites retardés',async()=>{
+    const d=await run(`(() => {
+      start(4,321);missionElapsed=.2;updateSurvival(.05);
+      const first={wave,number:foes.length};
+      missionElapsed=12.2;updateSurvival(.05);
+      const second={wave,number:foes.length};
+      missionElapsed=24.2;updateSurvival(.05);
+      const third={wave,number:foes.length};
+      const stats={hp1:swarmStats(0,1).hp,hp50:swarmStats(0,50).hp,
+        speed1:swarmStats(0,1).spd,speed50:swarmStats(0,50).spd};
+      const max=MAXF;
+      // Pas de drones ajoutés en continu avant la vague 6.
+      const before=foes.length;trickle=99;updateSurvival(.05);
+      const noTrickle=foes.length===before;
+      wave=6;trickle=99;updateSurvival(.05);
+      return {first,second,third,stats,max,noTrickle,trickleAfter:foes.length};
+    })()`);
+    assert.deepEqual(d.first,{wave:1,number:2});
+    assert.equal(d.second.wave,2);
+    assert.equal(d.second.number,4);
+    assert.equal(d.third.wave,3);
+    assert.equal(d.third.number,7);
+    assert.equal(d.noTrickle,true);
+    assert.equal(d.max,20);
+    assert.equal(d.stats.hp1,3);
+    assert.equal(d.stats.hp50,11);
+    assert.ok(d.stats.speed50>d.stats.speed1);
+    assert.ok(d.trickleAfter>d.third.number);
+  });
+  await t.test('niveau 5 plus facile : un relais se capture en 1,8 s et les soins reviennent toutes les 24 s',async()=>{
+    const d=await run(`(() => {
+      start(4,456);wave=2;
+      survivalObjective={index:0,charge:0,cleared:false,completed:0};
+      players[0].g.position.set(toW(2),0,toW(7));
+      updateSurvivalObjective(1.7);
+      const almost=survivalObjective.cleared;
+      updateSurvivalObjective(.1);
+      const captured=survivalObjective.cleared;
+      players[0].hp=1;healT=23.9;
+      updateSurvival(.2);
+      return {almost,captured,hp:players[0].hp,healT};
+    })()`);
+    assert.equal(d.almost,false);
+    assert.equal(d.captured,true);
+    assert.equal(d.hp,2);
+    assert.equal(d.healT,0);
   });
   await t.test('survie : capture EMP, soin, surcharge et compteur d’objectifs', async () => {
     const d=await run(`(() => {
