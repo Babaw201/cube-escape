@@ -6,19 +6,29 @@ Jeu 3D de labyrinthe en HTML et Three.js r128, avec quatre niveaux de campagne e
 
 Choisir **« Niveau 1 : Labyrinthe »** pour commencer. Sur téléphone, ouvrir le lien dans Chrome ou Safari.
 
-## Niveau 5 — Survie infinie (bêta)
+## Niveau 5 — Survie infinie : **Protocole CORE**
 
-Après avoir terminé le niveau 4, l'arène **Survie · l'armée de CORE** est débloquée.
+Après le niveau 4, le joueur débloque une arène **sans fin** (nouvelle vague toutes les 12 secondes). En plus des affrontements contre les drones, la survie demande de **capturer les stations actives** : rester dans le cercle lumineux pendant 2,4 secondes, sans s'en éloigner. La capture fonctionne sur clavier, mobile et en coopération ; le niveau ne se limite donc pas à courir et tirer.
 
-- Une nouvelle vague toutes les **12 secondes** sans limite de vagues ou de durée.
-- Ennemis d'assaut, sprinters, blindés, et **Titan toutes les 5 vagues**.
-- Vitesse des drones progressivement croissante (plafonnée pour conserver une maniabilité possible) et résistance augmentant sans plafond.
-- **Maximum 30 drones simultanés** pour préserver les performances sur mobile ; les vagues continuent de gagner en difficulté même lorsque ce plafond est atteint.
-- Un soin d'un point de vie devient possible après un délai qui augmente avec les vagues.
-- Score de fin de partie = secondes survécues × 10 + drones détruits × 15. Record de survie stocké localement.
-- Pas de portail ni de limite de temps : la session s'arrête quand tous les joueurs sont détruits.
+| Relais tactique | Effet |
+|---|---|
+| Impulsion EMP (bleu) | Immobilise les drones pendant 4 secondes |
+| Station médicale (vert) | Rend 1 PV et ajoute un bouclier aux robots encore actifs |
+| Surcharge de CORE (ambre) | Endommage/neutralise les drones à proximité |
 
-**À savoir :** le classement en ligne historique couvre les niveaux 1 à 4. Le niveau 5 conserve son record localement jusqu'à l'ajout d'un classement serveur adapté. Cette fonctionnalité doit encore être validée en jeu sur PC et mobile.
+Le relais actif change à chaque nouvelle vague, à partir de la vague 2. Les Titans arrivent toutes les cinq vagues, et la résistance des drones continue de croître après le plafond de 30 ennemis simultanés.
+
+### Récompenses de progression
+- **Vague 50** : skin de robot *Spectre* (sphère fantôme violette).
+- **Vague 100** : skin légendaire *Souverain* (araignée noire et couronne plasma).
+- Récompenses gratuites **verrouillées jusqu'au palier**, persistantes dans la sauvegarde et équipables depuis la boutique. Un ancien record de survie déjà sauvegardé est pris en compte.
+
+### Records
+- **Local :** le niveau 5 rejoint l'historique, les filtres, l'export CSV, les meilleurs scores par niveau et le record de vague, avec temps et nombre de drones détruits.
+- **En ligne :** le classement Top 10 dispose d'un filtre « Niveau 5 / Survie », séparé de « Campagne (1–4) ». Le serveur doit accepter les résultats de survie avant que le Top 10 soit disponible : déployer `online/worker.mjs` et `online/social.mjs` ensemble sur Cloudflare (avec le module feedback actuel).
+- Les parties refusées pendant une mise à jour serveur restent en attente localement pour une synchronisation ultérieure, tant que le profil de joueur et les données du navigateur sont conservés.
+- Le classement est en **bêta**, sans anti-triche serveur faisant autorité. Ne pas l'utiliser pour une compétition récompensée.
+
 
 ## Nouveautés
 
