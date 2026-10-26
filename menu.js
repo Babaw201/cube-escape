@@ -319,7 +319,7 @@
     const details=el('details','hm-updates-details hm-update-box');
     details.append(el('summary',null,'Actualités · Avis'),
       el('div','hm-update-content',null,[
-        el('div','hm-update-line','Survie infinie · relais tactiques, skins aux vagues 50 et 100.'),
+        el('div','hm-update-line','Niveau 5 · Survie infinie : relais tactiques, skins aux vagues 50 et 100.'),
         btn('hm-btn hm-feedback-button','💬  Signaler un bug',()=>window.LimbyrinthFeedback?.open('idea')),
         btn('hm-btn hm-feedback-card','▣  Sondage',()=>window.LimbyrinthFeedback?.open('poll'))
       ]));
