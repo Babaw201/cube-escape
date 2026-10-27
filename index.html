@@ -210,6 +210,7 @@ canvas{touch-action:none}#overlay{overflow:auto;touch-action:pan-y}#net textarea
 <script src="vendor/GLTFLoader.js"></script>
 <script src="vendor/BufferGeometryUtils.js"></script>
 <script src="robot-models.js"></script>
+<script src="vortex.js"></script>
 <script>
 if (typeof THREE === "undefined") {
   document.getElementById("d").textContent = "Impossible de charger Three.js : vérifie ta connexion internet puis recharge la page.";
@@ -292,6 +293,8 @@ const rin = { dx: 0, dz: 0, yaw: null }, pend = { f: null, d: false, phase: fals
 const send = o => { try { if (dc && dc.readyState === "open") dc.send(JSON.stringify(o)); } catch (e) {} };
 Array.prototype.shuf = function () { for (let i = this.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [this[i], this[j]] = [this[j], this[i]]; } return this; };
 let lasers = [], foes = [], shots = [], fx = [];
+let singularities = [], gravityPulses = [], gravitySerial = 0;
+const expiredGravityIds=new Set();
 let pulsePads = [], reactor = null, missionElapsed = 0, overload = false, firstPerson = false, viewYaw = 0, kills = 0;
 const mouse = { x: 0, y: 0 };
 const bars = [$("bars"), $("bars").cloneNode(true)];
@@ -337,6 +340,7 @@ function build() {
 }
 
 function build0() {
+  window.LimbyrinthVortex.reset();singularities=[];gravityPulses=[];expiredGravityIds.clear();
   if (world) { scene.remove(world); disposeTree(world); }
   occluders = []; phaseConsole = null;
   world = new THREE.Group(); scene.add(world);
@@ -600,7 +604,7 @@ function animateLevel4(dt) {
   phaseConsole.rings.forEach((r,i)=>{r.rotation.z += dt*(i%2?-1:1)*.7;r.material.opacity=i===level4.phase?1:.3;});
   phaseConsole.glow.material.color.setHex(level4.alarm ? 0xff385d : PHASE_COLORS[level4.phase]);
 }
-function trackerAI(f, dt) {
+function trackerAI(f, dt, speedFactor=1) {
   f.flash = Math.max(0,f.flash-dt); f.recover=Math.max(0,f.recover-dt);
   f.mat.emissive.setHex(f.stun>0?0x16487d:f.flash>0?0xffdca3:0x7a001b);
   f.drone.pointsDeVie=f.stun>0?0:f.hp; f.drone.mode=f.mode==='CHASE'?'poursuite':'patrouille';animerDrone(f.drone,dt,t);
@@ -622,7 +626,7 @@ function trackerAI(f, dt) {
     target={x:toW(f.waypoint[0]),z:toW(f.waypoint[1])};
   }
   const dx=target.x-q.x,dz=target.z-q.z,d=Math.hypot(dx,dz);if(d<.01)return;
-  const step=Math.min(d,dt*(chase?LEVEL4.chaseSpeed:LEVEL4.patrolSpeed));
+  const step=Math.min(d,dt*(chase?LEVEL4.chaseSpeed:LEVEL4.patrolSpeed)*speedFactor);
   const nx=q.x+dx/d*step,nz=q.z+dz/d*step;
   if(!hit(nx,q.z,.45))q.x=nx;if(!hit(q.x,nz,.45))q.z=nz;f.g.rotation.y=Math.atan2(dx,dz);
 }
@@ -632,7 +636,7 @@ function disposeTree(tree) {
   const shared=new Set([cubeGeometry,droneGeometry,rotorGeometry,shGeo,shMat,shotGeo,shotMat,fxGeo,droneGeo,eyeGeo,ringGeo,...Object.values(fxMats)]);
   const resources=new Set();
   tree.traverse(o=>{if(o.geometry&&!shared.has(o.geometry))resources.add(o.geometry);for(const m of (Array.isArray(o.material)?o.material:[o.material]))if(m&&!shared.has(m)){resources.add(m);for(const v of Object.values(m))if(v?.isTexture&&v!==_gt&&v!==_ft)resources.add(v);}});
-  resources.forEach(r=>{if(!window.LimbyrinthRobotModels?.isShared(r))r.dispose();});
+  resources.forEach(r=>{if(!window.LimbyrinthRobotModels?.isShared(r)&&!window.LimbyrinthVortex.isShared(r))r.dispose();});
 }
 
 function hit(px, pz, r = R) {
@@ -884,10 +888,10 @@ function buildSurvivalStations() {
   });
 }
 function grantSurvivalRewards() {
+  if(cur!==4)return;
   save.survivalMaxWave=Math.max(save.survivalMaxWave||0,wave);
   const added=reconcileSurvivalRewards();
   for(const name of added){
-    const threshold=name==='Spectre'?50:100;
     flash('🏆 '+name+' débloqué ! Boutique → Robots → '+name+' → Équiper',4800);
   }
   store(); // sauvegarde immédiate, même si la partie se poursuit
@@ -956,7 +960,7 @@ function makeSwarmFoe(id, x, z, kind, level = wave) {
     stun: 0, recover: 0, pathCd: 0, tx: x, tz: z };
   foes.push(f); return f;
 }
-function swarmAI(f, dt) {
+function swarmAI(f, dt, speedFactor=1) {
   const q = f.g.position, p = nearest(q);
   f.flash = Math.max(0, f.flash - dt);
   f.mat.emissive.setHex(f.flash > 0 ? 0xffffff : f.em);
@@ -986,8 +990,8 @@ function swarmAI(f, dt) {
     if (d > 0.001 && d < 1.2) { mx += dx / d * 0.65; mz += dz / d * 0.65; }
   });
   const n = Math.hypot(mx, mz) || 1;
-  const nx = q.x + (mx / n) * f.spd * dt;
-  const nz = q.z + (mz / n) * f.spd * dt;
+  const nx = q.x + (mx / n) * f.spd * dt * speedFactor;
+  const nz = q.z + (mz / n) * f.spd * dt * speedFactor;
   if (!hit(nx, q.z, 0.4)) q.x = nx;
   if (!hit(q.x, nz, 0.4)) q.z = nz;
   f.g.rotation.y = Math.atan2(mx, mz);
@@ -1085,8 +1089,9 @@ function endSurvival() {
 }
 
 function foeAI(f, dt) {
-  if (cur === 4) return swarmAI(f, dt);
-  if (cur === 3) return trackerAI(f, dt);
+  const speedFactor=f.slow>0?.5:1;f.slow=Math.max(0,(f.slow||0)-dt);
+  if (cur === 4) return swarmAI(f, dt, speedFactor);
+  if (cur === 3) return trackerAI(f, dt, speedFactor);
   if(f.stun>0){f.stun=Math.max(0,f.stun-dt);return;}
   const q = f.g.position, p = nearest(q), d = Math.hypot(p.x - q.x, p.z - q.z);
   if (d < 6 && los(q, p)) { f.mode = "chase"; f.lost = 0; }
@@ -1101,7 +1106,7 @@ function foeAI(f, dt) {
   if (!ch && Math.hypot(gx - q.x, gz - q.z) < 0.4) { f.pi = (f.pi + 1) % f.pts.length; return; }
   if (l < 0.05) return;
   mx /= l; mz /= l;
-  const sp = ch ? 4.6 : 2.6, nx = q.x + mx * sp * dt, nz = q.z + mz * sp * dt;
+  const sp = (ch ? 4.6 : 2.6)*speedFactor, nx = q.x + mx * sp * dt, nz = q.z + mz * sp * dt;
   if (!hit(nx, q.z, 0.4)) q.x = nx;
   if (!hit(q.x, nz, 0.4)) q.z = nz;
   f.g.rotation.y = Math.atan2(mx, mz);
@@ -1144,15 +1149,15 @@ function aim(a) {
 // Projectiles issus du profil du robot, au lieu d'un tir commun à tous.
 function spawnRobotShot(a,dx,dz,col,opts={}) {
   const l=Math.hypot(dx,dz)||1;dx/=l;dz/=l;
-  const m=new THREE.Mesh(shotGeo,shotMat.clone());
-  m.material.color.setHex(col);m.add(mkGlow(col,opts.size>1?2.1:1.5,.7));
+  const m=opts.gravity?window.LimbyrinthVortex.acquireShot():new THREE.Mesh(shotGeo,shotMat.clone());
+  m.material.color.setHex(col);if(!opts.gravity)m.add(mkGlow(col,opts.size>1?2.1:1.5,.7));
   m.scale.setScalar(opts.size||1);
   const p=a.g.position, side=opts.side||0;
   m.position.set(p.x+dx*.9-dz*side,.75,p.z+dz*.9+dx*side);
   m.rotation.y=Math.atan2(dx,dz);world.add(m);
   shots.push({m,vx:dx*(opts.speed||22),vz:dz*(opts.speed||22),
     life:opts.life||1.3,col,pierce:opts.pierce||0,
-    wallPass:!!opts.wallPass,hitIds:[]});
+    wallPass:!!opts.wallPass,hitIds:[],gravity:!!opts.gravity});
   return m;
 }
 function fire(a,dx,dz) {
@@ -1173,6 +1178,10 @@ function fire(a,dx,dz) {
   }else if(id==='rspectre'){
     a.fireCd=.52;
     spawnRobotShot(a,dx,dz,col,{speed:23,pierce:2,wallPass:true,life:1.55,size:.85});
+  }else if(id==='rvortex'){
+    a.fireCd=.5;
+    spawnRobotShot(a,dx,dz,kit.color,{gravity:true,speed:19,life:1.5});
+    snd(210,.12,'sine',.035,90);
   }else if(id==='rsovereign'){
     a.fireCd=.54;
     for(const side of [-.23,.23])spawnRobotShot(a,dx,dz,col,{speed:21,pierce:1,side,size:1.25});
@@ -1220,6 +1229,8 @@ function useUltimate(a){
       const v=i*Math.PI/4;
       spawnRobotShot(a,Math.sin(v),Math.cos(v),kit.color,{speed:24,wallPass:true,pierce:2,life:1.5});
     }
+  }else if(id==='rvortex'){
+    createSingularity(a);
   }else if(id==='rsovereign'){
     areaRobotAttack(a,9.2,kit.color,3,3.5);
     a.shield=Math.max(a.shield||0,2);
@@ -1229,6 +1240,57 @@ function useUltimate(a){
   return true;
 }
 
+function removeRobotShot(shot){
+  world.remove(shot.m);
+  if(shot.gravity)window.LimbyrinthVortex.releaseShot(shot.m);else disposeTree(shot.m);
+}
+function gravityPulse(x,z,radius=1.2,replicate=true){
+  // Bounded, recycled meshes. No particles or lights allocated per impact.
+  if(gravityPulses.length>=12)return;
+  const visual=window.LimbyrinthVortex.acquireEffect('pulse');visual.position.set(x,0,z);world.add(visual);
+  gravityPulses.push({visual,age:0,duration:.4,radius});
+  if(replicate&&net==='host')evq.push({v:[x,z,radius]});
+}
+function createSingularity(a){
+  const p=a.g.position,yaw=a.robot.rotation.y,engine=window.LimbyrinthVortex;
+  let x=p.x,z=p.z;
+  // Place just ahead when the entire path is clear; otherwise use player position.
+  const target={x:p.x+Math.sin(yaw)*1.35,z:p.z+Math.cos(yaw)*1.35};
+  if(engine.clearPath(p,target,hit,.45)){x=target.x;z=target.z;}
+  const visual=engine.acquireEffect('singularity');visual.position.set(x,0,z);world.add(visual);
+  singularities.push({id:++gravitySerial,owner:players.indexOf(a),x,z,life:3,tick:0,visual});
+  a.rig.ultimate=3;engine.animateEffect(visual,0,3);
+  snd(65,.5,'sine',.045,210);
+}
+function updateGravity(dt,authoritative=net!=='guest'){
+  const engine=window.LimbyrinthVortex;
+  for(let i=gravityPulses.length-1;i>=0;i--){
+    const pulse=gravityPulses[i];pulse.age+=dt;engine.animateEffect(pulse.visual,pulse.age,pulse.duration,pulse.radius);
+    if(pulse.age>=pulse.duration){engine.releaseEffect(pulse.visual);gravityPulses.splice(i,1);}
+  }
+  for(const a of players)if(a.rig.skinId==='rvortex')a.rig.ultimate=0;
+  for(let i=singularities.length-1;i>=0;i--){
+    const s=singularities[i],step=Math.min(dt,Math.max(0,s.life));
+    s.life=Math.max(0,s.life-step);if(s.life<=1e-9)s.life=0;s.tick+=step;
+    if(authoritative){
+      for(const f of foes){
+        if(f.stun>0||Math.hypot(f.g.position.x-s.x,f.g.position.z-s.z)>5.5)continue;
+        engine.pullEnemy(f.g.position,s,step,f.kind,hit);
+      }
+      while(s.tick>=.5-1e-9){
+        s.tick-=.5;
+        for(const f of [...foes])if(Math.hypot(f.g.position.x-s.x,f.g.position.z-s.z)<=5.5&&engine.clearPath(f.g.position,s,hit))hitFoe(f,f.g.position);
+      }
+    }
+    engine.animateEffect(s.visual,3-s.life,3);
+    const owner=players[s.owner];if(owner?.rig.skinId==='rvortex')owner.rig.ultimate=Math.max(owner.rig.ultimate,s.life);
+    if(s.life<=1e-9){
+      if(!authoritative)expiredGravityIds.add(s.id);
+      s.life=0;engine.releaseEffect(s.visual);singularities.splice(i,1);
+      gravityPulse(s.x,s.z,5.5,false);snd(320,.22,'sine',.045,1000);
+    }
+  }
+}
 function combat(dt) {
   laserT -= dt; if (laserT <= 0) { laserOn = !laserOn; laserT = 3; }
   for (const a of players) {
@@ -1241,20 +1303,32 @@ function combat(dt) {
   }
   for(let i=shots.length-1;i>=0;i--){
     const sh=shots[i],pos=sh.m.position;sh.life-=dt;
-    pos.x+=sh.vx*dt;pos.z+=sh.vz*dt;
-    if(curRay.trail&&Math.random()<.3)burst(pos,sh.col||0x66f0ff,1,.1);
-    const row=grid[fromW(pos.z)];
-    let dead=sh.life<=0||!row||(!sh.wallPass&&row[fromW(pos.x)]!==0);
-    if(!dead)for(const f of [...foes]){
-      if(f.stun>0||sh.hitIds.includes(f))continue;
-      if(Math.hypot(f.g.position.x-pos.x,f.g.position.z-pos.z)<.9){
-        sh.hitIds.push(f);hitFoe(f,pos);
-        if((sh.pierce||0)>0)sh.pierce--;else{dead=true;break;}
+    let dead=sh.life<=0;
+    // The gravity sphere is swept so even a long frame cannot skip a thin wall.
+    const steps=sh.gravity?Math.max(1,Math.ceil(Math.hypot(sh.vx,sh.vz)*dt/.2)):1;
+    for(let k=0;k<steps&&!dead;k++){
+      pos.x+=sh.vx*dt/steps;pos.z+=sh.vz*dt/steps;
+      const row=grid[fromW(pos.z)];
+      dead=!row||(!sh.wallPass&&(sh.gravity?hit(pos.x,pos.z,.22):row[fromW(pos.x)]!==0));
+      if(!dead)for(const f of [...foes]){
+        if(f.stun>0||sh.hitIds.includes(f))continue;
+        if(Math.hypot(f.g.position.x-pos.x,f.g.position.z-pos.z)<.9){
+          sh.hitIds.push(f);hitFoe(f,pos);
+          if(sh.gravity&&foes.includes(f))f.slow=Math.max(f.slow||0,1.2);
+          if((sh.pierce||0)>0)sh.pierce--;else{dead=true;break;}
+        }
       }
     }
-    if(dead){burst(pos,sh.col||0x66f0ff,4,.65);world.remove(sh.m);disposeTree(sh.m);shots.splice(i,1);}
+    if(sh.gravity)sh.m.rotation.z+=dt*6;
+    else if(curRay.trail&&Math.random()<.3)burst(pos,sh.col||0x66f0ff,1,.1);
+    if(dead){
+      if(sh.gravity){gravityPulse(pos.x,pos.z);snd(120,.14,'sine',.035,420);}
+      else burst(pos,sh.col||0x66f0ff,4,.65);
+      removeRobotShot(sh);shots.splice(i,1);
+    }
   }
   for (const f of foes) foeAI(f, dt);
+  updateGravity(dt);
   for (let i = fx.length - 1; i >= 0; i--) {
     const e = fx[i]; e.life -= dt; e.m.position.addScaledVector(e.v, dt); e.m.scale.setScalar(Math.max(0.01, e.life / e.max));
     if (e.life <= 0) { world.remove(e.m); fx.splice(i, 1); }
@@ -1296,38 +1370,76 @@ function renderLv() {
 function snap() {
   send({ t: "s", tl: timeLeft, sw: swapT, c: collected, k: kills, mt: missionElapsed, wv: cur === 4 ? wave : 0, sv: cur===4?[survivalObjective.index,survivalObjective.charge,survivalObjective.cleared,survivalObjective.completed]:null, ov: overload ? 1 : 0, lo: laserOn ? 1 : 0, ls: laserT, l4: cur === 3 ? {...level4} : null,
     p: players.map(a => [a.g.position.x, a.g.position.z, a.robot.rotation.y, a.hp, a.alive ? 1 : 0, a.dashCd, a.inv > 0 ? 1 : 0, a.robot.position.y, a.rig.skinId, a.ultCd||0]),
-    f: foes.map(f => [f.id, f.g.position.x, f.g.position.z, f.g.rotation.y, f.flash > 0 ? 1 : 0, f.hp, f.mode === "chase" || f.mode === "CHASE" ? 1 : 0, f.stun || 0, f.mode, f.recover || 0, f.kind || 0]),
+    f: foes.map(f => [f.id, f.g.position.x, f.g.position.z, f.g.rotation.y, f.flash > 0 ? 1 : 0, f.hp, f.mode === "chase" || f.mode === "CHASE" ? 1 : 0, f.stun || 0, f.mode, f.recover || 0, f.kind || 0, f.slow||0]),
     d: dyn.map(d => (d.closed ? 1 : 0)).join(""), cg: crystals.map(c => (c.got ? 1 : 0)).join(""),
-    sh: shots.map(s => [s.m.position.x, s.m.position.z, s.m.rotation.y,s.col||0x66f0ff]), ev: evq });
+    sh: shots.map(s => [s.m.position.x, s.m.position.z, s.m.rotation.y,s.col||0x66f0ff,s.gravity?1:0]),
+    gv:singularities.map(s=>[s.id,s.owner,s.x,s.z,s.life]),ev: evq });
   evq = [];
 }
 
 function applySnap(m) {
   const previousWave=wave;
   timeLeft = m.tl; swapT = m.sw; collected = m.c; kills = m.k || 0; laserOn = !!m.lo; laserT = m.ls; missionElapsed = m.mt || 0; wave = cur === 4 ? (m.wv || 0) : 0; overload = !!m.ov;
-  if(cur===4 && net==='guest' && wave>=50 &&
-    (wave>previousWave || (save.survivalMaxWave||0)<wave || !save.own.includes('rspectre')))grantSurvivalRewards();
+  if(cur===4 && net==='guest' && wave>=20 &&
+    (wave>previousWave || (save.survivalMaxWave||0)<wave || !save.own.includes('rvortex')))grantSurvivalRewards();
   if (cur === 3 && m.l4) level4 = {...m.l4, latched: [...m.l4.latched]};
   m.p.forEach((q, k) => { const a = players[k]; if (!a) return; if(q[8] && q[8] !== a.rig.skinId) replacePlayerRig(a,q[8],k); a.tx = q[0]; a.tz = q[1]; a.robot.rotation.y = firstPerson && net === "guest" && k === 1 ? viewYaw : q[2]; a.hp = q[3]; a.alive = !!q[4]; a.dashCd = q[5]; a.inv = q[6]; a.robot.position.y = q[7]; a.ultCd=q[9]||0; });
-  foes = foes.filter(f => { const q = m.f.find(z => z[0] === f.id); if (!q) { world.remove(f.g); if (cur === 4) disposeTree(f.g); return false; } f.tx = q[1]; f.tz = q[2]; f.g.rotation.y = q[3]; f.flash = q[4]; f.hp = q[5]; f.mode = q[8] || (q[6] ? "chase" : "patrol"); f.stun = q[7] || 0; f.recover = q[9] || 0; return true; });
+  foes = foes.filter(f => { const q = m.f.find(z => z[0] === f.id); if (!q) { world.remove(f.g); if (cur === 4) disposeTree(f.g); return false; } f.tx = q[1]; f.tz = q[2]; f.g.rotation.y = q[3]; f.flash = q[4]; f.hp = q[5]; f.mode = q[8] || (q[6] ? "chase" : "patrol"); f.stun = q[7] || 0; f.recover = q[9] || 0; f.slow=q[11]||0; return true; });
   if (cur === 4) {
     if(Array.isArray(m.sv)) { survivalObjective.index=m.sv[0];survivalObjective.charge=m.sv[1];survivalObjective.cleared=!!m.sv[2];survivalObjective.completed=m.sv[3]||0; }
     m.f.forEach(q => {
       if (!foes.some(f => f.id === q[0])) {
         const f = makeSwarmFoe(q[0], q[1], q[2], q[10] || 0, wave);
-        f.tx = q[1]; f.tz = q[2]; f.hp = q[5];
+        f.tx = q[1]; f.tz = q[2]; f.hp = q[5];f.stun=q[7]||0;f.slow=q[11]||0;
       }
     });
   }
   dyn.forEach((d, i) => { d.closed = m.d[i] === "1"; grid[d.j][d.i] = d.closed ? 1 : 0; if(d.closed) d.mesh.visible = true; d.deferred = cur === 3 && !d.closed && !shouldGateBeOpen(d.gate,level4); });
   crystals.forEach((c, i) => { c.got = m.cg[i] === "1"; c.mesh.visible = cur === 2 || !c.got; });
-  while (shots.length > m.sh.length) world.remove(shots.pop().m);
+  syncGravity(m.gv||[]);
+  while (shots.length > m.sh.length) removeRobotShot(shots.pop());
   while (shots.length < m.sh.length) { const mm = new THREE.Mesh(shotGeo, shotMat.clone()); mm.add(mkGlow(0x66f0ff, 1.6, 0.8)); world.add(mm); shots.push({ m: mm }); }
-  m.sh.forEach((q, i) => { shots[i].m.position.set(q[0], 0.75, q[1]); shots[i].m.rotation.y = q[2]; shots[i].m.material.color.setHex(q[3]||0x66f0ff); });
-  m.ev.forEach(e => (e.b ? burst(new THREE.Vector3(e.b[0], e.b[1], e.b[2]), e.b[3], e.b[4], e.b[5]) : flash(e.m[0], e.m[1])));
+  m.sh.forEach((q, i) => {
+    const gravity=!!q[4];
+    if(!!shots[i].gravity!==gravity){
+      removeRobotShot(shots[i]);
+      const mesh=gravity?window.LimbyrinthVortex.acquireShot():new THREE.Mesh(shotGeo,shotMat.clone());
+      if(!gravity)mesh.add(mkGlow(q[3]||0x66f0ff,1.6,.8));world.add(mesh);shots[i]={m:mesh,gravity};
+    }
+    shots[i].m.position.set(q[0],.75,q[1]);shots[i].m.rotation.y=q[2];shots[i].m.material.color.setHex(q[3]||0x66f0ff);
+  });
+  m.ev.forEach(e => {
+    if(e.v){gravityPulse(e.v[0],e.v[1],e.v[2],false);snd(120,.14,'sine',.035,420);}
+    else if(e.b)burst(new THREE.Vector3(e.b[0],e.b[1],e.b[2]),e.b[3],e.b[4],e.b[5]);
+    else if(e.m)flash(e.m[0],e.m[1]);
+  });
 }
 
+function syncGravity(records){
+  const engine=window.LimbyrinthVortex;
+  const active=new Set(records.map(q=>q[0]));
+  // Keep a locally finished ID until the host retires it; an in-flight snapshot
+  // must not recreate the effect and replay its closing pulse or sound.
+  for(const id of expiredGravityIds)if(!active.has(id))expiredGravityIds.delete(id);
+  singularities=singularities.filter(s=>{
+    if(active.has(s.id))return true;
+    engine.releaseEffect(s.visual);gravityPulse(s.x,s.z,5.5,false);return false;
+  });
+  for(const a of players)if(a.rig.skinId==='rvortex')a.rig.ultimate=0;
+  for(const q of records){
+    if(expiredGravityIds.has(q[0]))continue;
+    if(q.length<5||!q.every(Number.isFinite)||q[4]<=0||q[4]>3)continue;
+    let s=singularities.find(s=>s.id===q[0]);
+    if(!s){
+      const visual=engine.acquireEffect('singularity');world.add(visual);
+      s={id:q[0],tick:0,visual};singularities.push(s);snd(65,.5,'sine',.045,210);
+    }
+    [s.id,s.owner,s.x,s.z,s.life]=q;s.visual.position.set(s.x,0,s.z);engine.animateEffect(s.visual,3-s.life,3);
+    const a=players[s.owner];if(a?.rig.skinId==='rvortex')a.rig.ultimate=Math.max(a.rig.ultimate,s.life);
+  }
+}
 function guestStep(dt) {
+  updateGravity(dt,false);
   const k = Math.min(1, dt * 14);
   players.forEach(a => {
     if (a.rig) animerRobot(a.rig, t, a.tx !== undefined && Math.hypot(a.tx - a.g.position.x, a.tz - a.g.position.z) > 0.05, a.dashCd > 4.8);
@@ -1527,7 +1639,8 @@ const ROBOT_SKINS = [
   {id:'rspider',name:'Hexa',shape:'spider',desc:'Araignée mécanique · six pattes synchronisées',price:0,rar:1,body:0x486677,accent:0x73ffd0},
   {id:'rtrack',name:'Bastion',shape:'tracks',desc:'Robot à chenilles · tourelle et roulements animés',price:0,rar:1,body:0xe5b574,accent:0xffd77f},
   {id:'rspectre',name:'Spectre',shape:'orb',desc:'Édition onde fantôme · débloqué vague 50',price:0,rar:2,body:0x191932,accent:0x9b7dff,requiresWave:50},
-  {id:'rsovereign',name:'Souverain',shape:'spider',desc:'Couronne plasma · récompense ultime vague 100',price:0,rar:3,body:0x16151c,accent:0xffd36e,requiresWave:100}
+  {id:'rsovereign',name:'Souverain',shape:'spider',desc:'Couronne plasma · récompense ultime vague 100',price:0,rar:3,body:0x16151c,accent:0xffd36e,requiresWave:100},
+  {id:'rvortex',name:'VORTEX',shape:'vortex',desc:'Prototype gravitationnel de CORE · noyau flottant et trois bras orbitaux',price:0,rar:3,body:0x242a34,accent:0xb865ff,requiresWave:20}
 ];
 const ROBOT_ABILITIES = {
  rclassic:{basic:'Impulsion linéaire',ulti:'Onde de choc',cd:20,color:0x63dfff},
@@ -1535,7 +1648,8 @@ const ROBOT_ABILITIES = {
  rspider:{basic:'Aiguillon perforant',ulti:'Toile paralysante',cd:23,color:0x63ffc8},
  rtrack:{basic:'Salve à trois canons',ulti:'Barrage de Bastion',cd:25,color:0xffbd73},
  rspectre:{basic:'Trait spectral traversant',ulti:'Phase fantôme',cd:26,color:0x9b7dff},
- rsovereign:{basic:'Lances plasma',ulti:'Couronne du Souverain',cd:32,color:0xffd36e}
+ rsovereign:{basic:'Lances plasma',ulti:'Couronne du Souverain',cd:32,color:0xffd36e},
+ rvortex:{basic:'IMPLOSION',ulti:'SINGULARITÉ',cd:28,color:0xb865ff,basicDesc:'Sphère violette · dégâts et ralentissement de 1,2 s',ultiDesc:'Attire les drones visibles à 5,5 m pendant 3 s · dégâts périodiques · recharge 28 s'}
 };
 const kitOf = a => ROBOT_ABILITIES[a?.rig?.skinId] || ROBOT_ABILITIES.rclassic;
 window.LimbyrinthRobotKits = ROBOT_ABILITIES;
@@ -1601,7 +1715,7 @@ function reconcileSurvivalRewards() {
   // Récompenses attestées par le serveur pour le compte connecté.
   const grantedByAccount=window.LimbyrinthFriends?.getRewards?.()||[];
   const added=[];
-  for(const [threshold,id,name] of [[50,'rspectre','Spectre'],[100,'rsovereign','Souverain']]) {
+  for(const [threshold,id,name] of [[20,'rvortex','VORTEX'],[50,'rspectre','Spectre'],[100,'rsovereign','Souverain']]) {
     if((maxWave>=threshold||grantedByAccount.includes(id))&&!owned.includes(id)){
       owned.push(id);added.push(name);
     }
@@ -1680,13 +1794,14 @@ function drawShop() {
       if(it.requiresWave && save.own.includes(it.id))
         info.textContent='✓ Débloqué (vague '+it.requiresWave+') · '+info.textContent;
       info.textContent += ' · Tir : '+ROBOT_ABILITIES[it.id].basic+' · Ulti : '+ROBOT_ABILITIES[it.id].ulti;
+      if(it.id==='rvortex')info.textContent+=' · '+ROBOT_ABILITIES.rvortex.basicDesc+' · '+ROBOT_ABILITIES.rvortex.ultiDesc;
     }
     c.append(sw, nm, info);
     if (shopTab === 'robot') { const b=document.createElement('button');b.className='preview-btn';b.textContent='Voir en 3D';b.onclick=()=>showRobotPreview(it.id);c.appendChild(b); }
     if (shopTab !== "defi") {
       const own = shopTab !== "boost" && save.own.includes(it.id), on = save[shopTab] === it.id, b = document.createElement("button");
       const locked=!!it.requiresWave && !own && (save.survivalMaxWave||0)<it.requiresWave;
-      b.textContent = locked ? '🔒 Vague '+it.requiresWave : on ? 'Équipé ✓' : own || it.price === 0 ? 'Équiper' : 'Acheter · '+it.price+' pièces';
+      b.textContent = locked ? (it.id==='rvortex'?'🔒 Atteindre la vague 20':'🔒 Vague '+it.requiresWave) : on ? 'Équipé ✓' : own || it.price === 0 ? 'Équiper' : 'Acheter · '+it.price+' pièces';
       b.disabled = on || locked || (!own && save.coins < it.price); b.onclick = () => act(it); c.appendChild(b);
     } else { const st = document.createElement("small"); st.textContent = save.done.includes(it.id) ? "Réussi \u2713" : "À accomplir"; c.appendChild(st); }
     box.appendChild(c);
@@ -1798,6 +1913,7 @@ function cube(parent, material, x, y, z, width, height, depth) {
 
 function creerRobot(x, z, joueur2 = false, skinId = save.robot) {
   const skin = ROBOT_SKINS.find(s=>s.id===skinId) || ROBOT_SKINS[0];
+  if(skin.id==='rvortex')return window.LimbyrinthVortex.create(x,z,joueur2);
   if (skin.shape !== 'classic') {
     const rig=creerRobotVariant(x,z,joueur2,skin);
     window.LimbyrinthRobotModels?.attach(rig,disposeTree);
@@ -1921,6 +2037,7 @@ function creerRobotVariant(x,z,joueur2,skin) {
 }
 function robotIcon(skin) {
   const body='#'+h6(skin.body),accent='#'+h6(skin.accent);
+  if(skin.id==='rvortex')return `<svg viewBox="0 0 120 80" aria-hidden="true"><path d="M58 8 86 60 31 54Z" fill="${body}" stroke="#667482" stroke-width="2"/><path d="M24 25 94 28 65 69Z" fill="none" stroke="${accent}"/><path d="M14 19 32 16 35 30 20 33Zm73-1 22 7-5 16-19-5ZM54 61 71 60 77 74 56 77Z" fill="${body}" stroke="#c49c56" stroke-width="2"/><circle cx="60" cy="36" r="13" fill="${accent}" stroke="#66efff" stroke-width="3"/></svg>`;
   const shapes={
     classic:`<rect x="39" y="33" width="42" height="22" rx="5"/><rect x="34" y="9" width="52" height="27" rx="7"/><path d="M28 38v17m64-17v17M45 60v10m30-10v10" fill="none" stroke="${body}" stroke-width="9"/>`,
     orb:`<circle cx="60" cy="36" r="25"/><ellipse cx="60" cy="39" rx="36" ry="11" fill="none" stroke="${accent}" stroke-width="3"/><path d="m53 68 7 7 7-7" fill="${accent}"/>`,
@@ -1939,13 +2056,14 @@ function showRobotPreview(id) {
     preview={renderer:pr,scene:sc,camera:cam,rig:null,id:null,time:0};
   }
   if(preview.id!==skin.id){if(preview.rig){preview.scene.remove(preview.rig.group);disposeTree(preview.rig.group);}preview.rig=creerRobot(0,0,false,skin.id);preview.scene.add(preview.rig.group);preview.id=skin.id;}
-  $('preview-name').textContent=skin.name.toUpperCase();$('preview-desc').textContent=skin.desc+(skin.requiresWave?' · '+((save.survivalMaxWave||0)>=skin.requiresWave?'Débloqué':'Verrouillé'):' · Apparence gratuite');
+  $('preview-name').textContent=skin.name.toUpperCase();$('preview-desc').textContent=skin.desc+(skin.requiresWave?' · '+(save.own.includes(skin.id)?'Débloqué':'Verrouillé'):' · Apparence gratuite');
+  if(skin.id==='rvortex')$('preview-desc').textContent+=' · IMPLOSION : '+ROBOT_ABILITIES.rvortex.basicDesc+' · SINGULARITÉ : '+ROBOT_ABILITIES.rvortex.ultiDesc;
   preview.renderer.render(preview.scene,preview.camera);
 }
 function animatePreview(dt) {
   if(!preview || $('shop').style.display!=='flex' || shopTab!=='robot')return;
   if(!matchMedia('(prefers-reduced-motion: reduce)').matches)preview.time+=dt;
-  preview.rig.robot.rotation.y=preview.time*.45;animerRobot(preview.rig,preview.time,true,false);preview.renderer.render(preview.scene,preview.camera);
+  preview.rig.robot.rotation.y=preview.time*.45;animerRobot(preview.rig,preview.time,preview.rig.skinId!=='rvortex',false);preview.renderer.render(preview.scene,preview.camera);
 }
 
 function creerDrone(x, z) {
@@ -1983,6 +2101,7 @@ function creerDrone(x, z) {
 
 function animerRobot(robot, temps, avance, dash) {
   if(window.LimbyrinthRobotModels?.update(robot,temps,avance,dash))return;
+  if(robot.shape==='vortex'){window.LimbyrinthVortex.animate(robot,temps,avance,dash);return;}
   robot.thrusters.forEach(m => (m.scale.y = dash ? 1.4 : .25));
   if (robot.shape === 'orb') { robot.body.position.y=.58+Math.sin(temps*2.6)*.07; robot.rings.forEach((r,i)=>{r.rotation.z=temps*(i?-1:1)*.7;r.rotation.x=Math.PI/2+Math.sin(temps*.8+i)*.22;}); }
   if (robot.shape === 'spider') robot.legs.forEach((leg,i)=>{leg.rotation.y=(avance?Math.sin(temps*12+i*Math.PI*.8)*.24:0);leg.rotation.z=(i<3?1:-1)*(.15+(avance?Math.max(0,Math.sin(temps*12+i*Math.PI*.8))*.3:0));});

@@ -27,3 +27,10 @@ jobs:
           done
           npx playwright install --with-deps chromium
       - run: npm run test:browser
+      - name: Upload VORTEX desktop and mobile renders
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vortex-browser-renders
+          path: artifacts/vortex-*.png
+          if-no-files-found: ignore
