@@ -1,5 +1,7 @@
 """Author VORTEX in Blender using Python; export the editable source and game GLB.
 
+Version 1.3 — localized Blender node names and Blender 5.x are supported.
+
 blender --background --python scripts/build_vortex.py -- --render
 No external assets, Python packages, texture downloads or add-ons are required.
 Blender coordinates: Z up, -Y forward. glTF exports Y up, +Z forward.
@@ -17,6 +19,7 @@ import bpy
 import bmesh
 from mathutils import Vector
 
+SCRIPT_VERSION = "1.3"
 
 def resolve_output_root(output_dir=None, source_file=None, blend_file=None):
     """Support CLI files, downloaded scripts and Blender's virtual Text paths."""
@@ -85,6 +88,7 @@ PREVIEW_DIR = REPO / "assets" / "previews"
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
 print("VORTEX_OUTPUT " + str(REPO))
+print("VORTEX_BUILD " + SCRIPT_VERSION)
 
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete(use_global=False)
@@ -96,18 +100,43 @@ def linear(c):
     return c / 12.92 if c <= .04045 else ((c + .055) / 1.055) ** 2.4
 
 
+def socket_by_identifier(sockets, identifier):
+    """Socket identifiers stay stable when display names are translated."""
+    for socket in sockets:
+        if socket.identifier == identifier:
+            return socket
+    raise RuntimeError("Missing Blender shader socket: " + identifier)
+
+
 def material(name, color, metal=.75, rough=.3, emission=0):
     rgb = tuple(linear(int(color[i:i+2], 16) / 255) for i in (0, 2, 4))
     mat = bpy.data.materials.new(name)
     mat.diffuse_color = (*rgb, 1)
     mat.use_nodes = True
-    shader = mat.node_tree.nodes.get("Principled BSDF")
-    shader.inputs["Base Color"].default_value = (*rgb, 1)
-    shader.inputs["Metallic"].default_value = metal
-    shader.inputs["Roughness"].default_value = rough
-    shader.inputs["Emission Color"].default_value = (*rgb, 1)
-    shader.inputs["Emission Strength"].default_value = emission
+    # Default node names are user-editable and localized (e.g. BSDF guidée).
+    # Build and link our own nodes by their stable Blender type identifiers.
+    nodes = mat.node_tree.nodes
+    nodes.clear()
+    shader = nodes.new("ShaderNodeBsdfPrincipled")
+    output = nodes.new("ShaderNodeOutputMaterial")
+    mat.node_tree.links.new(shader.outputs[0], output.inputs[0])
+    for identifier, value in [("Base Color", (*rgb, 1)), ("Metallic", metal),
+                               ("Roughness", rough), ("Emission Color", (*rgb, 1)),
+                               ("Emission Strength", emission)]:
+        socket_by_identifier(shader.inputs, identifier).default_value = value
     return mat
+
+
+def configure_world(world):
+    world.color = (.015, .015, .015)
+    world.use_nodes = True
+    nodes = world.node_tree.nodes
+    nodes.clear()
+    background = nodes.new("ShaderNodeBackground")
+    output = nodes.new("ShaderNodeOutputWorld")
+    background.inputs[0].default_value = (.018, .028, .045, 1)
+    background.inputs[1].default_value = .4
+    world.node_tree.links.new(background.outputs[0], output.inputs[0])
 
 
 BLACK = material("Vortex_Obsidian", "171E28", .82, .27)
@@ -374,10 +403,9 @@ def area(name, pos, color, power, size):
 
 # Editable source includes a studio for repeatable presentation; export above is clean.
 scene = bpy.context.scene
-scene.world.color = (.015, .015, .015)
-scene.world.use_nodes = True
-scene.world.node_tree.nodes["Background"].inputs[0].default_value = (.018, .028, .045, 1)
-scene.world.node_tree.nodes["Background"].inputs[1].default_value = .4
+if scene.world is None:
+    scene.world = bpy.data.worlds.new("VORTEX_StudioWorld")
+configure_world(scene.world)
 ground = material("Studio_floor_not_exported", "0C1823", .3, .42)
 cylinder("Studio_plinth_not_exported", None, ground, (0, 0, -.075), 1.7, .12, vertices=96, bevel=.025)
 torus("Studio_cyan_inlay_not_exported", None, CYAN, (0, 0, -.008), 1.54, .005, "Z", 96)

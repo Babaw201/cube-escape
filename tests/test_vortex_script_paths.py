@@ -127,5 +127,86 @@ class VortexCompositorTests(unittest.TestCase):
         self.assertEqual(len(tree.connections), 2)
 
 
+class ShaderSockets(list):
+    def get(self, name):
+        return next((s for s in self if s.name == name), None)
+
+    def __getitem__(self, key):
+        if isinstance(key, str):
+            found = self.get(key)
+            if found is None:
+                raise KeyError(key)
+            return found
+        return super().__getitem__(key)
+
+
+class ShaderNodes(list):
+    def get(self, name):
+        return next((n for n in self if n.name == name), None)
+
+    def new(self, kind):
+        identifiers = {
+            "ShaderNodeBsdfPrincipled": ["Base Color", "Metallic", "Roughness", "Emission Color", "Emission Strength"],
+            "ShaderNodeOutputMaterial": ["Surface"],
+            "ShaderNodeBackground": ["Color", "Strength"],
+            "ShaderNodeOutputWorld": ["Surface"],
+        }[kind]
+        node = SimpleNamespace(bl_idname=kind, name="Nœud traduit " + kind,
+                               inputs=ShaderSockets(SimpleNamespace(identifier=s, name="Traduit " + s, default_value=None) for s in identifiers),
+                               outputs=ShaderSockets([SimpleNamespace(identifier="Shader", name="Sortie", default_value=None)]))
+        self.append(node)
+        return node
+
+
+class VortexMaterialTests(unittest.TestCase):
+    def make_material(self, with_translated_default):
+        nodes = ShaderNodes()
+        if with_translated_default:
+            nodes.new("ShaderNodeBsdfPrincipled")
+            nodes.new("ShaderNodeOutputMaterial")
+        links = []
+        mat = SimpleNamespace(use_nodes=False, node_tree=SimpleNamespace(nodes=nodes,
+                              links=SimpleNamespace(new=lambda a, b: links.append((a, b)))))
+        bpy = SimpleNamespace(data=SimpleNamespace(materials=SimpleNamespace(new=lambda name: mat)))
+        namespace = {"bpy": bpy, "linear": load_function("linear")}
+        try:
+            namespace["socket_by_identifier"] = load_function("socket_by_identifier")
+        except StopIteration:
+            pass  # The old function still reproduces its original NoneType error.
+        material = load_function("material", namespace)
+        result = material("Test", "8040FF", metal=.7, rough=.32, emission=3)
+        self.assertIs(result, mat)
+        shaders = [n for n in nodes if n.bl_idname == "ShaderNodeBsdfPrincipled"]
+        self.assertEqual(len(shaders), 1)
+        self.assertEqual(len(links), 1)
+        inputs = {s.identifier: s.default_value for s in shaders[0].inputs}
+        self.assertEqual(inputs["Metallic"], .7)
+        self.assertEqual(inputs["Roughness"], .32)
+        self.assertEqual(inputs["Emission Strength"], 3)
+        self.assertEqual(inputs["Emission Color"], inputs["Base Color"])
+        self.assertEqual(inputs["Base Color"][3], 1)
+
+    def test_translated_shader_node_and_socket_names(self):
+        self.make_material(with_translated_default=True)
+
+    def test_material_without_any_automatic_shader_nodes(self):
+        self.make_material(with_translated_default=False)
+
+    def test_translated_world_background_is_rebuilt_and_connected(self):
+        configure = load_function("configure_world")
+        nodes = ShaderNodes()
+        nodes.new("ShaderNodeBackground")
+        links = []
+        world = SimpleNamespace(use_nodes=False, node_tree=SimpleNamespace(nodes=nodes,
+                                links=SimpleNamespace(new=lambda a, b: links.append((a, b)))))
+        configure(world)
+        self.assertTrue(world.use_nodes)
+        backgrounds = [n for n in nodes if n.bl_idname == "ShaderNodeBackground"]
+        self.assertEqual(len(backgrounds), 1)
+        self.assertEqual(backgrounds[0].inputs[0].default_value, (.018, .028, .045, 1))
+        self.assertEqual(backgrounds[0].inputs[1].default_value, .4)
+        self.assertEqual(len(links), 1)
+
+
 if __name__ == "__main__":
     unittest.main()

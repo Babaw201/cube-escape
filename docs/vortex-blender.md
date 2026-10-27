@@ -24,6 +24,8 @@ La préparation du studio s’adapte aussi à Blender 5.x : groupe de compositio
 
 Ouvrir `build_vortex.py` dans l’espace **Scripting**, puis utiliser **Exécuter le script**. Il n’est pas nécessaire que le texte ait un chemin de fichier complet : les chemins virtuels tels que `\build_vortex.py` et l’absence de `__file__` sont pris en charge.
 
+La version **1.3** crée explicitement ses nœuds de matériau et de monde par leur type Blender. Les noms traduits comme « BSDF guidée » ou « Arrière-plan » ne bloquent donc plus la construction. `VORTEX_BUILD 1.3` est affiché dans la console pour identifier la version exécutée. Si plusieurs blocs de texte sont ouverts, créer un nouveau texte, y coller le script complet et l’exécuter avec **Alt + P** ; un ancien bloc `build_vortex.py` peut encore contenir la première version.
+
 Le dossier de sortie est celui du dépôt quand il est reconnu. Sinon, le script utilise le dossier du `.blend` sauvegardé, puis celui du script téléchargé s’il existe sur disque. Avec une scène et un texte non sauvegardés, il crée **`Documents/VORTEX` dans le dossier personnel de l’utilisateur**. Les modèles se trouvent dans `assets/models/` à l’intérieur de ce dossier. Le chemin est affiché dans la console après `VORTEX_OUTPUT`.
 
 En ligne de commande, un autre emplacement peut être choisi explicitement :
