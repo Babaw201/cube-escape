@@ -1,0 +1,22 @@
+{
+  "authoring": "Blender Python",
+  "generator": "scripts/build_vortex.py",
+  "blender": "4.3.2",
+  "root": "VORTEX_ROOT",
+  "triangles": 13932,
+  "meshes": 104,
+  "materials": 7,
+  "bytes": 303616,
+  "sha256": "3ef46dc09cf8222ce3afa6277dd9ef739d74fd83f54f3379b0f8103c5280d0ec",
+  "front": "+Z (glTF)",
+  "up": "+Y (glTF)",
+  "external_resources": 0,
+  "animation_pivots": [
+    "VORTEX_Arm_0",
+    "VORTEX_Arm_1",
+    "VORTEX_Arm_2",
+    "VORTEX_Core",
+    "VORTEX_Ring_0",
+    "VORTEX_Ring_1"
+  ]
+}
