@@ -18,15 +18,73 @@ import bmesh
 from mathutils import Vector
 
 
-REPO = Path(__file__).resolve().parents[1]
+def resolve_output_root(output_dir=None, source_file=None, blend_file=None):
+    """Support CLI files, downloaded scripts and Blender's virtual Text paths."""
+    if output_dir:
+        return Path(output_dir).expanduser().resolve()
+
+    files = [Path(value).expanduser().resolve() if value else None
+             for value in (source_file, blend_file)]
+    for file in files:
+        if file is None or not file.is_file():
+            continue
+        # Iterate available ancestors: a virtual path such as \\build_vortex.py
+        # has no second parent, and __file__ may be absent in the Text Editor.
+        for candidate in (file.parent, *file.parent.parents):
+            if (candidate / "index.html").is_file() and (candidate / "scripts").is_dir():
+                return candidate
+
+    source, blend = files
+    if blend is not None and blend.is_file():
+        return blend.parent
+    if source is not None and source.is_file():
+        return source.parent
+    return Path.home() / "Documents" / "VORTEX"
+
+
+def configure_compositor(scene):
+    """Keep the studio glow on Blender 4.x and the node-group API in 5.x."""
+    modern = hasattr(scene, "compositing_node_group")
+    if modern:
+        tree = bpy.data.node_groups.new("VORTEX_StudioGlow", "CompositorNodeTree")
+        tree.interface.new_socket(name="Image", in_out="OUTPUT", socket_type="NodeSocketColor")
+        scene.compositing_node_group = tree
+    else:
+        scene.use_nodes = True
+        tree = scene.node_tree
+    tree.nodes.clear()
+    layers = tree.nodes.new("CompositorNodeRLayers")
+    glow = tree.nodes.new("CompositorNodeGlare")
+    for socket_name, attribute, value in [("Type", "glare_type", "FOG_GLOW"),
+                                          ("Quality", "quality", "HIGH"),
+                                          ("Threshold", "threshold", 1.8)]:
+        socket = glow.inputs.get(socket_name)
+        if socket is not None:
+            socket.default_value = value
+        else:
+            setattr(glow, attribute, value)
+    strength = glow.inputs.get("Strength")
+    if strength is not None:
+        strength.default_value = .15
+    else:
+        glow.mix = -.85
+    out = tree.nodes.new("NodeGroupOutput" if modern else "CompositorNodeComposite")
+    tree.links.new(layers.outputs["Image"], glow.inputs["Image"])
+    tree.links.new(glow.outputs["Image"], out.inputs["Image"])
+    return tree
+
+
+ARGS = argparse.ArgumentParser(description=__doc__)
+ARGS.add_argument("--render", action="store_true", help="Render the actual Blender model in the included studio")
+ARGS.add_argument("--samples", type=int, default=64)
+ARGS.add_argument("--output-dir", type=Path, help="Folder containing the generated assets/ directory")
+args = ARGS.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
+REPO = resolve_output_root(args.output_dir, globals().get("__file__"), bpy.data.filepath)
 MODEL_DIR = REPO / "assets" / "models"
 PREVIEW_DIR = REPO / "assets" / "previews"
 MODEL_DIR.mkdir(parents=True, exist_ok=True)
 PREVIEW_DIR.mkdir(parents=True, exist_ok=True)
-ARGS = argparse.ArgumentParser(description=__doc__)
-ARGS.add_argument("--render", action="store_true", help="Render the actual Blender model in the included studio")
-ARGS.add_argument("--samples", type=int, default=64)
-args = ARGS.parse_args(sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
+print("VORTEX_OUTPUT " + str(REPO))
 
 bpy.ops.object.select_all(action="SELECT")
 bpy.ops.object.delete(use_global=False)
@@ -353,18 +411,7 @@ scene.render.resolution_percentage = 100
 scene.render.image_settings.file_format = "PNG"
 scene.render.filepath = str(PREVIEW_DIR / "vortex.png")
 scene.view_settings.view_transform = "AgX"
-scene.use_nodes = True
-composite = scene.node_tree.nodes
-composite.clear()
-layers = composite.new("CompositorNodeRLayers")
-glow = composite.new("CompositorNodeGlare")
-glow.glare_type = "FOG_GLOW"
-glow.quality = "HIGH"
-glow.threshold = 1.8
-glow.mix = -.85
-out = composite.new("CompositorNodeComposite")
-scene.node_tree.links.new(layers.outputs["Image"], glow.inputs["Image"])
-scene.node_tree.links.new(glow.outputs["Image"], out.inputs["Image"])
+configure_compositor(scene)
 for obj in bpy.context.selected_objects:
     obj.select_set(False)
 ROOT.select_set(True)

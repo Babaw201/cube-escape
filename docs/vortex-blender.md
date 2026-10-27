@@ -18,6 +18,20 @@ blender --background --threads 4 --python scripts/build_vortex.py -- --render
 
 Sans `--render`, le script exporte le GLB, le `.blend` et l’audit sans calculer l’image. `--samples 128` augmente la qualité du rendu ; la valeur par défaut est 64. Blender 4.3 est pris en charge. Le rendu fonctionne sur CPU et n’exige pas de module natif de débruitage.
 
+La préparation du studio s’adapte aussi à Blender 5.x : groupe de composition, sortie de groupe et paramètres du nœud Glare sous forme de sockets. Blender 4.3 conserve son API précédente et le même effet lumineux.
+
+### Depuis l’éditeur de texte de Blender, y compris sous Windows
+
+Ouvrir `build_vortex.py` dans l’espace **Scripting**, puis utiliser **Exécuter le script**. Il n’est pas nécessaire que le texte ait un chemin de fichier complet : les chemins virtuels tels que `\build_vortex.py` et l’absence de `__file__` sont pris en charge.
+
+Le dossier de sortie est celui du dépôt quand il est reconnu. Sinon, le script utilise le dossier du `.blend` sauvegardé, puis celui du script téléchargé s’il existe sur disque. Avec une scène et un texte non sauvegardés, il crée **`Documents/VORTEX` dans le dossier personnel de l’utilisateur**. Les modèles se trouvent dans `assets/models/` à l’intérieur de ce dossier. Le chemin est affiché dans la console après `VORTEX_OUTPUT`.
+
+En ligne de commande, un autre emplacement peut être choisi explicitement :
+
+```sh
+blender --background --python scripts/build_vortex.py -- --output-dir "C:/Users/MonNom/Documents/VORTEX"
+```
+
 ## Direction artistique
 
 Châssis flottant asymétrique autour d’un réacteur ouvert, blindage noir biseauté, panneaux anthracite, titane usiné et inserts dorés. Deux anneaux mécaniques cyan entourent le plasma violet. Les trois bras ont des volumes et rôles distincts : stabilisateur à aileron, injecteur de masse et focaliseur à cartouche. Griffes, vérins, roulements, verrous du réacteur et gravures complètent la mécanique sans textures lourdes.
