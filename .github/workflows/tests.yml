@@ -36,3 +36,17 @@ jobs:
           name: vortex-browser-renders
           path: artifacts/vortex-*.png
           if-no-files-found: ignore
+  blender-52:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Blender 5.2
+        run: |
+          curl --fail --location --retry 1 --connect-timeout 15 --max-time 240 \
+            https://download.blender.org/release/Blender5.2/blender-5.2.0-linux-x64.tar.xz \
+            --output /tmp/blender.tar.xz
+          mkdir /tmp/blender-52
+          tar -xf /tmp/blender.tar.xz --directory /tmp/blender-52 --strip-components=1
+      - name: Export VORTEX in Blender 5.2 with French editor context
+        run: /tmp/blender-52/blender --background --factory-startup --threads 2 --python-exit-code 1 --python tests/blender_vortex_smoke.py

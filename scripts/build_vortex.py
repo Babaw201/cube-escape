@@ -1,6 +1,6 @@
 """Author VORTEX in Blender using Python; export the editable source and game GLB.
 
-Version 1.3 — localized Blender node names and Blender 5.x are supported.
+Version 1.4 — localized nodes, Blender 5.2 menus and Text Editor context supported.
 
 blender --background --python scripts/build_vortex.py -- --render
 No external assets, Python packages, texture downloads or add-ons are required.
@@ -19,7 +19,7 @@ import bpy
 import bmesh
 from mathutils import Vector
 
-SCRIPT_VERSION = "1.3"
+SCRIPT_VERSION = "1.4"
 
 def resolve_output_root(output_dir=None, source_file=None, blend_file=None):
     """Support CLI files, downloaded scripts and Blender's virtual Text paths."""
@@ -58,14 +58,16 @@ def configure_compositor(scene):
     tree.nodes.clear()
     layers = tree.nodes.new("CompositorNodeRLayers")
     glow = tree.nodes.new("CompositorNodeGlare")
-    for socket_name, attribute, value in [("Type", "glare_type", "FOG_GLOW"),
-                                          ("Quality", "quality", "HIGH"),
-                                          ("Threshold", "threshold", 1.8)]:
+    # Menu sockets use item names; legacy node properties use enum identifiers.
+    for socket_name, attribute, legacy_value, socket_value in [
+            ("Type", "glare_type", "FOG_GLOW", "Fog Glow"),
+            ("Quality", "quality", "HIGH", "High"),
+            ("Threshold", "threshold", 1.8, 1.8)]:
         socket = glow.inputs.get(socket_name)
         if socket is not None:
-            socket.default_value = value
+            socket.default_value = socket_value
         else:
-            setattr(glow, attribute, value)
+            setattr(glow, attribute, legacy_value)
     strength = glow.inputs.get("Strength")
     if strength is not None:
         strength.default_value = .15
@@ -184,7 +186,7 @@ def finish(obj, name, parent, mat, pos, bevel=0, smooth=False):
 
 def box(name, parent, mat, pos, size, bevel=.012, rotation=(0, 0, 0)):
     bpy.ops.mesh.primitive_cube_add(size=1)
-    obj = bpy.context.object
+    obj = bpy.context.view_layer.objects.active
     obj.dimensions = size
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     finish(obj, name, parent, mat, pos, min(bevel, min(size)/3), True)
@@ -213,7 +215,7 @@ def panel(name, parent, mat, outline, depth, pos=(0, 0, 0), bevel=.012):
 
 def cylinder(name, parent, mat, pos, radius, length, axis="Z", vertices=16, bevel=.005):
     bpy.ops.mesh.primitive_cylinder_add(vertices=vertices, radius=radius, depth=length)
-    obj = finish(bpy.context.object, name, parent, mat, pos, bevel, True)
+    obj = finish(bpy.context.view_layer.objects.active, name, parent, mat, pos, bevel, True)
     obj.rotation_euler = {"X": (0, math.pi/2, 0), "Y": (math.pi/2, 0, 0), "Z": (0, 0, 0)}[axis]
     return obj
 
@@ -221,14 +223,14 @@ def cylinder(name, parent, mat, pos, radius, length, axis="Z", vertices=16, beve
 def torus(name, parent, mat, pos, radius, tube, axis="Y", segments=48, rotation=None):
     bpy.ops.mesh.primitive_torus_add(major_radius=radius, minor_radius=tube,
                                    major_segments=segments, minor_segments=6)
-    obj = finish(bpy.context.object, name, parent, mat, pos, smooth=True)
+    obj = finish(bpy.context.view_layer.objects.active, name, parent, mat, pos, smooth=True)
     obj.rotation_euler = rotation if rotation else {"X": (0, math.pi/2, 0), "Y": (math.pi/2, 0, 0), "Z": (0, 0, 0)}[axis]
     return obj
 
 
 def sphere(name, parent, mat, pos, radius, segments=24, rings=12):
     bpy.ops.mesh.primitive_uv_sphere_add(segments=segments, ring_count=rings, radius=radius)
-    return finish(bpy.context.object, name, parent, mat, pos, smooth=True)
+    return finish(bpy.context.view_layer.objects.active, name, parent, mat, pos, smooth=True)
 
 
 def conduit(name, parent, mat, points, radius=.007):
@@ -410,14 +412,15 @@ ground = material("Studio_floor_not_exported", "0C1823", .3, .42)
 cylinder("Studio_plinth_not_exported", None, ground, (0, 0, -.075), 1.7, .12, vertices=96, bevel=.025)
 torus("Studio_cyan_inlay_not_exported", None, CYAN, (0, 0, -.008), 1.54, .005, "Z", 96)
 bpy.ops.mesh.primitive_plane_add(size=200, location=(0, 0, -.14))
-bpy.context.object.name = "Studio_floor_not_exported"
-bpy.context.object.data.materials.append(ground)
+floor = bpy.context.view_layer.objects.active
+floor.name = "Studio_floor_not_exported"
+floor.data.materials.append(ground)
 area("Studio_key_not_exported", (2, -4, 5), (.85, .94, 1), 700, 4)
 area("Studio_cyan_fill_not_exported", (-3, -1, 2), (.18, .7, 1), 450, 3)
 area("Studio_violet_rim_not_exported", (2, 3, 4), (.6, .3, 1), 1000, 3)
 area("Studio_gold_edge_not_exported", (-1, 1, 3.5), (1, .73, .4), 450, 2)
 bpy.ops.object.camera_add(location=(3.6, -6.5, 3.4))
-camera = bpy.context.object
+camera = bpy.context.view_layer.objects.active
 camera.name = "Studio_camera_not_exported"
 track(camera, (0, .05, 1.10))
 camera.data.type = "ORTHO"

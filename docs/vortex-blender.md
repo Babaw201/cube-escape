@@ -26,6 +26,8 @@ Ouvrir `build_vortex.py` dans l’espace **Scripting**, puis utiliser **Exécute
 
 La version **1.3** crée explicitement ses nœuds de matériau et de monde par leur type Blender. Les noms traduits comme « BSDF guidée » ou « Arrière-plan » ne bloquent donc plus la construction. `VORTEX_BUILD 1.3` est affiché dans la console pour identifier la version exécutée. Si plusieurs blocs de texte sont ouverts, créer un nouveau texte, y coller le script complet et l’exécuter avec **Alt + P** ; un ancien bloc `build_vortex.py` peut encore contenir la première version.
 
+La version **1.4** conserve ces corrections et utilise les valeurs de menu `Fog Glow` / `High` attendues par les sockets de Blender 5.2. Les anciennes propriétés des nœuds Blender 4.3 conservent `FOG_GLOW` / `HIGH`. L’objet créé est récupéré dans `bpy.context.view_layer.objects.active`, ce qui fonctionne aussi quand le contexte de l’éditeur ne fournit pas `bpy.context.object`. La CI comprend un export réel avec Blender 5.2, interface française et contexte sans attribut `object`.
+
 Le dossier de sortie est celui du dépôt quand il est reconnu. Sinon, le script utilise le dossier du `.blend` sauvegardé, puis celui du script téléchargé s’il existe sur disque. Avec une scène et un texte non sauvegardés, il crée **`Documents/VORTEX` dans le dossier personnel de l’utilisateur**. Les modèles se trouvent dans `assets/models/` à l’intérieur de ce dossier. Le chemin est affiché dans la console après `VORTEX_OUTPUT`.
 
 En ligne de commande, un autre emplacement peut être choisi explicitement :

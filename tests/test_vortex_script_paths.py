@@ -64,6 +64,22 @@ class VortexScriptPathTests(unittest.TestCase):
         self.assertEqual(self.resolve(output, "/build_vortex.py", ""), output)
 
 
+class MenuSocket:
+    def __init__(self, allowed):
+        self.allowed = allowed
+        self._value = None
+
+    @property
+    def default_value(self):
+        return self._value
+
+    @default_value.setter
+    def default_value(self, value):
+        if value not in self.allowed:
+            raise TypeError("enum %r not found in %r" % (value, self.allowed))
+        self._value = value
+
+
 class FakeNodes:
     def __init__(self, modern):
         self.modern = modern
@@ -78,6 +94,8 @@ class FakeNodes:
             if self.modern:
                 for name in ["Type", "Quality", "Threshold", "Strength"]:
                     node.inputs[name] = SimpleNamespace(default_value=None)
+                node.inputs["Type"] = MenuSocket(("Bloom", "Ghosts", "Streaks", "Fog Glow", "Simple Star", "Sun Beams", "Kernel"))
+                node.inputs["Quality"] = MenuSocket(("High", "Medium", "Low"))
             else:
                 node.glare_type = "STREAKS"
                 node.quality = "MEDIUM"
@@ -108,8 +126,8 @@ class VortexCompositorTests(unittest.TestCase):
         self.assertIn("NodeGroupOutput", tree.nodes.created)
         self.assertNotIn("CompositorNodeComposite", tree.nodes.created)
         glow = tree.nodes.created["CompositorNodeGlare"]
-        self.assertEqual(glow.inputs["Type"].default_value, "FOG_GLOW")
-        self.assertEqual(glow.inputs["Quality"].default_value, "HIGH")
+        self.assertEqual(glow.inputs["Type"].default_value, "Fog Glow")
+        self.assertEqual(glow.inputs["Quality"].default_value, "High")
         self.assertEqual(glow.inputs["Threshold"].default_value, 1.8)
         self.assertEqual(glow.inputs["Strength"].default_value, .15)
         self.assertEqual(len(tree.connections), 2)
@@ -206,6 +224,21 @@ class VortexMaterialTests(unittest.TestCase):
         self.assertEqual(backgrounds[0].inputs[0].default_value, (.018, .028, .045, 1))
         self.assertEqual(backgrounds[0].inputs[1].default_value, .4)
         self.assertEqual(len(links), 1)
+
+
+class VortexTextContextTests(unittest.TestCase):
+    def test_primitive_helpers_work_without_context_object(self):
+        objects = SimpleNamespace(active=None)
+        context = SimpleNamespace(view_layer=SimpleNamespace(objects=objects))
+        def add(**kwargs):
+            objects.active = SimpleNamespace()
+        mesh = SimpleNamespace(**{name: add for name in ["primitive_cube_add", "primitive_cylinder_add", "primitive_torus_add", "primitive_uv_sphere_add"]})
+        bpy = SimpleNamespace(context=context, ops=SimpleNamespace(mesh=mesh, object=SimpleNamespace(transform_apply=lambda **kw: None)))
+        for name, positional in [("box", ((1, 1, 1),)), ("cylinder", (.1, .2)), ("torus", (.3, .02)), ("sphere", (.2,))]:
+            with self.subTest(primitive=name):
+                create = load_function(name, {"bpy": bpy, "math": __import__('math'), "finish": lambda obj, *args, **kwargs: obj})
+                result = create("Test", None, None, (0, 0, 0), *positional)
+                self.assertIs(result, objects.active)
 
 
 if __name__ == "__main__":
