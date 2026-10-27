@@ -1,0 +1,31 @@
+{
+  "generator": "scripts/blender/build_core.py",
+  "blender": "4.3.2",
+  "cellSize": 4.0,
+  "wallHeight": 2.8,
+  "modules": {
+    "CORE_BODY": 12,
+    "CORE_FACE_HIGH": 31,
+    "CORE_FACE_LOW": 19,
+    "CORE_FACE_DAMAGED": 37,
+    "CORE_FLOOR_HIGH": 20,
+    "CORE_FLOOR_LOW": 7,
+    "CORE_CEILING": 12,
+    "CORE_TERMINAL": 7,
+    "CORE_PIPES": 6,
+    "CORE_ENERGY": 4,
+    "CORE_MACHINE": 5,
+    "CORE_DOOR": 10,
+    "CORE_REACTOR": 14,
+    "CORE_DEPLOYMENT": 5,
+    "CORE_PLATFORM": 4
+  },
+  "scenes": [
+    "CORE_REFERENCE_CORRIDOR",
+    "CORE_SECTOR_01_CONFINEMENT",
+    "CORE_SECTOR_02_INDUSTRIE",
+    "CORE_SECTOR_03_ENERGIE",
+    "CORE_SECTOR_04_ARCHIVES",
+    "CORE_SECTOR_05_ARENE"
+  ]
+}

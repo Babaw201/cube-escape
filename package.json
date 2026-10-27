@@ -2,8 +2,9 @@
   "name": "limbyrinth-cube-escape",
   "private": true,
   "scripts": {
-    "test": "node tests/game.test.cjs && node tests/online.test.cjs && node tests/room-server.test.cjs && node tests/social-server.test.cjs && node tests/feedback-server.test.cjs && node tests/robot-models.test.cjs",
-    "test:browser": "node tests/browser.test.cjs && node tests/robot-browser.test.cjs",
+    "test": "node tests/game.test.cjs && node tests/online.test.cjs && node tests/room-server.test.cjs && node tests/social-server.test.cjs && node tests/feedback-server.test.cjs && node tests/robot-models.test.cjs && node tests/core-environment.test.cjs && node tests/core-settings.test.cjs && node tests/core-gameplay.test.cjs && node tests/core-blender.test.cjs",
+    "test:browser": "node tests/browser.test.cjs && node tests/robot-browser.test.cjs && node tests/core-browser.test.cjs",
+    "preview:core": "node tests/core-preview.cjs",
     "preview:robots": "node tests/render-preview.cjs",
     "audit:robots": "node tests/audit-models.cjs"
   },

@@ -210,6 +210,9 @@ canvas{touch-action:none}#overlay{overflow:auto;touch-action:pan-y}#net textarea
 <script src="vendor/GLTFLoader.js"></script>
 <script src="vendor/BufferGeometryUtils.js"></script>
 <script src="robot-models.js"></script>
+<script src="core-environment.js"></script>
+<script src="core-blender-models.js"></script>
+<script src="graphics-settings.js"></script>
 <script>
 if (typeof THREE === "undefined") {
   document.getElementById("d").textContent = "Impossible de charger Three.js : vérifie ta connexion internet puis recharge la page.";
@@ -266,7 +269,7 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.outputEncoding = THREE.sRGBEncoding;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.15;
-renderer.setPixelRatio(Math.min(devicePixelRatio, matchMedia("(pointer: coarse)").matches ? 1.5 : 2));
+renderer.setPixelRatio(Math.min(devicePixelRatio, window.LimbyrinthCore?.qualities[window.LimbyrinthGraphics?.read() || 'medium'].pixelRatio || 1.25));
 renderer.setSize(innerWidth, innerHeight);
 document.body.prepend(renderer.domElement);
 const scene = new THREE.Scene();
@@ -284,6 +287,30 @@ addEventListener("resize", () => {
 });
 
 let grid, world, player, robot, crystals, portal, dyn;
+let coreEnvironment = null, coreDynamicCells = [];
+function refreshCoreScenery() {
+  if (!world || !grid || !window.LimbyrinthCore) return;
+  skinMats=skinMats.filter(m=>!m.userData?.coreAccent);
+  const skin=(SKINS.find(s=>s.id===save.skin)||SKINS[0]).o;
+  const themeOverride=skin.wall?{panel:skin.wall,shell:skin.wall,edge:skin.cap,accent:skin.accent}:{};
+  coreEnvironment?.dispose();
+  coreEnvironment = window.LimbyrinthCore.build({grid,dynamicCells:coreDynamicCells,level:cur,cellSize:T,height:H,seed,
+    quality:window.LimbyrinthGraphics?.read() || 'medium',themeOverride,reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches});
+  world.add(coreEnvironment.group);
+  dyn.forEach(d=>coreEnvironment.decorateDoor(d.mesh));
+  // Opt-in local Blender equipment; absent files always retain the procedural kit.
+  for(const asset of(window.LimbyrinthCoreAssets?.[cur]||[]))coreEnvironment.loadAsset(asset);
+  coreEnvironment.update(t,{firstPerson,wave,phase:level4.phase});
+  coreEnvironment.ready=window.LimbyrinthCoreBlender?.attach(coreEnvironment,{grid,dynamicCells:coreDynamicCells,level:cur,
+    quality:window.LimbyrinthGraphics?.read()||'medium',theme:{...window.LimbyrinthCore.themes[cur],...themeOverride},doors:dyn.map(d=>d.mesh)});
+  wallM = coreEnvironment.wallMaterial;skinMats.push(coreEnvironment.accentMaterial);
+}
+addEventListener('corequalitychange',()=>{
+  const quality=window.LimbyrinthGraphics?.read() || 'medium';
+  renderer.setPixelRatio(Math.min(devicePixelRatio,window.LimbyrinthCore?.qualities[quality].pixelRatio || 1.25));
+  renderer.setSize(innerWidth,innerHeight);
+  refreshCoreScenery();
+});
 let cur = 0, nP = 1, players = [], laserOn = true, laserT = 3, maxLv = 1;
 const LEASH = 18;
 let remoteRobotId = 'rclassic';
@@ -337,6 +364,7 @@ function build() {
 }
 
 function build0() {
+  coreEnvironment?.dispose();coreEnvironment = null;
   if (world) { scene.remove(world); disposeTree(world); }
   occluders = []; phaseConsole = null;
   world = new THREE.Group(); scene.add(world);
@@ -427,6 +455,9 @@ function build0() {
     } else { cube(g, capMat, 0, 3, 0, .7, 6, .7); cube(g, lightMat, 0, 4, .4, .22, 2, .08); }
   }
 
+  // Keep the original construction order until gameplay placement is complete:
+  // Three r128 UUID allocation consumes the shared seeded Math.random stream.
+  const legacyScenery = [...world.children];
   dyn = m.dynCells.map(([i, j]) => {
     const mat = new THREE.MeshStandardMaterial({ color: L.dyn, emissive: L.dynE, flatShading: true, roughness: 0.4, metalness: 0.4 });
     const mesh = new THREE.Group(); mesh.add(new THREE.Mesh(wg, mat));
@@ -501,6 +532,10 @@ function build0() {
   });
   spawnLasers(); spawnFoes(); buildReactor(); buildSurvivalStations();
   if (cur === 3) { buildLevel4Console(); syncLevel4Gates(); }
+  if (window.LimbyrinthCore) {
+    window.LimbyrinthCore.retire(legacyScenery,world,[cubeGeometry,_ft,_gt]);motes=null;
+    coreDynamicCells = m.dynCells;refreshCoreScenery();
+  }
 }
 
 function syncLevel4Gates() {
@@ -2131,6 +2166,7 @@ function update(dt) {
 
 function animate(dt) {
   t += dt;
+  if(coreEnvironment?.update(t,{firstPerson,wave,phase:level4.phase,warning:cur===3&&(level4.pendingPhase!==null||level4.seconds<=LEVEL4.phaseWarningSeconds)})&&state==='play'&&!paused) snd(180,.05,'sine',.009,240);
   updateSurvivalStations(dt);
   const blink = Math.sin(t * 16) > 0;
   dyn.forEach(d => {
@@ -2148,7 +2184,10 @@ function animate(dt) {
   crystals.forEach((c, i) => { if (cur !== 2) { c.mesh.rotation.y += dt * 2; c.mesh.position.y = 1.3 + Math.sin(t * 3 + i) * 0.25; } else { const col = c.got ? 0x91ffcd : 0xff637f; c.lamp.material.color.setHex(col); c.light.color.setHex(col); } });
   lasers.forEach(l => { const o = laserOn ? (laserT < 0.5 && blink ? 0.3 : 0.95) : 0.12; l.m.material.opacity = o; l.gl.material.opacity = o * 0.2; });
   if (wallM) wallM.emissiveIntensity = 0.2 + Math.sin(t * 2) * 0.08;
-  if ((SKINS.find(q => q.id === save.skin) || SKINS[0]).rainbow) skinMats.forEach(m => m.color.setHSL((t * 0.15) % 1, 1, 0.6));
+  if ((SKINS.find(q => q.id === save.skin) || SKINS[0]).rainbow) {
+    skinMats.forEach(m => m.color.setHSL((t * 0.15) % 1, 1, 0.6));
+    if(coreEnvironment){coreEnvironment.accentMaterial.color.setHSL((t*.15)%1,1,.6);coreEnvironment.accentMaterial.emissive.copy(coreEnvironment.accentMaterial.color);}
+  }
   if (curRay.rainbow) shotMat.color.setHSL((t * 0.8) % 1, 1, 0.6);
   if (motes) { const a = motes.geometry.attributes.position; for (let i = 0; i < a.count; i++) { let y = a.getY(i) + dt * 0.4; if (y > 7) y = 0; a.setY(i, y); } a.needsUpdate = true; }
   const ph = pulsePhase();
