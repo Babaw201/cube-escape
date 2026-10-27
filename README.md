@@ -85,6 +85,7 @@ Le relais actif change à chaque nouvelle vague, à partir de la vague 2. Les Ti
 - **Le Labyrinthe instable** : un quatrième niveau à carte fixe, trois phases cyan/magenta/ambre, console centrale, trois clés et portes définitivement ouvertes après stabilisation.
 - **Le Traqueur** : ennemi étourdissable par trois tirs, suivi d’une fuite finale de 35 secondes après collecte des trois clés.
 - **Quatre formes de robot gratuites** : Atlas bipède, Orbit flottant, Hexa à six pattes et Bastion à chenilles, avec aperçu 3D, animations et sauvegarde. Sélection dans **Boutique → Robots**.
+- **VORTEX — modèle créé en Python / Blender** : robot gravitationnel flottant à trois bras, blindage biseauté, réacteur violet et anneaux cyan. Modèle `.glb` chargé dans le jeu, source `.blend` et script Python livrés. Déblocage à la vague 20 du niveau 5. [Construction et aperçu](docs/vortex-blender.md).
 - Éclairage et couleurs ajustés, murs entiers en vue aérienne, HUD de phase et mini-carte complète au niveau 4.
 - Nouvelle fin de campagne après le quatrième niveau ; accès conservé pour les anciennes sauvegardes ayant terminé Le Noyau.
 

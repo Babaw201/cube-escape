@@ -10,9 +10,11 @@ Seventh robot, an experimental gravity controller built by CORE. Unlock it by **
 
 ## Rendering and future GLB
 
-`vortex.js` owns the procedural visual factory, animation and reusable projectile/effect pools. It uses the vendored Three.js r128. Fixed armor parts are batched by material; each arm keeps an independent pivot. Instances share hull geometry and materials while the core emission and energy links stay independent. There are no new lights or runtime dependencies. A singularity uses 24 point sprites, and at most 12 closing/impact pulses are active. Rebuilds release active objects to the pools before world disposal.
+**The main VORTEX model is now authored in Python with Blender**, using `scripts/build_vortex.py`. The self-contained `assets/models/vortex.glb` is loaded by the existing Three.js r128 robot loader; `assets/models/vortex.blend` is the editable source with its render studio. See [Python build and model details](vortex-blender.md).
 
-`rig.group` remains the gameplay/collision root, `rig.robot` owns aiming/visibility, and **`rig.visualRoot` is the replaceable visual subtree**. A later Blender import can replace `visualRoot` without touching player state, attacks, saves or packets. Keep the model within the existing two-unit footprint, center it around the current core, expose three arm pivots and a core material, and adapt `animate` to those named parts. Do not replace `group`, `robot` or `repere`; keep any shared GLB resources registered with the existing `LimbyrinthRobotModels` disposal system.
+`robot-models.js` preserves the three Blender arm pivots, reactor and gimbals, batches static armor by material, and shares geometry/materials across players and the shop. Reactor emission and the energy links remain independent per instance. Idle orbit, movement lean and ultimate deployment reuse the existing animation state. `rig.group` remains the gameplay/collision root, `rig.robot` owns aiming/visibility, and `rig.visualRoot` is the replaceable visual subtree.
+
+`vortex.js` still owns the immediate procedural fallback and reusable projectile/effect pools. A missing, blocked or invalid GLB keeps the animated fallback fully playable. The upgraded model adds no lights or runtime dependencies. A singularity uses 24 point sprites, and at most 12 closing/impact pulses are active. Rebuilds release active objects to the pools before world disposal.
 
 ## Network
 

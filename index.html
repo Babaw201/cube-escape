@@ -1913,7 +1913,10 @@ function cube(parent, material, x, y, z, width, height, depth) {
 
 function creerRobot(x, z, joueur2 = false, skinId = save.robot) {
   const skin = ROBOT_SKINS.find(s=>s.id===skinId) || ROBOT_SKINS[0];
-  if(skin.id==='rvortex')return window.LimbyrinthVortex.create(x,z,joueur2);
+  if(skin.id==='rvortex'){
+    const rig=window.LimbyrinthVortex.create(x,z,joueur2);
+    window.LimbyrinthRobotModels?.attach(rig,disposeTree);return rig;
+  }
   if (skin.shape !== 'classic') {
     const rig=creerRobotVariant(x,z,joueur2,skin);
     window.LimbyrinthRobotModels?.attach(rig,disposeTree);

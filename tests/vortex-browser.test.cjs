@@ -25,16 +25,18 @@ test('VORTEX — boutique, WebGL, clavier et tactile',async t=>{
     assert.equal(await card.getByRole('button',{name:'🔒 Atteindre la vague 20',exact:true}).isDisabled(),true);
     await card.getByRole('button',{name:'Voir en 3D',exact:true}).click();
     assert.match(await page.locator('#preview-desc').innerText(),/IMPLOSION.*SINGULARITÉ/);
-    const preview=await run("(()=>{animerRobot(preview.rig,2,true,true);preview.renderer.render(preview.scene,preview.camera);return {id:preview.id,arms:preview.rig.arms.length,calls:preview.renderer.info.render.calls,triangles:preview.renderer.info.render.triangles};})()");
-    assert.equal(preview.id,'rvortex');assert.equal(preview.arms,3);assert.ok(preview.calls<=40&&preview.calls>0);assert.ok(preview.triangles<7000);
+    const preview=await run("(async()=>{await preview.rig.modelReady;animerRobot(preview.rig,2,true,true);preview.renderer.render(preview.scene,preview.camera);return {id:preview.id,source:preview.rig.modelSource,arms:preview.rig.arms.length,calls:preview.renderer.info.render.calls,triangles:preview.renderer.info.render.triangles};})()");
+    assert.equal(preview.id,'rvortex');assert.equal(preview.source,'glb');assert.equal(preview.arms,3);assert.ok(preview.calls<=40&&preview.calls>0);assert.ok(preview.triangles<=14000);
     await run("start(4,123);missionElapsed=19*WAVE_S+.01;updateSurvival(.05);endSurvival();openShop()");
     await card.getByRole('button',{name:'Équiper',exact:true}).click();
     assert.equal(await run('save.robot'),'rvortex');
     assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('cubeEscapeSave')).robot),'rvortex');
     await run("$('shop').style.display='none';nP=1;net=null;start(4,123);foes.forEach(f=>world.remove(f.g));foes=[];players[0].g.position.set(0,0,0);makeSwarmFoe(999,3,0,0,1);players[0].robot.rotation.y=0;document.activeElement?.blur()");
+    assert.equal(await run('players[0].rig.modelReady'),true);
     if(mobile){await page.locator('#tfire').tap();await page.locator('#tulti').tap();}
     else{await run('fire(players[0],1,0)');await page.keyboard.press('u');}
-    const active=await run("(()=>{combat(.05);animerRobot(players[0].rig,2,true,false);animate(.05);renderer.render(scene,camera);return {count:singularities.length,cooldown:players[0].ultCd,deploy:players[0].rig.ultimate,calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,lights:players[0].g.children.filter(o=>o.isLight).length};})()");
+    const active=await run("(()=>{combat(.05);animerRobot(players[0].rig,2,true,false);animate(.05);renderer.render(scene,camera);return {source:players[0].rig.modelSource,count:singularities.length,cooldown:players[0].ultCd,deploy:players[0].rig.ultimate,calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,lights:players[0].g.children.filter(o=>o.isLight).length};})()");
+    assert.equal(active.source,'glb');
     assert.equal(active.count,1);assert.ok(active.cooldown>27);assert.ok(active.deploy>0);assert.equal(active.lights,0);assert.ok(active.calls>0&&active.triangles>0);
     fs.mkdirSync(path.join(__dirname,'../artifacts'),{recursive:true});
     await page.screenshot({path:path.join(__dirname,'../artifacts/vortex-'+(mobile?'mobile':'desktop')+'.png')});
