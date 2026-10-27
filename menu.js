@@ -41,6 +41,10 @@
 .hm-meta{display:flex;gap:8px;justify-content:flex-end;min-width:0}
 .hm-chip{white-space:nowrap;color:#a5c7d9;font-size:11px;font-weight:800;background:#071b2b99;border:1px solid #31536b9c;border-radius:999px;padding:5px 11px}
 .hm-chip b{color:#ffce81}
+.hm-quality{display:flex;align-items:center;gap:5px;color:#b6d7e8;font-size:11px;white-space:nowrap}
+.hm-quality select{font:inherit;color:#e6f0fc;background:#102537;border:1px solid #598198;border-radius:8px;min-height:29px;padding:3px 5px;cursor:pointer}
+.hm-quality select:focus-visible{outline:2px solid #82e9ff;outline-offset:3px}
+@media(max-width:700px){.hm-quality>span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}.hm-quality select{max-width:76px;font-size:10px}}
 .hm-main{display:grid;grid-template-columns:minmax(0,.83fr) minmax(0,1.17fr);gap:clamp(14px,2.3vw,35px);min-width:0;min-height:0;align-items:stretch}
 .hm-hero{min-width:0;min-height:0;display:flex;flex-direction:column;justify-content:center;align-items:stretch;gap:clamp(7px,1.7vh,15px);position:relative;padding:clamp(4px,1.4vw,20px) 0}
 .hm-eyebrow{font-size:clamp(9px,.85vw,12px);letter-spacing:.27em;color:#8de1ff;font-weight:900}
@@ -265,6 +269,7 @@
         if(control)control.textContent=showArt?'◀ Retour au menu':'◉ Voir le fond';
       }),
       el('div','hm-meta',null,[
+        ...(window.LimbyrinthGraphics?[window.LimbyrinthGraphics.createControl()]:[]),
         el('span','hm-chip','◈ '+rank),
         el('span','hm-chip',null,[el('span',null,'PIÈCES '),el('b',null,String(coins))])
       ])
