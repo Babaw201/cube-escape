@@ -8,7 +8,7 @@ Seventh robot, an experimental gravity controller built by CORE. Unlock it by **
 - **SINGULARITÉ:** U / local player 2: I / touch: ULTI. Place a field 1.35 units ahead, falling back to the player position when the placement path is obstructed. Radius 5.5 units, lifetime 3 s, six one-damage ticks at 0.5 s intervals, cooldown 28 s. No invulnerability or shield.
 - Pull speed is 4.2 units/s; Titans receive 28% of that pull. Targets require unobstructed sight. Movement is swept in steps of at most 0.12 units using the current collision grid, with a larger Titan clearance. Closed/dynamic walls block attraction and damage.
 
-## Rendering and future GLB
+## Rendering and Python / Blender model
 
 **The main VORTEX model is now authored in Python with Blender**, using `scripts/build_vortex.py`. The self-contained `assets/models/vortex.glb` is loaded by the existing Three.js r128 robot loader; `assets/models/vortex.blend` is the editable source with its render studio. See [Python build and model details](vortex-blender.md).
 
