@@ -22,7 +22,8 @@ test('CORE: real WebGL, quality accessibility, collision, resources and comparab
     });
     await page.goto('https://game.test/');await page.waitForFunction(()=>!!window.gameEval);
     if(!legacy)await page.waitForFunction(()=>window.gameEval("coreEnvironment.source==='blender'"),null,{polling:50});
-    await page.evaluate(()=>{window.LimbyrinthFriends.requireProfile=callback=>{callback();return true;};});
+    // Account UI is covered by browser.test.cjs; this scene harness uses a valid profile.
+    await page.evaluate(()=>{window.LimbyrinthFriends.hasProfile=()=>true;});
     return page;
   }
   const page=await pageFor(),run=code=>page.evaluate(code=>window.gameEval(code),code);
@@ -55,7 +56,12 @@ test('CORE: real WebGL, quality accessibility, collision, resources and comparab
     }
     await run('setCameraMode(true);animate(.016)');assert.equal(await run('coreEnvironment.ceiling.visible'),true);
     await run('setCameraMode(false);animate(.016)');assert.equal(await run('coreEnvironment.ceiling.visible'),false);
-    await run('start(4,123)');await page.waitForFunction(()=>window.gameEval("coreEnvironment.source==='blender'"),null,{polling:50});
+    // Warm each LOD once: cached high-detail geometries are retained intentionally.
+    for(const quality of ['low','high','medium']){
+      await run(`window.LimbyrinthGraphics.save('${quality}');start(4,123)`);
+      await page.waitForFunction(()=>window.gameEval("coreEnvironment.source==='blender'"),null,{polling:50});
+      await run('renderer.render(scene,camera)');
+    }
     await run('renderer.render(scene,camera)');const warm=await run('({...renderer.info.memory})');
     for(let i=0;i<8;i++){
       await run(`window.LimbyrinthGraphics.save('${i%2?'low':'high'}');start(4,123)`);
@@ -78,23 +84,23 @@ test('CORE: real WebGL, quality accessibility, collision, resources and comparab
     const before=await pageFor({legacy:true});
     const grid=Array.from({length:15},(_,z)=>Array.from({length:15},(_,x)=>x===7&&z>0&&z<14?0:1));
     for(const [name,p]of [['before',before],['after',page]]){
-      if(name==='after'){
-        await run(`(()=>{const previous=genMaze;genMaze=()=>({g:${JSON.stringify(grid)},dynCells:[]});cur=0;build();genMaze=previous;})()`);
-        await p.waitForFunction(()=>window.gameEval("coreEnvironment.source==='blender'"),null,{polling:50});
-      }
-      const data=await p.evaluate(({grid})=>window.gameEval(`(()=>{
-        const begin=performance.now();
-        if(!coreEnvironment){const previous=genMaze;genMaze=()=>({g:${JSON.stringify(grid)},dynCells:[]});cur=0;build();genMaze=previous;}
-        const buildMs=performance.now()-begin;
+      const buildMs=await p.evaluate(({grid})=>{
+        window.coreCaptureStarted=performance.now();
+        return window.gameEval(`(()=>{const previous=genMaze;genMaze=()=>({g:${JSON.stringify(grid)},dynCells:[]});cur=0;
+          const begin=performance.now();build();const elapsed=performance.now()-begin;genMaze=previous;return elapsed;})()`);
+      },{grid});
+      if(name==='after')await p.waitForFunction(()=>window.gameEval("coreEnvironment.source==='blender'"),null,{polling:50});
+      const data=await p.evaluate(()=>window.gameEval(`(()=>{
+        const readyMs=performance.now()-window.coreCaptureStarted;
         coreEnvironment?.update(1,{firstPerson:true});camera.position.set(.75,1.55,21.3);camera.lookAt(-.15,1.65,-15);
         renderer.setPixelRatio(1);renderer.setSize(1200,750);renderer.render(scene,camera);
         const gl=renderer.getContext();gl.finish();const frames=[];
         for(let i=0;i<6;i++){const begin=performance.now();renderer.render(scene,camera);gl.finish();if(i>1)frames.push(performance.now()-begin);}
         const frameMs=frames.reduce((a,b)=>a+b,0)/frames.length;
-        return {buildMs,frameMs,syntheticFps:1000/frameMs,calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},gpu:gl.getParameter(gl.RENDERER)};
-      })()`),{grid});
+        return {readyMs,source:coreEnvironment?.source||'legacy',frameMs,syntheticFps:1000/frameMs,calls:renderer.info.render.calls,triangles:renderer.info.render.triangles,memory:{...renderer.info.memory},gpu:gl.getParameter(gl.RENDERER)};
+      })()`));
       await p.addStyleTag({content:'body>*:not(canvas){visibility:hidden!important}'});
-      records.push({reference:name,...data});await p.locator('body > canvas').first().screenshot({path:path.join(output,'corridor-'+name+'.png')});
+      records.push({reference:name,buildMs,...data});await p.locator('body > canvas').first().screenshot({path:path.join(output,'corridor-'+name+'.png')});
     }
     assert.ok(records.find(r=>r.reference==='after').calls<records.find(r=>r.reference==='before').calls,JSON.stringify(records));
     await before.close();
