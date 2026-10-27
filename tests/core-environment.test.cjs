@@ -100,3 +100,8 @@ test('energy-sector scenery reserves the original central reactor cell',()=>{
     }
   });e.dispose();
 });
+
+test('purchased environment palettes still recolor the new wall and lamp materials',()=>{
+  const e=build({themeOverride:{panel:0x14301f,accent:0x3dff7a}});
+  assert.equal(e.wallMaterial.color.getHex(),0x14301f);assert.equal(e.accentMaterial.color.getHex(),0x3dff7a);e.dispose();
+});

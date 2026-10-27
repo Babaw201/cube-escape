@@ -235,7 +235,8 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
           body:JSON.stringify({pseudo:'anna2',friends:[],incoming:[],outgoing:[],invites:[],blocked:[]})});
       });
       await tab.goto('https://game.test');
-      await tab.waitForFunction(()=>window.LimbyrinthFriends?.hasProfile());
+      // This test disables RAF; asynchronous account restoration needs timer polling.
+      await tab.waitForFunction(()=>window.LimbyrinthFriends?.hasProfile(),null,{polling:50});
       await tab.locator('#home .hm-friends-button').click();
       assert.match(await tab.locator('#friends-screen').innerText(),/anna2/);
       assert.equal(await tab.locator('#friends-screen input[aria-label="Ta clé secrète de reconnexion"]').inputValue(),access);
@@ -249,7 +250,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
       assert.equal(await tab.evaluate(()=>localStorage.getItem('limbyrinthSocialTokenV1')),null);
       await tab.locator('#friends-screen input[aria-label="Code de reconnexion"]').fill(access);
       await tab.locator('#friends-screen button:has-text("Se reconnecter")').click();
-      await tab.waitForFunction(()=>window.LimbyrinthFriends?.hasProfile());
+      await tab.waitForFunction(()=>window.LimbyrinthFriends?.hasProfile(),null,{polling:50});
       assert.match(await tab.locator('#friends-screen').innerText(),/anna2/);
       assert.equal(await tab.evaluate(()=>localStorage.getItem('limbyrinthSocialTokenV1')),access);
     }finally{await tab.close();}

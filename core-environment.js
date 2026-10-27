@@ -23,10 +23,10 @@
     try{return fn();}finally{Math.random=previous;}
   }
 
-  function build({grid,dynamicCells=[],level=0,cellSize=4,height=2.8,quality='medium',seed=1,reducedMotion=false,accent}={}){
+  function build({grid,dynamicCells=[],level=0,cellSize=4,height=2.8,quality='medium',seed=1,reducedMotion=false,accent,themeOverride={}}={}){
     if(!grid?.length||grid.some(row=>row.length!==grid.length))throw Error('CORE requires a square grid');
     if(cellSize!==4||height!==2.8)throw Error('CORE modules use 4 m cells and 2.8 m walls');
-    const theme=themes[level]||themes[0],q=qualities[quality]||qualities.medium,detail=q.detail;
+    const theme={...(themes[level]||themes[0]),...themeOverride},q=qualities[quality]||qualities.medium,detail=q.detail;
     const n=grid.length,T=cellSize,H=height,half=T/2,at=i=>(i-n/2+.5)*T;
     const reserved=new Set(dynamicCells.map(c=>c.join(',')));
     const solid=(x,z)=>grid[z]?.[x]===1&&!reserved.has(x+','+z)&&!(level===2&&x===Math.floor(n/2)&&z===Math.floor(n/2));
@@ -40,6 +40,7 @@
       floor:standard(theme.floor,.84,.35),wear:standard(theme.wear,.92,.25),
       dark:standard(0x131f27,.8,.4),accent:own(new THREE.MeshStandardMaterial({color:accent??theme.accent,emissive:accent??theme.accent,emissiveIntensity:.65,roughness:.38,metalness:.25})),
       warning:standard(0xd5ad56,.8,.25),screen:own(new THREE.MeshStandardMaterial({color:0x174454,emissive:0x397887,emissiveIntensity:.45,roughness:.3})),signal:own(new THREE.MeshBasicMaterial({color:theme.accent}))};
+    mats.accent.userData.coreAccent=true;
     const box=own(new THREE.BoxGeometry(1,1,1));box.computeBoundingBox();
     const cylinder=own(new THREE.CylinderGeometry(1,1,1,10));cylinder.computeBoundingBox();
     const dummy=new THREE.Object3D();
@@ -232,6 +233,7 @@
         for(const child of group.children)if(child!==effects)child.visible=false;
         attachments.forEach(o=>o.visible=false);replacement=visual;group.add(visual.group);
         api.source='blender';api.stats=visual.stats;api.ceiling=visual.ceiling;
+        api.accentMaterial=visual.accentMaterial;api.wallMaterial=visual.wallMaterial;
         visual.update(0,lastState);
       },
       loadAsset({url,cell}={}){

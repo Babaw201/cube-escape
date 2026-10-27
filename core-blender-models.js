@@ -71,6 +71,7 @@
     const palette={SHELL:theme.shell,PANEL:theme.panel,EDGE:theme.edge,DARK:0x131f27,FLOOR:theme.floor,ACCENT:theme.accent,SCREEN:0x174454,WARNING:0xd5ad56,WEAR:theme.wear,SIGNAL:theme.accent};
     for(const [key,color]of Object.entries(palette))materials['CORE_'+key]=new THREE.MeshStandardMaterial({color,roughness:['EDGE','ACCENT','SCREEN'].includes(key)?.42:.72,
       metalness:['SHELL','EDGE'].includes(key)?.75:.45,emissive:['ACCENT','SIGNAL','SCREEN'].includes(key)?color:0,emissiveIntensity:key==='ACCENT'?.65:.35});
+    materials.CORE_ACCENT.userData.coreAccent=true;
     function place(name,x,z,yaw=0,zone='solid',parent=group){
       for(const section of kit.get(name)){
         const key=name+'|'+section.material+'|'+zone;

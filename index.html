@@ -290,17 +290,19 @@ let grid, world, player, robot, crystals, portal, dyn;
 let coreEnvironment = null, coreDynamicCells = [];
 function refreshCoreScenery() {
   if (!world || !grid || !window.LimbyrinthCore) return;
-  skinMats=skinMats.filter(m=>m!==coreEnvironment?.accentMaterial);
+  skinMats=skinMats.filter(m=>!m.userData?.coreAccent);
+  const skin=(SKINS.find(s=>s.id===save.skin)||SKINS[0]).o;
+  const themeOverride=skin.wall?{panel:skin.wall,shell:skin.wall,edge:skin.cap,accent:skin.accent}:{};
   coreEnvironment?.dispose();
   coreEnvironment = window.LimbyrinthCore.build({grid,dynamicCells:coreDynamicCells,level:cur,cellSize:T,height:H,seed,
-    quality:window.LimbyrinthGraphics?.read() || 'medium',reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches});
+    quality:window.LimbyrinthGraphics?.read() || 'medium',themeOverride,reducedMotion:matchMedia('(prefers-reduced-motion: reduce)').matches});
   world.add(coreEnvironment.group);
   dyn.forEach(d=>coreEnvironment.decorateDoor(d.mesh));
   // Opt-in local Blender equipment; absent files always retain the procedural kit.
   for(const asset of(window.LimbyrinthCoreAssets?.[cur]||[]))coreEnvironment.loadAsset(asset);
   coreEnvironment.update(t,{firstPerson,wave,phase:level4.phase});
   coreEnvironment.ready=window.LimbyrinthCoreBlender?.attach(coreEnvironment,{grid,dynamicCells:coreDynamicCells,level:cur,
-    quality:window.LimbyrinthGraphics?.read()||'medium',theme:window.LimbyrinthCore.themes[cur],doors:dyn.map(d=>d.mesh)});
+    quality:window.LimbyrinthGraphics?.read()||'medium',theme:{...window.LimbyrinthCore.themes[cur],...themeOverride},doors:dyn.map(d=>d.mesh)});
   wallM = coreEnvironment.wallMaterial;skinMats.push(coreEnvironment.accentMaterial);
 }
 addEventListener('corequalitychange',()=>{
@@ -2182,7 +2184,10 @@ function animate(dt) {
   crystals.forEach((c, i) => { if (cur !== 2) { c.mesh.rotation.y += dt * 2; c.mesh.position.y = 1.3 + Math.sin(t * 3 + i) * 0.25; } else { const col = c.got ? 0x91ffcd : 0xff637f; c.lamp.material.color.setHex(col); c.light.color.setHex(col); } });
   lasers.forEach(l => { const o = laserOn ? (laserT < 0.5 && blink ? 0.3 : 0.95) : 0.12; l.m.material.opacity = o; l.gl.material.opacity = o * 0.2; });
   if (wallM) wallM.emissiveIntensity = 0.2 + Math.sin(t * 2) * 0.08;
-  if ((SKINS.find(q => q.id === save.skin) || SKINS[0]).rainbow) skinMats.forEach(m => m.color.setHSL((t * 0.15) % 1, 1, 0.6));
+  if ((SKINS.find(q => q.id === save.skin) || SKINS[0]).rainbow) {
+    skinMats.forEach(m => m.color.setHSL((t * 0.15) % 1, 1, 0.6));
+    if(coreEnvironment){coreEnvironment.accentMaterial.color.setHSL((t*.15)%1,1,.6);coreEnvironment.accentMaterial.emissive.copy(coreEnvironment.accentMaterial.color);}
+  }
   if (curRay.rainbow) shotMat.color.setHSL((t * 0.8) % 1, 1, 0.6);
   if (motes) { const a = motes.geometry.attributes.position; for (let i = 0; i < a.count; i++) { let y = a.getY(i) + dt * 0.4; if (y > 7) y = 0; a.setY(i, y); } a.needsUpdate = true; }
   const ph = pulsePhase();
