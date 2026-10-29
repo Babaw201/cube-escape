@@ -14,6 +14,13 @@
   const RANKS=[['Recrue',0],['Éclaireur',200],['Agent',600],['Élite',1500],['Légende',3500]];
   const css=document.createElement('style');
   css.textContent=`
+#home #hm-settings{flex:1 1 175px;min-width:0}
+#home #hm-settings>summary{display:flex;align-items:center;justify-content:center;min-height:42px;padding:10px 13px;border-radius:11px;border:2px solid #67d9ff;background:linear-gradient(120deg,#17436b,#0b2845);color:#fff;font-size:13px;font-weight:900;letter-spacing:.02em;white-space:normal;text-align:center;box-shadow:0 0 14px #35baff55;transition:background .2s,box-shadow .2s}
+#home #hm-settings>summary:hover,#home #hm-settings>summary:focus-visible{background:#235b87;box-shadow:0 0 22px #42caffaa;outline:2px solid #c7f5ff;outline-offset:2px}
+#home #hm-settings[open]>summary{background:#245f8e;border-color:#a8edff}
+#home #hm-settings .hm-update-content{width:min(350px,90vw);font-size:13px;color:#e9f6ff;border:2px solid #66cfff;box-shadow:0 8px 32px #000b}
+#home #hm-settings .hm-update-line{font-size:13px;line-height:1.5;color:#e9f6ff;cursor:pointer}
+@media(max-width:650px){#home #hm-settings>summary{min-height:36px;font-size:11px;padding:7px 9px}}
 html.hm-motion-reduced #home *,html.hm-motion-reduced #home *::before,html.hm-motion-reduced #home *::after{animation:none!important;transition:none!important}
 
 #home,#home *{box-sizing:border-box}
