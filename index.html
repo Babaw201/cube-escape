@@ -159,6 +159,19 @@ canvas{touch-action:none}#overlay{overflow:auto;touch-action:pan-y}#net textarea
   #tbtns #tulti{height:31px!important;min-height:31px!important;border-radius:9px!important;font-size:11px!important}
   #hud #ult-info{max-width:196px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 }
+
+/* Accueil cinématique et navigation réellement connectée aux fonctions existantes */
+#overlay{background:radial-gradient(ellipse at 53% 42%,#5735a766 0%,transparent 31%),linear-gradient(160deg,#020b19dd,#091b34e8 60%,#030812f5),repeating-linear-gradient(90deg,transparent 0 65px,#36caff14 66px 68px);isolation:isolate}
+#overlay:before{content:"";position:absolute;z-index:-1;width:min(48vw,330px);aspect-ratio:1;border:12px solid #5f8cff;border-radius:50%;top:12%;left:50%;transform:translateX(-50%);box-shadow:0 0 25px #47bfff,0 0 75px #6946ff,inset 0 0 55px #7048ff;background:radial-gradient(circle,#8d52ee99,#201a58aa 45%,#040a19 70%);pointer-events:none}
+#overlay h1{font-weight:900;letter-spacing:.12em;text-shadow:0 0 18px #45d9ff,0 0 48px #5a50ff;color:#e6f8ff}
+#main-nav{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px auto;max-width:620px}
+#main-nav button{margin:0;padding:12px 18px;font-size:14px;min-width:130px;background:linear-gradient(120deg,#09243c,#06101e);border:1px solid #48cfff;color:#d8f7ff;box-shadow:inset 0 0 12px #21baff33,0 0 10px #21baff44;clip-path:polygon(9px 0,calc(100% - 9px) 0,100% 9px,100% calc(100% - 9px),calc(100% - 9px) 100%,9px 100%,0 calc(100% - 9px),0 9px)}
+#main-nav button:hover,#main-nav button:focus-visible{background:#14507c;box-shadow:0 0 22px #41d9ff}
+#lv .lvb[data-level]{position:relative;min-height:76px;padding-top:27px;background:linear-gradient(145deg,#153b56,#0a1029 70%);border:1px solid #4acaff;color:#e4faff;box-shadow:inset 0 0 18px #46d8ff22}
+#lv .lvb[data-level]:before{content:attr(data-scene);position:absolute;top:5px;left:12px;font-size:19px;filter:drop-shadow(0 0 8px #66dfff)}
+.card.r3{animation:sovereignPulse 3s ease-in-out infinite}
+@keyframes sovereignPulse{50%{box-shadow:0 0 32px #ffd36eaa, inset 0 0 16px #ffd36e33}}
+@media(prefers-reduced-motion:reduce){.card.r3{animation:none}}
 </style>
 </head>
 <body>
@@ -201,7 +214,7 @@ canvas{touch-action:none}#overlay{overflow:auto;touch-action:pan-y}#net textarea
   <p id="d">Déplace le robot avec Z Q S D (ou W A S D, ou les flèches). Ramasse les 3 cristaux violets, puis rejoins le portail vert avant la fin des 90 secondes. Les murs d’un bleu plus clair se déplacent toutes les 20 secondes, mais la sortie reste toujours accessible.</p>
   <p class="sc" id="best"></p>
   <div id="credits"><div id="cin"></div></div>
-  <div id="lv"></div>
+  <nav id="main-nav" aria-label="Menu principal"><button id="nav-play">▶ JOUER</button><button id="nav-shop">🛒 BOUTIQUE</button><button id="nav-rank">🏆 CLASSEMENT</button><button id="nav-settings">⚙ PARAMÈTRES</button></nav><div id="lv"></div>
   <button id="btn">Jouer</button>
 </div>
 
@@ -1288,7 +1301,7 @@ function renderLv() {
     const b = document.createElement("button");
     b.className = "lvb" + (i ? " o" : ""); b.disabled = i >= maxLv || net === "guest";
     b.textContent = (b.disabled ? "\u{1F512} " : "") + "Niveau " + (i + 1) + " : " + l.name;
-    b.onclick = () => start(i); box.appendChild(b);
+    b.dataset.level=String(i+1);b.dataset.scene=["❄️","⚙️","💎","🌌","⚡"][i]||"◈";b.onclick = () => start(i); box.appendChild(b);
   });
 }
 
@@ -1703,6 +1716,13 @@ function drawShop() {
     box.appendChild(c);
   });
 }
+function mainNavClick(kind){
+ if(kind==='play'){document.getElementById('lv')?.scrollIntoView({behavior:'smooth',block:'center'});return;}
+ if(kind==='shop'){openShop();return;}
+ if(kind==='rank'){window.LimbyrinthScores?.open();return;}
+ if(kind==='settings'){window.LimbyrinthFriends?.open();return;}
+}
+['play','shop','rank','settings'].forEach(k=>document.getElementById('nav-'+k)?.addEventListener('click',()=>mainNavClick(k)));
 function openShop() { $("shop").style.display = "flex"; $("overlay").style.display = "none"; drawShop(); }
 $("sh-close").onclick = () => { $("shop").style.display = "none"; $("overlay").style.display = "flex"; updCoins(); renderLv(); };
 
