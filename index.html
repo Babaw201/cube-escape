@@ -1670,7 +1670,18 @@ function drawShop() {
   (shopTab === "robot" ? ROBOT_SKINS : shopTab === "skin" ? SKINS : shopTab === "ray" ? RAYS : shopTab === "boost" ? BOOSTS : DEFIS).forEach(it => {
     const c = document.createElement("div"), sw = document.createElement("div"), nm = document.createElement("b"), info = document.createElement("small");
     c.className = "card r" + (it.rar || 0); sw.className = "sw";
-    if (shopTab === "robot") sw.innerHTML = robotIcon(it);
+    if (shopTab === "robot") {
+      sw.innerHTML = robotIcon(it);
+      const portrait = robotPortrait(it.id);
+      if(portrait) {
+        sw.innerHTML = '';
+        const img = document.createElement('img');
+        img.src=portrait;img.alt='Portrait 3D de '+it.name;
+        img.style.cssText='width:100%;height:100%;object-fit:contain;display:block;filter:drop-shadow(0 0 12px '+(it.id==='rsovereign'?'#ffd36e88':'#65dfff55')+')';
+        sw.style.background='radial-gradient(ellipse at 50% 65%,'+(it.id==='rsovereign'?'#735021':'#22445c')+' 0%,#101b2c 72%)';
+        sw.appendChild(img);
+      }
+    }
     else if (shopTab === "skin") sw.style.background = it.rainbow ? "conic-gradient(red,yellow,lime,cyan,blue,magenta,red)" : "linear-gradient(135deg,#" + h6(it.o.wall ?? LV[0].wall) + ",#" + h6(it.o.accent ?? LV[0].accent) + ")";
     else if (shopTab === "ray") sw.style.background = it.rainbow ? "linear-gradient(90deg,red,yellow,lime,cyan,blue,magenta)" : "linear-gradient(90deg,transparent,#" + h6(it.col) + ",transparent)";
     else sw.textContent = shopTab === "boost" ? "\u26A1" : save.done.includes(it.id) ? "\u2713" : "\u2605";
@@ -1928,6 +1939,30 @@ function robotIcon(skin) {
     tracks:`<rect x="21" y="46" width="78" height="27" rx="12" fill="#213e51" stroke="${body}" stroke-width="4"/><circle cx="36" cy="59" r="7"/><circle cx="60" cy="59" r="7"/><circle cx="84" cy="59" r="7"/><rect x="38" y="13" width="44" height="32" rx="5"/><path d="M73 40h22" stroke="${accent}" stroke-width="7"/>`
   };
   return `<svg viewBox="0 0 120 80" aria-hidden="true"><g fill="${body}">${shapes[skin.shape]}</g><rect x="44" y="23" width="32" height="10" rx="3" fill="#0b1e30"/><path d="M49 28h7m8 0h7" stroke="${accent}" stroke-width="3"/></svg>`;
+}
+// Portraits fidèles : capture du véritable modèle Three.js, sans redessiner le robot.
+const robotPortraitCache = new Map();
+function robotPortrait(id) {
+  if(robotPortraitCache.has(id)) return robotPortraitCache.get(id);
+  let renderer, rig;
+  try {
+    const scene = new THREE.Scene();
+    scene.add(new THREE.HemisphereLight(0xe8f3ff,0x282036,1.6));
+    const key = new THREE.DirectionalLight(id==='rsovereign'?0xffd36e:0xffffff,2.3);
+    key.position.set(3,5,4);scene.add(key);
+    const rim = new THREE.DirectionalLight(0x4dcfff,1.2);rim.position.set(-3,2,-3);scene.add(rim);
+    rig=creerRobot(0,0,false,id);scene.add(rig.group);
+    const camera=new THREE.PerspectiveCamera(36,1.5,.1,30);
+    camera.position.set(2.9,2.35,4.3);camera.lookAt(0,1.1,0);
+    renderer=new THREE.WebGLRenderer({alpha:true,antialias:true,preserveDrawingBuffer:true});
+    renderer.setPixelRatio(1);renderer.setSize(360,240);renderer.outputEncoding=THREE.sRGBEncoding;
+    renderer.setClearColor(0x000000,0);
+    renderer.render(scene,camera);
+    const url=renderer.domElement.toDataURL('image/png');
+    robotPortraitCache.set(id,url);
+    return url;
+  } catch(e) { console.warn('Portrait indisponible',id,e);return null; }
+  finally {if(rig)disposeTree(rig.group);if(renderer)renderer.dispose();}
 }
 function showRobotPreview(id) {
   const skin=ROBOT_SKINS.find(s=>s.id===id)||ROBOT_SKINS[0];
