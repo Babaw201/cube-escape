@@ -1301,7 +1301,7 @@ function renderLv() {
     const b = document.createElement("button");
     b.className = "lvb" + (i ? " o" : ""); b.disabled = i >= maxLv || net === "guest";
     b.textContent = (b.disabled ? "\u{1F512} " : "") + "Niveau " + (i + 1) + " : " + l.name;
-    b.dataset.level=String(i+1);b.dataset.scene=["❄️","⚙️","💎","🌌","⚡"][i]||"◈";b.onclick = () => start(i); box.appendChild(b);
+    b.setAttribute("data-level",String(i+1));b.setAttribute("data-scene",["❄️","⚙️","💎","🌌","⚡"][i]||"◈");b.onclick = () => start(i); box.appendChild(b);
   });
 }
 
