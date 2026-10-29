@@ -200,7 +200,7 @@ html.hm-motion-reduced #home *,html.hm-motion-reduced #home *::before,html.hm-mo
 /* L'illustration du labyrinthe est réellement visible derrière une UI translucide. */
 .hm-scene{background:
   linear-gradient(100deg,rgba(2,7,15,.29) 0%,rgba(2,7,15,.05) 47%,rgba(2,7,15,.26) 100%),
-  url('./assets/home-scene.svg') center 53%/cover no-repeat!important}
+  url('./file_00000000c11081f4a0824c4e15a0708b.png') center 53%/cover no-repeat!important}
 .hm-scene::before,.hm-scene::after{display:none!important}
 .hm-panel-block{background:rgba(5,15,28,.69);backdrop-filter:blur(3px)}
 .hm-preview{background:rgba(6,17,30,.49);backdrop-filter:blur(2px)}
@@ -209,7 +209,7 @@ html.hm-motion-reduced #home *,html.hm-motion-reduced #home *::before,html.hm-mo
 .hm-art-preview{margin:0;padding:4px 9px;min-height:27px;background:rgba(6,22,34,.72);border:1px solid #457995;border-radius:8px;color:#c0efff;font:750 10px system-ui;cursor:pointer}
 #home.hm-art-only .hm-main,#home.hm-art-only .hm-meta,#home.hm-art-only .hm-overline{visibility:hidden;pointer-events:none}
 #home.hm-art-only .hm-scene{background:
-  url('./assets/home-scene.svg') center center/cover no-repeat!important}
+  url('./file_00000000c11081f4a0824c4e15a0708b.png') center center/cover no-repeat!important}
 #home.hm-art-only .hm-art-preview{border-color:#fff;background:#10354b;color:#fff;box-shadow:0 0 16px #49aafc77}
 .hm-scene{transition:opacity .2s}
 .hm-kit{color:#c6b5ff;font-weight:700}
