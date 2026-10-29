@@ -222,6 +222,26 @@ html.hm-motion-reduced #home *,html.hm-motion-reduced #home *::before,html.hm-mo
  .hm-info-combined>summary{padding:4px 8px;font-size:9px}
 }
 `;
+  css.textContent += `
+/* Art-first: compact working controls layered over the menu illustration. */
+#home.hm-art-only .hm-top{visibility:visible!important;pointer-events:auto!important}
+#home.hm-art-only .hm-art-preview{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));right:12px;z-index:22}
+#home.hm-art-only .hm-art-actions{display:flex}
+.hm-art-actions{display:none;position:absolute;z-index:20;left:50%;bottom:calc(12px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+ width:min(96vw,880px);padding:8px;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center;
+ border:1px solid #6ac9fa77;border-radius:14px;background:#061324d9;backdrop-filter:blur(8px);box-shadow:0 8px 28px #0009}
+.hm-art-actions button{margin:0;flex:1 1 100px;min-width:76px;min-height:42px;padding:8px 10px;font-size:12px;font-weight:850;
+ color:#e0f7ff;background:#12344bdc;border:1px solid #70d8ff88;border-radius:9px;box-shadow:none;cursor:pointer}
+.hm-art-actions .hm-art-play{background:#ed9853;color:#1e130c;border-color:#ffcb8d}
+.hm-art-actions button:disabled{opacity:.42}
+.hm-art-actions button:focus-visible{outline:2px solid white;outline-offset:2px}
+.hm-art-levels{display:none;position:absolute;bottom:calc(85px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);
+ z-index:21;background:#07192bf5;border:1px solid #69cfff;border-radius:12px;padding:9px;gap:5px;flex-wrap:wrap;justify-content:center;width:min(94vw,630px)}
+.hm-art-levels.open{display:flex}
+.hm-art-levels button{margin:0;padding:8px 10px;font-size:12px;background:#163954;color:white;border:1px solid #568bae;border-radius:7px;box-shadow:none}
+.hm-art-levels button:disabled{opacity:.4}
+@media(max-width:599px){.hm-art-actions{bottom:calc(5px + env(safe-area-inset-bottom,0px));padding:5px;gap:4px}.hm-art-actions button{flex:1 1 26%;min-height:37px;padding:6px 5px;font-size:10px}.hm-art-levels{bottom:calc(105px + env(safe-area-inset-bottom,0px))}}
+`;
   document.head.appendChild(css);
   const home=document.createElement('div');home.id='home';
   const scene=document.createElement('div');scene.className='hm-scene';
@@ -379,7 +399,30 @@ html.hm-motion-reduced #home *,html.hm-motion-reduced #home *::before,html.hm-mo
     extra.append(details);
     if(tactile)extra.append(btn('hm-fullscreen-button','⛶ PAYSAGE',landscapeFullscreen));
     panel.appendChild(extra);
+    const artActions=el('nav','hm-art-actions');
+    artActions.setAttribute('aria-label','Actions du jeu');
+    const levelPicker=el('div','hm-art-levels');
+    const artButton=(label,action,disabled=false,extra='')=>artActions.appendChild(btn('hm-art-action '+extra,label,action,disabled));
+    artButton('▶ JOUER',()=>{
+      if(guest||!chosen)return;
+      press(new RegExp('Niveau '+(chosen.i+1)+'\\b'));
+    },guest||!chosen,'hm-art-play');
+    artButton('▦ NIVEAUX',()=>levelPicker.classList.toggle('open'));
+    artButton('◎ EN LIGNE',()=>press(online?/Quitter le salon/:/Jouer en ligne/));
+    artButton('◈ BOUTIQUE',()=>press(/Boutique/),guest);
+    artButton('♙ PROFIL',()=>window.LimbyrinthFriends?.open());
+    artButton('🏆 SCORES',()=>window.LimbyrinthScores?.open());
+    for(const info of levels){
+      const pick=btn('', 'Niveau '+(info.i+1)+(info.i===chosen?.i?' ✓':''),()=>{
+        selectedLevel=info.i;
+        levelPicker.classList.remove('open');
+        render();
+      },info.off);
+      levelPicker.appendChild(pick);
+    }
     shell.replaceChildren(header,el('main','hm-main',null,[hero,panel]));
+    home.querySelectorAll('.hm-art-actions,.hm-art-levels').forEach(node=>node.remove());
+    home.append(levelPicker,artActions);
   }
   const refresh=()=>{if(scheduled)return;scheduled=true;queueMicrotask(()=>{scheduled=false;render()})};
   const mo=new MutationObserver(refresh);
