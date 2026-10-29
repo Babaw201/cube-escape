@@ -232,7 +232,7 @@ html.hm-motion-reduced #home *,html.hm-motion-reduced #home *::before,html.hm-mo
   const localSave=()=>{try{return JSON.parse(localStorage.getItem('cubeEscapeSave')||'{}')||{}}catch{return {}}};
   const oldButtons=()=>[...lv.querySelectorAll('button')];
   const press=reg=>{const b=oldButtons().find(x=>reg.test(x.textContent));if(b&&!b.disabled)b.click()};
-  let selectedLevel=null,scheduled=false,showArt=false;
+  let selectedLevel=null,scheduled=false,showArt=true;
   async function landscapeFullscreen(){
     try{if(!document.fullscreenElement&&document.documentElement.requestFullscreen)await document.documentElement.requestFullscreen()}catch{}
     try{if(screen.orientation?.lock)await screen.orientation.lock('landscape')}catch{}
