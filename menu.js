@@ -27,18 +27,9 @@ html.hm-motion-reduced #home *,html.hm-motion-reduced #home *::before,html.hm-mo
 #home{position:fixed;inset:0;z-index:5;display:none;overflow:hidden;color:#e6f0fc;font:14px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;background:#040913;isolation:isolate;user-select:none;-webkit-user-select:none}
 #overlay.home-on{background:transparent!important;pointer-events:none}
 #overlay.home-on>*{visibility:hidden!important}
-.hm-scene{position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:
-  radial-gradient(ellipse at 27% 46%,rgba(33,88,125,.36),transparent 42%),
-  radial-gradient(ellipse at 80% 8%,rgba(24,36,73,.28),transparent 53%),
-  linear-gradient(115deg,#06182a 0%,#050d1b 36%,#030813 100%)}
-.hm-scene::before{content:"";position:absolute;inset:-25% -20% 22%;background:
-  linear-gradient(115deg,transparent 44.75%,#5194bc13 45%,transparent 45.25%),
-  repeating-linear-gradient(90deg,transparent 0 78px,#ffffff05 79px 80px,transparent 81px 160px);
-  transform:skewX(-10deg)}
-.hm-scene::after{content:"";position:absolute;width:min(51vw,700px);aspect-ratio:1;left:-12%;top:10%;
-  border:2px solid #6bcbff24;border-radius:50%;box-shadow:0 0 0 28px #52b9f508,0 0 0 60px #51b5e906,0 0 130px #0a6bd22d,inset 0 0 80px #4598ff19;
-  background:radial-gradient(circle,#8dd8ff1a 0 2px,transparent 3px 100%);
-  transform:rotate(-20deg)}
+.hm-scene{position:absolute;inset:0;z-index:-1;overflow:hidden;pointer-events:none;background:#040913 url("./file_00000000c11081f4a0824c4e15a0708b.png") center center / cover no-repeat}
+.hm-scene::before{content:"";position:absolute;inset:0;background:linear-gradient(90deg,rgba(2,7,20,.88) 0%,rgba(2,7,20,.73) 42%,rgba(2,7,20,.46) 100%)}
+.hm-scene::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(1,5,15,.7),transparent 28%,transparent 72%,rgba(1,5,15,.35))}
 .hm-shell{height:100%;height:100dvh;width:min(1480px,100%);margin:0 auto;padding:
   calc(10px + env(safe-area-inset-top,0px))
   calc(18px + env(safe-area-inset-right,0px))
