@@ -14,6 +14,8 @@
   const RANKS=[['Recrue',0],['Éclaireur',200],['Agent',600],['Élite',1500],['Légende',3500]];
   const css=document.createElement('style');
   css.textContent=`
+html.hm-motion-reduced #home *,html.hm-motion-reduced #home *::before,html.hm-motion-reduced #home *::after{animation:none!important;transition:none!important}
+
 #home,#home *{box-sizing:border-box}
 #home{position:fixed;inset:0;z-index:5;display:none;overflow:hidden;color:#e6f0fc;font:14px/1.35 system-ui,-apple-system,"Segoe UI",sans-serif;background:#040913;isolation:isolate;user-select:none;-webkit-user-select:none}
 #overlay.home-on{background:transparent!important;pointer-events:none}
@@ -350,6 +352,22 @@
     ]);
     panel.appendChild(actionRow);
     const extra=el('div','hm-actions-extra');
+    const settings=el('details','hm-updates-details hm-update-box');
+    settings.id='hm-settings';
+    settings.appendChild(el('summary',null,'⚙ Paramètres d’affichage'));
+    const settingsBody=el('div','hm-update-content');
+    const motionLabel=el('label','hm-update-line');
+    const motionToggle=document.createElement('input');
+    motionToggle.type='checkbox';
+    motionToggle.checked=localStorage.getItem('limbyrinth-reduce-motion')==='1';
+    motionToggle.style.marginRight='10px';
+    motionLabel.append(motionToggle,document.createTextNode('Réduire les animations du menu'));
+    const applyMotion=()=>{document.documentElement.classList.toggle('hm-motion-reduced',motionToggle.checked);};
+    motionToggle.addEventListener('change',()=>{localStorage.setItem('limbyrinth-reduce-motion',motionToggle.checked?'1':'0');applyMotion();});
+    applyMotion();
+    settingsBody.append(motionLabel,el('div','hm-update-line','Son : touche M pendant une partie · Pause : touche P'));
+    settings.appendChild(settingsBody);
+    extra.appendChild(settings);
     const details=el('details','hm-updates-details hm-update-box hm-info-combined');
     const keys=tactile?'Joystick : bouger · Tir : viser · DASH · ULTI · Vue':'ZQSD : bouger · Clic : tirer · Maj : dash · U : ulti · I : ulti du joueur 2';
     details.append(el('summary',null,'ⓘ Infos · Commandes · Donner mon avis'),
