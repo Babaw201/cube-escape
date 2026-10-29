@@ -7,9 +7,9 @@ const { createCanvas } = require('@napi-rs/canvas');
 function runtime(initialSave = {}, overrides = {}) {
   const THREE = { ...require('../vendor/three.min.js') };
   class Element {
-    constructor(tag = 'div') { this.tagName = tag.toUpperCase(); this.children = []; this.style = {setProperty(k,v){this[k]=v;}}; this.classList = {toggle(){},add(){},remove(){}}; this.attrs={}; this.innerHTML=''; this.textContent=''; this.value=''; this.listeners={}; }
+    constructor(tag = 'div') { this.tagName = tag.toUpperCase(); this.children = []; this.style = {setProperty(k,v){this[k]=v;}}; this.classList = {toggle(){},add(){},remove(){}}; this.attrs={}; this.dataset={}; this.innerHTML=''; this.textContent=''; this.value=''; this.listeners={}; }
     appendChild(e){this.children.push(e);return e;} prepend(e){this.children.unshift(e);} append(...es){this.children.push(...es);} remove(){} replaceChildren(...es){this.children=es;}
-    addEventListener(k,fn){(this.listeners[k] ||= []).push(fn);} setAttribute(k,v){this.attrs[k]=v;} getAttribute(k){return this.attrs[k];} focus(){} select(){} setPointerCapture(){}
+    addEventListener(k,fn){(this.listeners[k] ||= []).push(fn);} setAttribute(k,v){this.attrs[k]=String(v);if(k.startsWith('data-')){const name=k.slice(5).replace(/-([a-z])/g,(_,letter)=>letter.toUpperCase());this.dataset[name]=String(v);}} getAttribute(k){return this.attrs[k];} focus(){} select(){} setPointerCapture(){}
     querySelector(s){return this.children.find(e=>e.id===s.slice(1)) || (this.children.push(Object.assign(new Element(), {id:s.slice(1)})), this.children.at(-1));}
     querySelectorAll(s){if(s==='i')return Array.from({length:3},()=>new Element('i'));return [];}
     cloneNode(){return new Element();} getBoundingClientRect(){return {left:0,top:0,width:256,height:200};}
