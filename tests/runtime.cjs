@@ -16,7 +16,7 @@ function runtime(initialSave = {}, overrides = {}) {
   }
   const warnings=[];
   const elements = new Map();
-  const document={body:new Element('body'),getElementById(id){if(!elements.has(id))elements.set(id,Object.assign(new Element(),{id}));return elements.get(id);},createElement(tag){if(tag==='canvas'){const el=new Element(tag); const canvas=createCanvas(256,256);el.getContext=()=>canvas.getContext('2d');return el;}return new Element(tag);}};
+  const document={body:new Element('body'),getElementById(id){if(!elements.has(id))elements.set(id,Object.assign(new Element(),{id}));return elements.get(id);},createElement(tag){if(tag==='canvas'){const el=new Element(tag); const canvas=createCanvas(256,256);el.getContext=()=>canvas.getContext('2d');el.toDataURL=(...args)=>canvas.toDataURL(...args);return el;}return new Element(tag);}};
   const radar=createCanvas(112,112);document.getElementById('mm').getContext=()=>radar.getContext('2d');
   THREE.WebGLRenderer=class{constructor(){this.domElement=document.createElement('canvas');this.info={memory:{geometries:0,textures:0},render:{calls:0}};}setPixelRatio(){}setSize(){}render(){}setClearColor(){}dispose(){} };
   const storage=new Map(Object.entries(initialSave)); const listeners={};
@@ -25,6 +25,7 @@ function runtime(initialSave = {}, overrides = {}) {
   context.window=context;
   // Les tests unitaires simulent un profil déjà validé ; l'inscription réelle est couverte par Chromium.
   context.LimbyrinthFriends={hasProfile:()=>true,requireProfile:callback=>{callback();return true;}};
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'../drone-ai.js'),'utf8'),context,{filename:'drone-ai.js'});
   const html=fs.readFileSync(path.join(__dirname,'../index.html'),'utf8');
   const source=[...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].at(-1)[1].replace(/loop\(\);\r?\n\}\)\(\);/,'window.gameEval = code => eval(code); loop();\n})();');
   vm.runInContext(source,context,{filename:'index.html'});
