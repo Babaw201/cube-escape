@@ -1,3 +1,8 @@
 node_modules/
 artifacts/Limbyrinth.html
 artifacts/Limbyrinth.zip
+artifacts/core/webgl/
+artifacts/core/*.png
+artifacts/core/blender/*.png
+*.blend1
+__pycache__/
