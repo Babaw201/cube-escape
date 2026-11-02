@@ -21,7 +21,7 @@ function runtime(initialSave = {}, overrides = {}) {
   THREE.WebGLRenderer=class{constructor(){this.domElement=document.createElement('canvas');this.info={memory:{geometries:0,textures:0},render:{calls:0}};}setPixelRatio(){}setSize(){}render(){}setClearColor(){}dispose(){} };
   const storage=new Map(Object.entries(initialSave)); const listeners={};
   const context=vm.createContext({THREE,document,console:{...console,warn:(...args)=>warnings.push(args.join(" ")),error:(...args)=>warnings.push(args.join(" "))},innerWidth:1440,innerHeight:900,devicePixelRatio:1,performance,Math,setTimeout:()=>0,clearTimeout(){},setInterval:()=>0,clearInterval(){},requestAnimationFrame(){},matchMedia:()=>({matches:false}),localStorage:{getItem:k=>storage.get(k)||null,setItem:(k,v)=>storage.set(k,String(v))},addEventListener(k,f){(listeners[k] ||= []).push(f);},dispatchEvent(e){for(const f of listeners[e.type]||[])f({...e,target:e.target||document.body,preventDefault(){}});},KeyboardEvent:class{constructor(type,opts){this.type=type;Object.assign(this,opts);}},AudioContext:class{constructor(){throw Error('audio disabled in tests');}}});
-  Object.assign(context,{URL,URLSearchParams,AbortController,location:{href:'https://babaw201.github.io/cube-escape/',hash:''},navigator:{},...overrides});
+  Object.assign(context,{URL,URLSearchParams,AbortController,LimbyrinthVortex:require('../vortex.js')(THREE),location:{href:'https://babaw201.github.io/cube-escape/',hash:''},navigator:{},...overrides});
   context.window=context;
   // Les tests unitaires simulent un profil déjà validé ; l'inscription réelle est couverte par Chromium.
   context.LimbyrinthFriends={hasProfile:()=>true,requireProfile:callback=>{callback();return true;}};

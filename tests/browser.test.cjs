@@ -235,7 +235,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
           body:JSON.stringify({pseudo:'anna2',friends:[],incoming:[],outgoing:[],invites:[],blocked:[]})});
       });
       await tab.goto('https://game.test');
-      await tab.waitForFunction(()=>window.LimbyrinthFriends?.hasProfile());
+      await tab.waitForFunction(()=>window.LimbyrinthFriends?.hasProfile(),null,{polling:50});
       await tab.locator('#home .hm-friends-button').click();
       assert.match(await tab.locator('#friends-screen').innerText(),/anna2/);
       assert.equal(await tab.locator('#friends-screen input[aria-label="Ta clé secrète de reconnexion"]').inputValue(),access);
@@ -249,7 +249,7 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
       assert.equal(await tab.evaluate(()=>localStorage.getItem('limbyrinthSocialTokenV1')),null);
       await tab.locator('#friends-screen input[aria-label="Code de reconnexion"]').fill(access);
       await tab.locator('#friends-screen button:has-text("Se reconnecter")').click();
-      await tab.waitForFunction(()=>window.LimbyrinthFriends?.hasProfile());
+      await tab.waitForFunction(()=>window.LimbyrinthFriends?.hasProfile(),null,{polling:50});
       assert.match(await tab.locator('#friends-screen').innerText(),/anna2/);
       assert.equal(await tab.evaluate(()=>localStorage.getItem('limbyrinthSocialTokenV1')),access);
     }finally{await tab.close();}
@@ -351,8 +351,8 @@ test('Limbyrinth — navigateur Three.js réel', async t => {
   });
   await t.test('les modèles ont des silhouettes et animations distinctes', async () => {
     const data = await run(`ROBOT_SKINS.map(s => { const rig = creerRobot(0, 0, false, s.id); animerRobot(rig, 1, true, true); const size = new THREE.Box3().setFromObject(rig.group).getSize(new THREE.Vector3()); return { id: s.id, size: size.toArray().map(v => +v.toFixed(2)), shape: rig.shape }; })`);
-    assert.equal(data.length, 6);
-    assert.equal(new Set(data.map(v => v.shape)).size, 4);
+    assert.equal(data.length, 7);
+    assert.equal(new Set(data.map(v => v.shape)).size, 5);
     assert.ok(new Set(data.map(v => v.size.join(','))).size >= 4);
   });
   await t.test('carte et BFS : seule la bonne aile est accessible, sortie après stabilisation', async () => {

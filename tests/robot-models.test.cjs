@@ -31,6 +31,13 @@ test('GLB Blender : une scène isolée, autonome et valide',async()=>{
   }
 });
 
+test('VORTEX Python/Blender : GLB valide sans erreur ni avertissement Khronos',async()=>{
+  const b=bytes('vortex');
+  const result=await validator.validateBytes(new Uint8Array(b),{uri:'vortex.glb'});
+  assert.equal(result.issues.numErrors,0,JSON.stringify(result.issues.messages));
+  assert.equal(result.issues.numWarnings,0,JSON.stringify(result.issues.messages));
+});
+
 test('les vrais modèles remplacent les visuels sans changer le robot ni ses effets',async()=>{
   const {game}=setup();
   for(const id of ['rspectre','rsovereign']){
